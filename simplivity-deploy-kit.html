@@ -199,12 +199,15 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <select id="depSel" title="Switch deployment" hidden></select>
   <button id="newDep" title="New deployment" hidden>+ New</button>
   <span class="flex"></span>
+  <span id="whoami" class="dim" hidden></span>
   <span id="counts" class="dim"></span>
   <button id="setupBtn" hidden>Setup</button>
   <button id="lockBtn" hidden>Lock</button>
+  <button id="signOutBtn" hidden>Sign out</button>
 </header>
 
 <nav id="tabs">
+  <button data-tab="customers" hidden>Customers</button>
   <button data-tab="intro" class="on">Instructions</button>
   <button data-tab="details">Details</button>
   <button data-tab="nodes">Nodes</button>
@@ -300,10 +303,30 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 <div id="nameModal" class="overlay" hidden>
   <div class="panel" style="max-width:430px">
     <h2 id="nameTitle">New deployment</h2>
+    <div class="grid" id="nameSvcRow" hidden>
+      <label>Vendor<select id="nameVendor"></select></label>
+      <label>Service<select id="nameSvc"></select></label>
+    </div>
     <label>Deployment name<input id="nameInput" placeholder="Customer — PROD"></label>
+    <p class="hint" id="nameHint" hidden>Every deployment is one vendor plus one service — the same three services apply to every vendor.</p>
     <div class="row end">
       <button id="nameCancel">Cancel</button>
       <button id="nameSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+<div id="custModal" class="overlay" hidden>
+  <div class="panel" style="max-width:430px">
+    <h2 id="custTitle">Add customer</h2>
+    <div id="custIdRow">
+      <label>Customer name<input id="c_name" placeholder="Acme Ltd" autocomplete="off"></label>
+      <label>Customer ID (they sign in with this)<input id="c_id" class="mono" placeholder="acme" autocomplete="off"></label>
+    </div>
+    <label>Password<input id="c_pw" type="password" autocomplete="new-password"></label>
+    <div class="err" id="c_err" hidden></div>
+    <div class="row end">
+      <button id="c_cancel">Cancel</button>
+      <button id="c_save" class="primary">Create customer</button>
     </div>
   </div>
 </div>
@@ -696,7 +719,7 @@ function setPath(o, p, v){
 
 /* ================= constants ================= */
 const LS_KEY = 'svtDeployKit.v1';
-const KIT_VERSION = '1.1.0';
+const KIT_VERSION = '1.2.0';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -729,6 +752,25 @@ const DEFAULT_SETTINGS = {
   tdsynnexEmail: ''
 };
 
+/* The matrix model: every deployment is VENDOR + one SERVICE.
+   The service catalogue is vendor-independent — the same three services
+   (deployment / upgrade / expansion) apply to every vendor. Add a vendor
+   by appending its name to VENDORS; no service changes are needed. */
+const VENDORS = ['HPE SimpliVity'];
+const SERVICES = ['deployment', 'upgrade', 'expansion'];
+function serviceLabel(s){
+  return s === 'upgrade' ? 'Upgrade' : s === 'expansion' ? 'Expansion' : 'Deployment';
+}
+function serviceOfName(name){
+  const n = String(name || '').toLowerCase();
+  if (n.indexOf('upgrade') >= 0) return 'upgrade';
+  if (n.indexOf('expansion') >= 0 || n.indexOf('expand') >= 0) return 'expansion';
+  return 'deployment';
+}
+function vendorServiceLabel(d){
+  return (d.vendor || VENDORS[0]) + ' ' + serviceLabel(d.service || 'deployment');
+}
+
 /* ================= state ================= */
 let store = null;
 let aesKey = null;
@@ -736,17 +778,24 @@ let vaultSalt = null;
 let pendingEng = null;
 let pendingLegacyEngs = null;
 let pendingSection = null;
-const ui = { section: null, tab: 'intro', includeCreds: false, includeChecklist: true };
+const ui = { section: null, tab: 'intro', includeCreds: false, includeChecklist: true, legacy: false, custTab: 'picker' };
+/* Multi-customer session (GitHub-backed front end). role: null | 'customer' | 'engineer' */
+const session = { role: null, cid: null, cname: null, keyC: null, engKey: null, engSalt: null, registry: null, account: null, raw: null };
+let nameTarget = null;   // id of the deployment being renamed outside the workbook
+let custMode = 'add';    // customer modal: 'add' | 'reset'
+let custTarget = null;   // customer id when custMode === 'reset'
 let editingNodeId = null;
 let nodeDraft = null;
 let nameMode = 'new';
 let printRestore = null;
 
 /* ================= model ================= */
-function newDeployment(name){
+function newDeployment(name, vendor, service){
   return {
     id: uid(),
     name: name || 'Deployment 1',
+    vendor: vendor || VENDORS[0],
+    service: service || 'deployment',
     version: '',
     project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'' },
     checklist: {},
@@ -803,6 +852,8 @@ function normalizeDep(src){
   const dep = Object.assign({}, base, src);
   dep.id = src.id || uid();
   dep.name = src.name || 'Deployment';
+  dep.vendor = src.vendor || VENDORS[0];
+  dep.service = SERVICES.includes(src.service) ? src.service : serviceOfName(dep.name);
   dep.project = Object.assign({}, base.project, src.project || {});
   dep.checklist = Object.assign({}, src.checklist || {});
   dep.dns = Object.assign({}, base.dns, src.dns || {});
@@ -848,11 +899,11 @@ function normalizeStore(s){
   return out;
 }
 function cur(){ return store.deployments.find(d => d.id === store.currentId) || store.deployments[0]; }
-const S = () => store.settings;
+const S = () => (store && store.settings) || engSettings();
 
 function splitStore(){
   const pubs = store.deployments.map(d => ({
-    id: d.id, name: d.name, version: d.version, project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter
+    id: d.id, name: d.name, vendor: d.vendor, service: d.service, version: d.version, project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter
   }));
   const engs = store.deployments.map(d => ({
     id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter
@@ -904,13 +955,19 @@ function unb64(s){
   for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
   return u;
 }
-async function deriveKey(pw, salt){
+async function deriveKey(pw, salt, extractable){
   const enc = new TextEncoder();
   const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, !!extractable, ['encrypt','decrypt']);
 }
 async function save(){
   if (!store) return;
+  if (session.role){
+    if (session.role === 'engineer' && !session.cid && !store.deployments.length){
+      try{ localStorage.setItem('svtKit.engSettings', JSON.stringify(store.settings)); }catch(e){}   // Setup edits with no customer open
+    }
+    markDirty(); scheduleFlush(); return;
+  }
   try{
     localStorage.setItem(PUB_KEY, JSON.stringify(makePubBlob()));
     if (aesKey && vaultSalt){
@@ -929,7 +986,32 @@ function readBaked(){
   }catch(e){}
   return null;
 }
+function hasNewBlobs(){
+  try{
+    for (let i = 0; i < (localStorage.length || 0); i++){
+      const k = localStorage.key(i);
+      if (k && (k.indexOf(BLOB_PREFIX) === 0 || k === 'svtKit.ghToken')) return true;
+    }
+  }catch(e){}
+  return false;
+}
+function hasLegacyData(){
+  try{ return !!(localStorage.getItem(PUB_KEY) || localStorage.getItem(ENG_KEY) || localStorage.getItem(LS_KEY)); }catch(e){ return false; }
+}
+function hasBaked(){ const b = readBaked(); return !!(b && (b.customer || b.engineer)); }
 async function init(){
+  // Data from the previous single-user version keeps its familiar landing until
+  // the multi-customer store has been used once; new/empty browsers get the sign-in.
+  // A baked handover file carries its data in the page itself, so it counts as legacy too.
+  ui.legacy = (hasLegacyData() || hasBaked()) && !hasNewBlobs();
+  if (ui.legacy) return legacyInit();
+  store = normalizeStore({});   // empty working set; sign-in flows replace it with a scope
+  ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
+  render();
+}
+async function enterLegacy(){ ui.legacy = true; await legacyInit(); }
+function leaveLegacy(){ ui.legacy = false; ui.section = null; render(); }
+async function legacyInit(){
   let localPub = null, localEng = null;
   try{
     const p = localStorage.getItem(PUB_KEY); if (p) localPub = JSON.parse(p);
@@ -1008,6 +1090,11 @@ async function tryPassword(){
     return;
   }
   $('#unlockPw').value = '';
+  if (!ui.legacy){
+    // multi-customer mode: the team password opens the shared customer registry
+    if (section === 'customer'){ ui.section = 'customer'; $('#unlockModal').hidden = true; render(); return; }
+    return engineerSignIn(pw);
+  }
   $('#unlockModal').hidden = true;
   if (section === 'customer'){
     ui.section = 'customer';
@@ -1061,6 +1148,531 @@ function lock(){
   $('#sectionSel').hidden = true;
   $('#lockBtn').hidden = true;
   render();
+}
+
+/* ================= multi-customer store (GitHub-backed) =================
+   Blobs live in the private repo when a token is configured, otherwise in
+   localStorage — the same code path either way (localStorage always mirrors
+   as an offline cache, keyed per path so several customer files on one
+   machine never collide).
+     registry.enc                     engineer-encrypted customer index
+     customers/<id>/account.enc       customer-encrypted account + settings
+     customers/<id>/deps/<dep>.enc    pub half (customer+engineer) + eng half (engineer only) */
+const GH_CONTENTS = 'https://api.github.com/repos/MJP-76/service-deployment-matrix/contents/';
+const KIT_GH_TOKEN = '';   // baked fine-grained PAT (Contents read/write on this repo) for distributed copies
+const BLOB_PREFIX = 'svtKit.blob.';
+const REG_PATH = 'registry.enc';
+/* Acts that must work with no workbook open (landing, picker, Customers tab, Setup). */
+const SCOPE_FREE_ACTS = new Set([
+  'custSignIn', 'enterCustomer', 'enterEngineer', 'legacyMode', 'leaveLegacy', 'signOut',
+  'backToPicker', 'openCustDep', 'openCust', 'newDepFor', 'addCust', 'resetPw',
+  'renameCust', 'delCust', 'renameDepTarget', 'delDepTarget', 'saveGhToken', 'clearGhToken'
+]);
+/* Engineer-side settings when no customer scope is open (Setup edits). */
+function engSettings(){
+  try{ const s = localStorage.getItem('svtKit.engSettings'); if (s) return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(s)); }catch(e){}
+  return Object.assign({}, DEFAULT_SETTINGS);
+}
+function ensureScopelessStore(){
+  if (!store) store = { v: 1, currentId: null, deployments: [], settings: engSettings() };
+  return store;
+}
+
+function ghToken(){
+  try{ const t = localStorage.getItem('svtKit.ghToken'); if (t) return t; }catch(e){}
+  return typeof KIT_GH_TOKEN === 'string' ? KIT_GH_TOKEN : '';
+}
+function acctPath(cid){ return 'customers/' + cid + '/account.enc'; }
+function depPath(cid, did){ return 'customers/' + cid + '/deps/' + did + '.enc'; }
+function slugId(s){ return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
+function regCustomer(cid){ return session.registry && (session.registry.customers || []).find(c => c.id === cid) || null; }
+
+function cacheGet(path){
+  try{ const s = localStorage.getItem(BLOB_PREFIX + path); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function cachePut(path, text, sha){
+  try{ localStorage.setItem(BLOB_PREFIX + path, JSON.stringify({ text: text, sha: sha || null, at: Date.now() })); }
+  catch(e){ showStorageWarn(); }
+}
+function isGone(path){ try{ return localStorage.getItem('svtKit.gone.' + path) === '1'; }catch(e){ return false; } }
+function setGone(path, gone){
+  try{ if (gone) localStorage.setItem('svtKit.gone.' + path, '1'); else localStorage.removeItem('svtKit.gone.' + path); }catch(e){}
+}
+function ghHeaders(){
+  return { Authorization: 'Bearer ' + ghToken(), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
+}
+async function ghGet(path){
+  const r = await fetch(GH_CONTENTS + path, { headers: ghHeaders(), cache: 'no-store' });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('GitHub ' + r.status);
+  const j = await r.json();
+  let text = '';
+  if (j.content){
+    const bin = atob(j.content.replace(/\n/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    text = new TextDecoder().decode(bytes);
+  }
+  return { text: text, sha: j.sha };
+}
+async function ghPut(path, text, sha){
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  const body = { message: 'svtkit: update ' + path, content: btoa(bin) };
+  if (sha) body.sha = sha;
+  const r = await fetch(GH_CONTENTS + path, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error('GitHub ' + r.status);
+  const j = await r.json();
+  return j.content ? j.content.sha : null;
+}
+async function ghDelete(path, sha){
+  const r = await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: delete ' + path) + (sha ? '&sha=' + sha : ''),
+    { method: 'DELETE', headers: ghHeaders() });
+  if (!r.ok && r.status !== 404) throw new Error('GitHub ' + r.status);
+}
+/* Read a blob: fresh=true prefers GitHub (falls back to the offline cache),
+   otherwise the cache wins for speed. Returns parsed JSON or null. */
+async function blobRead(path, fresh){
+  if (isGone(path)) return null;
+  const cached = cacheGet(path);
+  if (!fresh && cached) return JSON.parse(cached.text);
+  if (ghToken()){
+    try{
+      const g = await ghGet(path);
+      if (g){ cachePut(path, g.text, g.sha); setGone(path, false); return JSON.parse(g.text); }
+      if (cached) return JSON.parse(cached.text);
+      return null;
+    }catch(e){
+      if (cached) return JSON.parse(cached.text);
+      throw e;
+    }
+  }
+  return cached ? JSON.parse(cached.text) : null;
+}
+/* Write a blob: cache always, GitHub when a token is set (offline → local only). */
+async function blobWrite(path, text){
+  const cached = cacheGet(path);
+  setGone(path, false);
+  if (!ghToken()){ cachePut(path, text, cached ? cached.sha : null); return 'local'; }
+  try{
+    let sha = null;
+    try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){ sha = cached ? cached.sha : null; }
+    const newSha = await ghPut(path, text, sha);
+    cachePut(path, text, newSha);
+    return 'github';
+  }catch(e){
+    cachePut(path, text, cached ? cached.sha : null);
+    return 'local';
+  }
+}
+async function blobDelete(path){
+  try{ localStorage.removeItem(BLOB_PREFIX + path); }catch(e){}
+  if (!ghToken()){ setGone(path, true); return 'local'; }
+  try{
+    const g = await ghGet(path);
+    if (g) await ghDelete(path, g.sha);
+    setGone(path, false);
+    return 'github';
+  }catch(e){
+    setGone(path, true);   // offline: remember locally so a later fresh read cannot resurrect it
+    return 'local';
+  }
+}
+
+/* --- AES-GCM envelope helpers --- */
+function rndBytes(n){ return crypto.getRandomValues(new Uint8Array(n)); }
+async function aesEncrypt(key, data){
+  const iv = rndBytes(12);
+  const pt = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, pt);
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function aesDecrypt(key, o){
+  return await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(o.iv) }, key, unb64(o.ct));
+}
+async function sealBlob(key, salt, obj){
+  const o = await aesEncrypt(key, JSON.stringify(obj));
+  return { v: 1, salt: b64(salt), iv: o.iv, ct: o.ct };
+}
+async function openBlob(key, blob){
+  return JSON.parse(new TextDecoder().decode(await aesDecrypt(key, blob)));
+}
+async function importKey(b64key){
+  return crypto.subtle.importKey('raw', unb64(b64key), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+async function importKeyC(c){ return importKey(c.keyC); }
+
+/* --- deployment halves: pub is wrapped for customer AND engineer, eng for engineer only --- */
+function pubHalf(d){
+  return { id: d.id, name: d.name, vendor: d.vendor, service: d.service, version: d.version,
+    project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter,
+    engineer: d.engineer, updatedAt: Date.now() };
+}
+function engHalf(d){
+  return { id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter };
+}
+async function sealDep(pub, eng, keyC, keyE){
+  const dekP = rndBytes(32), dekE = rndBytes(32);
+  const dekPk = await importKey(b64(dekP));
+  const dekEk = await importKey(b64(dekE));
+  const p = await aesEncrypt(dekPk, JSON.stringify(pub));
+  const e = await aesEncrypt(dekEk, JSON.stringify(eng));
+  return { v: 1,
+    pub: { wc: await aesEncrypt(keyC, dekP), we: await aesEncrypt(keyE, dekP), iv: p.iv, ct: p.ct },
+    eng: { w: await aesEncrypt(keyE, dekE), iv: e.iv, ct: e.ct } };
+}
+async function depDecrypt(key, wrap, box){
+  const dek = await aesDecrypt(key, wrap);
+  const dekK = await importKey(b64(new Uint8Array(dek)));
+  return JSON.parse(new TextDecoder().decode(await aesDecrypt(dekK, box)));
+}
+async function openDepPub(file, keyC){ return depDecrypt(keyC, file.pub.wc, file.pub); }
+async function openDepPubE(file, keyE){ return depDecrypt(keyE, file.pub.we, file.pub); }
+async function openDepEng(file, keyE){ return depDecrypt(keyE, file.eng.w, file.eng); }
+async function depPubUpdate(file, pub, keyC){
+  const dek = await aesDecrypt(keyC, file.pub.wc);
+  const o = await aesEncrypt(await importKey(b64(new Uint8Array(dek))), JSON.stringify(pub));
+  file.pub.iv = o.iv; file.pub.ct = o.ct;
+  return file;
+}
+async function depEngUpdate(file, eng, keyE){
+  const dek = await aesDecrypt(keyE, file.eng.w);
+  const o = await aesEncrypt(await importKey(b64(new Uint8Array(dek))), JSON.stringify(eng));
+  file.eng.iv = o.iv; file.eng.ct = o.ct;
+  return file;
+}
+
+/* --- registry / account --- */
+async function writeRegistry(){
+  if (!session.registry || !session.engKey || !session.engSalt) return;
+  const blob = await sealBlob(session.engKey, session.engSalt, session.registry);
+  await blobWrite(REG_PATH, JSON.stringify(blob));
+}
+function stubsFor(cid){
+  const partial = session.role === 'customer';
+  const src = partial ? session.account : regCustomer(cid);
+  const byId = {};
+  if (partial) (src && src.deployments || []).forEach(s => { byId[s.id] = Object.assign({}, s); });
+  if (session.missingStubs) session.missingStubs.forEach(s => { if (!byId[s.id]) byId[s.id] = Object.assign({}, s); });
+  if (store && session.cid === cid){
+    store.deployments.forEach(d => {
+      byId[d.id] = { id: d.id, name: d.name, vendor: d.vendor, service: d.service,
+        company: (d.project && d.project.company) || '', updatedAt: Date.now() };
+    });
+  }
+  return Object.values(byId);
+}
+async function writeAccount(){
+  const cid = session.cid;
+  if (!cid || !session.acctSalt) return;
+  const keyC = session.role === 'customer' ? session.keyC : await importKeyC(regCustomer(cid));
+  if (!keyC) return;
+  const acct = { v: 1, id: cid,
+    name: session.role === 'customer' ? (session.account && session.account.name) : ((regCustomer(cid) || {}).name),
+    settings: store ? store.settings : (session.account && session.account.settings),
+    deployments: stubsFor(cid) };
+  if (session.role === 'customer') session.account = acct;
+  else if (session.account) session.account = acct;
+  await blobWrite(acctPath(cid), JSON.stringify(await sealBlob(keyC, session.acctSalt, acct)));
+}
+async function writeDep(d){
+  const cid = session.cid;
+  if (!cid || !session.engKey) return;
+  const keyC = await importKeyC(regCustomer(cid));
+  const path = depPath(cid, d.id);
+  let file = session.raw && session.raw.get ? session.raw.get(d.id) : null;
+  try{
+    if (file){
+      file = await depPubUpdate(file, pubHalf(d), keyC);
+      file = await depEngUpdate(file, engHalf(d), session.engKey);
+    } else {
+      file = await sealDep(pubHalf(d), engHalf(d), keyC, session.engKey);
+    }
+  }catch(e){
+    file = await sealDep(pubHalf(d), engHalf(d), keyC, session.engKey);   // unreadable old wraps → full reseal
+  }
+  await blobWrite(path, JSON.stringify(file));
+  if (session.raw && session.raw.set) session.raw.set(d.id, file);
+}
+async function writeDepPub(d){
+  const cid = session.cid;
+  if (!cid || !session.raw) return;
+  try{
+    const file = await depPubUpdate(session.raw, pubHalf(d), session.keyC);
+    await blobWrite(depPath(cid, d.id), JSON.stringify(file));
+    session.raw = file;
+  }catch(e){ /* cannot rewrap — leave the stored copy untouched */ }
+}
+
+/* --- debounced sync (edits cache immediately, GitHub follows) --- */
+const dirty = { registry: false, account: false, deps: new Set() };
+let syncTimer = null;
+function markDirty(){
+  dirty.registry = true;
+  dirty.account = true;
+  const d = store && cur();
+  if (d) dirty.deps.add(d.id);
+}
+function scheduleFlush(delay){
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { syncTimer = null; flushSync().catch(() => {}); }, delay || 700);
+}
+async function flushSync(){
+  if (syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+  if (!session.role) return;
+  const deps = dirty.deps; dirty.deps = new Set();
+  const didReg = dirty.registry; dirty.registry = false;
+  const didAcct = dirty.account; dirty.account = false;
+  if (session.cid && store){
+    for (const d of store.deployments){
+      if (!deps.has(d.id)) continue;
+      try{
+        if (session.role === 'customer') await writeDepPub(d);
+        else await writeDep(d);
+      }catch(e){ dirty.deps.add(d.id); }
+    }
+  }
+  if (session.role === 'engineer' && session.cid){
+    const c = regCustomer(session.cid);
+    if (c) c.deployments = stubsFor(session.cid);   // registry index converges on the open scope
+  }
+  if (didAcct && session.cid){ try{ await writeAccount(); }catch(e){ dirty.account = true; } }
+  if (didReg && session.role === 'engineer'){ try{ await writeRegistry(); }catch(e){ dirty.registry = true; } }
+  if (dirty.deps.size || dirty.registry || dirty.account) scheduleFlush(5000);
+}
+async function saveNow(){ markDirty(); await flushSync(); }
+async function signOut(){
+  try{ await flushSync(); }catch(e){}
+  if (syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+  session.role = null; session.cid = null; session.cname = null;
+  session.keyC = null; session.engKey = null; session.engSalt = null;
+  session.registry = null; session.account = null; session.raw = null;
+  session.acctSalt = null; session.missingStubs = null;
+  store = null; aesKey = null; vaultSalt = null;
+  pendingEng = null; pendingLegacyEngs = null; pendingSection = null;
+  dirty.registry = false; dirty.account = false; dirty.deps = new Set();
+  ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
+  $('#main').innerHTML = '';
+  $('#depSel').innerHTML = '';
+  $('#counts').textContent = '';
+  render();
+}
+
+/* --- sign-in flows --- */
+async function customerSignIn(){
+  const errEl = $('#custErr');
+  errEl.hidden = true;
+  const cid = slugId($('#custIdIn').value);
+  const pw = $('#custPwIn').value;
+  if (!cid || !pw){ errEl.hidden = false; errEl.textContent = 'Enter your customer ID and password'; return; }
+  let raw;
+  try{ raw = await blobRead(acctPath(cid), true); }
+  catch(e){ errEl.hidden = false; errEl.textContent = 'Cannot reach the shared store — check your connection'; return; }
+  if (!raw){ errEl.hidden = false; errEl.textContent = 'No customer account with that ID'; return; }
+  let key, acct;
+  try{
+    key = await deriveKey(pw, unb64(raw.salt));
+    acct = await openBlob(key, raw);
+  }catch(e){
+    errEl.hidden = false; errEl.textContent = 'Wrong password for that customer ID';
+    $('#custPwIn').select();
+    return;
+  }
+  session.role = 'customer'; session.cid = cid; session.cname = acct.name || cid;
+  session.keyC = key; session.account = acct; session.acctSalt = unb64(raw.salt);
+  session.engKey = null; session.engSalt = null; session.registry = null;
+  session.raw = null; session.missingStubs = null;
+  store = null;
+  ui.section = 'customer'; ui.custTab = 'picker'; ui.tab = 'intro';
+  $('#custPwIn').value = '';
+  render();
+  toast('Welcome, ' + (acct.name || cid));
+}
+async function engineerSignIn(pw){
+  const errEl = $('#unlockErr');
+  let raw = null;
+  try{ raw = await blobRead(REG_PATH, true); }
+  catch(e){
+    errEl.hidden = false;
+    errEl.textContent = 'Cannot reach the shared store — check your connection';
+    return;
+  }
+  let reg;
+  try{
+    if (!raw){
+      session.engSalt = rndBytes(16);
+      session.engKey = await deriveKey(pw, session.engSalt);
+      reg = { v: 1, customers: [] };
+    } else {
+      session.engSalt = unb64(raw.salt);
+      session.engKey = await deriveKey(pw, session.engSalt);
+      reg = await openBlob(session.engKey, raw);
+    }
+  }catch(e){
+    errEl.hidden = false;
+    errEl.textContent = 'Could not open the customer registry with this password';
+    $('#unlockPw').select();
+    return;
+  }
+  session.role = 'engineer'; session.registry = reg;
+  session.cid = null; session.cname = null; session.account = null;
+  session.keyC = null; session.raw = null; session.acctSalt = null; session.missingStubs = null;
+  store = null;
+  ui.section = 'engineer'; ui.tab = 'customers'; ui.custTab = 'picker';
+  $('#unlockModal').hidden = true;
+  if (!raw) await writeRegistry();
+  render();
+  toast('Signed in — create and manage customers on the Customers tab');
+}
+
+/* --- customer scope --- */
+function scopeStore(deps){
+  const settings = (session.account && session.account.settings) ||
+    (store && store.settings) || Object.assign({}, DEFAULT_SETTINGS);
+  return { v: 1, currentId: deps.length ? deps[0].id : null, deployments: deps, settings: settings };
+}
+async function openCustomer(cid){
+  const c = regCustomer(cid);
+  if (!c) throw new Error('unknown customer');
+  session.cid = cid;
+  session.cname = c.name;
+  session.keyC = await importKeyC(c);
+  session.raw = new Map();
+  session.missingStubs = [];
+  session.account = null;
+  try{
+    const raw = await blobRead(acctPath(cid), true);
+    if (raw){
+      session.acctSalt = unb64(raw.salt);
+      session.account = await openBlob(session.keyC, raw);
+    }
+  }catch(e){ /* account unreadable → fall back to the registry index */ }
+  if (!session.account) session.account = { v: 1, id: cid, name: c.name, deployments: c.deployments || [] };
+  const stubs = session.account.deployments || [];
+  const deps = [];
+  for (const s of stubs){
+    try{
+      const raw = await blobRead(depPath(cid, s.id), true);
+      if (!raw) throw new Error('missing');
+      const pub = await openDepPubE(raw, session.engKey);
+      const eng = await openDepEng(raw, session.engKey);
+      deps.push(normalizeDep(Object.assign({}, pub, eng)));
+      session.raw.set(s.id, raw);
+    }catch(e){ session.missingStubs.push(s); }   // keep the stub so a partial load never drops it
+  }
+  store = deps.length ? scopeStore(deps) : null;
+  ui.tab = store ? 'intro' : 'customers';
+  render();
+  return deps.length;
+}
+async function openCustomerDep(did){
+  const cid = session.cid;
+  let raw;
+  try{ raw = await blobRead(depPath(cid, did), true); }
+  catch(e){ return toast('Cannot reach the shared store — check your connection', true); }
+  if (!raw) return toast('That deployment is no longer available', true);
+  let pub;
+  try{ pub = await openDepPub(raw, session.keyC); }
+  catch(e){ return toast('Could not open this deployment with your password', true); }
+  session.raw = raw;
+  store = scopeStore([normalizeDep(pub)]);
+  ui.custTab = 'workbook';
+  render();
+}
+async function createDeployment(vendor, service, name){
+  const cid = session.cid;
+  const c = cid && regCustomer(cid);
+  if (!c || !session.engKey){ $('#nameModal').hidden = true; return toast('Open a customer first', true); }
+  const keyC = await importKeyC(c);
+  const dep = newDeployment(name, vendor, service);
+  const file = await sealDep(pubHalf(dep), engHalf(dep), keyC, session.engKey);
+  await blobWrite(depPath(cid, dep.id), JSON.stringify(file));
+  if (!session.raw || !session.raw.set) session.raw = new Map();
+  session.raw.set(dep.id, file);
+  if (!store) store = scopeStore([dep]);
+  else { store.deployments.push(dep); store.currentId = dep.id; }
+  dirty.registry = true; dirty.account = true;
+  await flushSync();
+  ui.tab = 'details';
+  render();
+  toast('Deployment created — ' + vendor + ' ' + serviceLabel(service));
+}
+async function addCustomer(){
+  const errEl = $('#c_err');
+  errEl.hidden = true;
+  const name = $('#c_name').value.trim();
+  const id = slugId($('#c_id').value);
+  const pw = $('#c_pw').value;
+  if (!name){ errEl.hidden = false; errEl.textContent = 'Customer name is required'; return; }
+  if (!id || id.length < 2){ errEl.hidden = false; errEl.textContent = 'Customer ID must be at least 2 characters (letters, numbers, - or _)'; return; }
+  if (!pw || pw.length < 6){ errEl.hidden = false; errEl.textContent = 'Password must be at least 6 characters'; return; }
+  if (regCustomer(id)){ errEl.hidden = false; errEl.textContent = 'That customer ID already exists'; return; }
+  const salt = rndBytes(16);
+  const keyC = await deriveKey(pw, salt, true);
+  const rawKey = await crypto.subtle.exportKey('raw', keyC);
+  const acct = { v: 1, id: id, name: name, settings: Object.assign({}, DEFAULT_SETTINGS), deployments: [] };
+  await blobWrite(acctPath(id), JSON.stringify(await sealBlob(keyC, salt, acct)));
+  (session.registry.customers = session.registry.customers || []).push(
+    { id: id, name: name, keyC: b64(rawKey), salt: b64(salt), deployments: [] });
+  await writeRegistry();
+  $('#custModal').hidden = true;
+  render();
+  toast('Customer created — sign-in ID "' + id + '" (share it with the password you chose)');
+}
+async function delCustomer(cid){
+  const c = regCustomer(cid);
+  if (!c) return;
+  if (!confirm('Delete customer "' + c.name + '" and ALL of their deployments?')) return;
+  if (!confirm('This cannot be undone (export a backup first). Really delete?')) return;
+  for (const s of (c.deployments || [])){ try{ await blobDelete(depPath(cid, s.id)); }catch(e){} }
+  try{ await blobDelete(acctPath(cid)); }catch(e){}
+  session.registry.customers = (session.registry.customers || []).filter(x => x.id !== cid);
+  await writeRegistry();
+  if (session.cid === cid){
+    session.cid = null; session.cname = null; session.account = null;
+    session.raw = null; session.acctSalt = null; session.keyC = null; session.missingStubs = null;
+    store = null; ui.tab = 'customers';
+  }
+  render();
+  toast('Customer deleted');
+}
+async function resetCustomerPassword(cid){
+  const errEl = $('#c_err');
+  errEl.hidden = true;
+  const c = regCustomer(cid);
+  if (!c) return;
+  const pw = $('#c_pw').value;
+  if (!pw || pw.length < 6){ errEl.hidden = false; errEl.textContent = 'Password must be at least 6 characters'; return; }
+  const oldKey = await importKeyC(c);
+  const salt = rndBytes(16);
+  const newKey = await deriveKey(pw, salt, true);
+  const rawKey = await crypto.subtle.exportKey('raw', newKey);
+  // re-wrap every deployment's pub half for the new key (eng wraps are untouched)
+  for (const s of (c.deployments || [])){
+    try{
+      const raw = await blobRead(depPath(cid, s.id), true);
+      if (!raw) continue;
+      const dek = await aesDecrypt(oldKey, raw.pub.wc);
+      raw.pub.wc = await aesEncrypt(newKey, new Uint8Array(dek));
+      await blobWrite(depPath(cid, s.id), JSON.stringify(raw));
+    }catch(e){ /* skip unreadable */ }
+  }
+  // reseal the account
+  try{
+    const raw = await blobRead(acctPath(cid), true);
+    if (raw){
+      const acct = await openBlob(oldKey, raw);
+      await blobWrite(acctPath(cid), JSON.stringify(await sealBlob(newKey, salt, acct)));
+    }
+  }catch(e){ /* no account yet */ }
+  c.keyC = b64(rawKey);
+  c.salt = b64(salt);
+  if (session.cid === cid){ session.keyC = newKey; session.acctSalt = salt; }
+  await writeRegistry();
+  $('#custModal').hidden = true;
+  render();
+  toast('Password updated for ' + c.name);
 }
 /* ================= shortcuts ================= */
 function webUrl(host, port, path){
@@ -1698,8 +2310,19 @@ async function importCustomerFile(file){
 }
 async function saveIntoFile(){
   await save();
-  const pub = localStorage.getItem(PUB_KEY);
-  const eng = localStorage.getItem(ENG_KEY);
+  let pub = localStorage.getItem(PUB_KEY);
+  let eng = localStorage.getItem(ENG_KEY);
+  if (session.role){
+    // Multi-customer mode: bake the CURRENT scope in the legacy pub/eng split so a
+    // colleague can open this file offline — their team-password unlock re-derives the
+    // same key from the baked registry salt, so the engineer half decrypts as before.
+    if (!store || !store.deployments.length || !session.engKey) return toast('Open a customer deployment first', true);
+    pub = JSON.stringify(makePubBlob());
+    const { engs } = splitStore();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, session.engKey, new TextEncoder().encode(JSON.stringify(engs)));
+    eng = JSON.stringify({ enc:1, salt: b64(session.engSalt), iv: b64(iv), ct: b64(ct) });
+  }
   const payload = JSON.stringify({
     customer: pub ? JSON.parse(pub) : null,
     engineer: eng ? JSON.parse(eng) : null
@@ -1969,8 +2592,15 @@ function vcHtml(){
   '</div>';
 }
 function setupHtml(){
-  const d = cur();
+  const d = store ? cur() : null;
   return '<div class="pane">' +
+    '<section class="card"><h2>Shared store (GitHub)</h2>' +
+      '<p class="hint">A fine-grained personal access token scoped to <b>MJP-76/service-deployment-matrix</b> (Repository permissions: Contents — read and write) lets this copy sync the encrypted customer, account and deployment files through GitHub. Leave it empty to keep everything in this browser only. The token is saved in this browser\'s localStorage; copies handed to customers can carry one baked in instead.</p>' +
+      '<div class="grid"><label>GitHub token<input id="s_ghToken" type="password" value="" placeholder="' + (ghToken() ? '•••••••• token set' : 'ghp_…') + '" autocomplete="off"></label></div>' +
+      '<div class="row"><button data-act="saveGhToken" class="primary">Save token</button>' +
+      '<button data-act="clearGhToken">Clear token</button>' +
+      '<span class="hint">' + (ghToken() ? 'Connected — files sync with GitHub.' : 'Not connected — data stays in this browser.') + '</span></div>' +
+    '</section>' +
     '<section class="card"><h2>Launcher kit (portable PuTTY / WinSCP + Deploy &amp; Upgrade Manager)</h2>' +
       '<p class="hint">Everything lives in one folder — <code>' + esc(S().installDir || DEFAULT_SETTINGS.installDir) + '</code> — which is also where the Upgrade Manager runs from. Portable PuTTY and WinSCP sit next to the launcher. The Deployment and Upgrade Manager are <b>found automatically</b> because their name and folder change with each installed version; set a path only to override the search.</p>' +
       '<div class="grid">' +
@@ -2041,18 +2671,20 @@ function setupHtml(){
       '<p class="hint">Every load asks for the section password: the Customer Engineer password opens the customer details; the Deployment Engineer password opens networks, credentials, nodes, vCenter, XML and documents. The deployment data is stored encrypted under its password.</p>' +
     '</section>' +
 
-    '<section class="card"><h2>Deployment &amp; data</h2><div class="row">' +
-      '<button data-act="renameDep">Rename…</button>' +
-      '<button data-act="exportJson">Export JSON backup</button>' +
-      '<button data-act="importJson">Import JSON</button>' +
-      '<button data-act="demo">Load demo data</button>' +
-      '<button data-act="delDep" class="danger">Delete deployment…</button>' +
-    '</div><p class="hint">JSON exports include credentials in clear text — store them carefully. Current deployment: <b>' + esc(d.name) + '</b> (' + d.nodes.length + ' nodes).</p></section>' +
+    '<section class="card"><h2>Deployment &amp; data</h2>' +
+      (d ? '<div class="row">' +
+        '<button data-act="renameDep">Rename…</button>' +
+        '<button data-act="exportJson">Export JSON backup</button>' +
+        '<button data-act="importJson">Import JSON</button>' +
+        '<button data-act="demo">Load demo data</button>' +
+        '<button data-act="delDep" class="danger">Delete deployment…</button>' +
+      '</div>' : '<p class="hint">Open a customer first — the deployment actions appear once a workbook is loaded.</p>') +
+      '<p class="hint">JSON exports include credentials in clear text — store them carefully. Current deployment: <b>' + (d ? esc(d.name) + '</b> (' + d.nodes.length + ' nodes)' : 'none open</b>') + '.</p></section>' +
   '</div>';
 }
 
-function landingHtml(){
-  const d = store.deployments.find(x => x.id === store.currentId) || store.deployments[0];
+function legacyLandingHtml(){
+  const d = store && (store.deployments.find(x => x.id === store.currentId) || store.deployments[0]);
   const hasData = d && (d.project.company || d.nodes.length);
   const logo = S().logoData
     ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
@@ -2066,16 +2698,108 @@ function landingHtml(){
         '<div class="gate-card"><h2>Customer Engineer</h2><p>Company details, site contacts, the pre-flight checklist and the NTP / DNS servers — then email them to TD SYNNEX.</p><button data-act="enterCustomer" class="primary">Continue →</button></div>' +
         '<div class="gate-card"><h2>Deployment Engineer</h2><p>Network plans, credentials, Sections 1–6 per node, vCenter &amp; Arbiter, XML and the deployment documents.</p><button data-act="enterEngineer" class="primary">Unlock →</button></div>' +
       '</div>' +
-      '<p class="hint" style="text-align:center;margin-bottom:0">Everything saves as you go — use Setup → Save into file before handing this file to a colleague.</p>' +
+      '<p class="hint" style="text-align:center;margin-bottom:0">Everything saves as you go — use Setup → Save into file before handing this file to a colleague. <a href="#" data-act="leaveLegacy">Back to sign in</a></p>' +
     '</div></div>';
+}
+function landingHtml(){
+  const st = (store && store.settings) || DEFAULT_SETTINGS;
+  const logo = st.logoData
+    ? '<img class="doc-logo" src="' + esc(st.logoData) + '" alt="TD SYNNEX">'
+    : '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  return '<div class="pane">' +
+    '<div class="doc landing-card">' +
+      '<div class="dochead"><div class="dochead-logo">' + logo + '</div>' +
+      '<div class="dochead-text"><h1>SimpliVity deployment workbook</h1>' +
+      '<div class="docmeta">Sign in to continue — each customer sees only the deployments created for them.</div></div></div>' +
+      '<div class="gate-grid">' +
+        '<div class="gate-card"><h2>Customer sign in</h2>' +
+          '<p>Use the customer ID and password issued by TD SYNNEX.</p>' +
+          '<label>Customer ID<input id="custIdIn" class="mono" autocomplete="username" placeholder="acme"></label>' +
+          '<label>Password<input id="custPwIn" type="password" autocomplete="current-password"></label>' +
+          '<div class="err" id="custErr" hidden></div>' +
+          '<button data-act="custSignIn" class="primary">Sign in →</button></div>' +
+        '<div class="gate-card"><h2>Deployment Engineer</h2>' +
+          '<p>Create customers and their deployments, then work the network plans, credentials, Sections 1–6 per node, vCenter &amp; Arbiter, XML and documents.</p>' +
+          '<button data-act="enterEngineer" class="primary">Unlock →</button></div>' +
+      '</div>' +
+      '<p class="hint" style="text-align:center;margin-bottom:0">Every deployment is one vendor plus one service — deployment, upgrade or expansion — the same three services for every vendor.' +
+        ((hasLegacyData() || hasBaked()) ? ' <a href="#" data-act="legacyMode">Open saved data from the previous version</a>' : '') + '</p>' +
+    '</div></div>';
+}
+function pickerHtml(){
+  const acct = session.account || { deployments: [] };
+  const stubs = acct.deployments || [];
+  const cards = stubs.length
+    ? stubs.map(s =>
+      '<div class="gate-card" data-act="openCustDep" data-id="' + esc(s.id) + '" style="cursor:pointer;text-align:left">' +
+        '<h3>' + esc(s.name) + '</h3>' +
+        '<p class="hint">' + esc(s.vendor || VENDORS[0]) + ' · ' + serviceLabel(s.service) + (s.company ? ' · ' + esc(s.company) : '') + '</p>' +
+        '<p class="hint">' + (s.updatedAt ? 'Updated ' + new Date(s.updatedAt).toLocaleDateString() : '&nbsp;') + '</p>' +
+      '</div>').join('')
+    : '<p class="hint">No deployments yet — TD SYNNEX is preparing yours. Check back soon.</p>';
+  return '<div class="pane">' +
+    '<div class="rolehead"><h2>My deployments</h2>' +
+      '<p class="hint">Signed in as <b>' + esc(session.cname || session.cid) + '</b> — choose a deployment to open its workbook.</p>' +
+      '<div class="row"><button data-act="signOut">Sign out</button></div></div>' +
+    '<div class="gate-grid">' + cards + '</div>' +
+  '</div>';
+}
+function transportHtml(){
+  const t = ghToken();
+  return '<section class="card"><h2>Shared store</h2><p class="hint">' +
+    (t
+      ? 'GitHub: <b>MJP-76/service-deployment-matrix</b> — encrypted customer files sync there; this browser keeps an offline copy.'
+      : 'Local only — no GitHub token in this copy. Data stays encrypted in this browser. Add a fine-grained token (Contents: read/write on the repo) in Setup to sync through GitHub.') +
+    '</p></section>';
+}
+function customersHtml(){
+  const reg = session.registry || { customers: [] };
+  const list = (reg.customers || []).map(c => {
+    const deps = c.deployments || [];
+    const depRows = deps.length
+      ? deps.map(s =>
+        '<div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap">' +
+          '<span>' + esc(s.name) + ' <span class="hint">(' + esc(s.vendor || VENDORS[0]) + ' · ' + serviceLabel(s.service) + ')</span></span>' +
+          '<span class="row">' +
+            '<button data-act="openCust" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Open</button>' +
+            '<button data-act="renameDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Rename…</button>' +
+            '<button data-act="delDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Delete</button>' +
+          '</span></div>').join('')
+      : '<p class="hint">No deployments yet.</p>';
+    return '<section class="card"><h2>' + esc(c.name) + '</h2>' +
+      '<p class="hint">Customer ID: <b class="mono">' + esc(c.id) + '</b> · they sign in with this ID and their password.</p>' +
+      depRows +
+      '<div class="row" style="flex-wrap:wrap">' +
+        '<button data-act="newDepFor" data-id="' + esc(c.id) + '" class="primary">+ New deployment</button>' +
+        '<button data-act="openCust" data-id="' + esc(c.id) + '">Open</button>' +
+        '<button data-act="renameCust" data-id="' + esc(c.id) + '">Rename…</button>' +
+        '<button data-act="resetPw" data-id="' + esc(c.id) + '">Set password…</button>' +
+        '<button data-act="delCust" data-id="' + esc(c.id) + '" class="danger">Delete…</button>' +
+      '</div></section>';
+  }).join('');
+  return '<div class="pane">' +
+    '<div class="rolehead"><h2>Customers</h2>' +
+      '<p class="hint">Each customer signs in with their own ID and password and sees only the deployments created for them. Every deployment is one vendor plus one of the three services — deployment, upgrade or expansion — the same services for every vendor.</p>' +
+      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
+    transportHtml() +
+    (list || '<section class="card"><p class="hint">No customers yet — add your first with <b>+ Add customer</b>.</p></section>') +
+  '</div>';
 }
 function customerDetailsHtml(){
   const d = cur();
+  if (!d){ ui.custTab = 'picker'; return pickerHtml(); }
   const p = d.project;
   const v = d.vcenter;
+  const custMode = session.role === 'customer';
+  const hint = custMode
+    ? 'Fill in the details below — everything saves as you go to the shared store. When finished, email them to TD SYNNEX; the deployment engineer takes it from there.'
+    : 'Fill in the details below — everything saves as you go. Use <b>+ New</b> in the header to add another site / cluster, and the dropdown beside it to switch between them. When finished, email them to TD SYNNEX; the deployment engineer takes it from there.';
+  const head = custMode
+    ? '<div class="row"><button data-act="backToPicker">← All my deployments</button><button data-act="renameDep">Rename this site…</button></div>'
+    : '<div class="row"><button data-act="renameDep">Rename this site…</button></div>';
   return '<div class="pane">' +
-  '<div class="rolehead"><h2>Customer Engineer</h2><p class="hint">Fill in the details below — everything saves as you go. Use <b>+ New</b> in the header to add another site / cluster, and the dropdown beside it to switch between them. When finished, email them to TD SYNNEX; the deployment engineer takes it from there.</p>' +
-    '<div class="row"><button data-act="renameDep">Rename this site…</button></div></div>' +
+  '<div class="rolehead"><h2>' + (custMode ? esc(d.name) : 'Customer Engineer') + '</h2><p class="hint">' + hint + '</p>' +
+    head + '</div>' +
   '<section class="card"><h2>Customer &amp; Project</h2><div class="grid">' +
     '<label>Company<input data-bind="project.company" value="' + esc(p.company) + '"></label>' +
     '<label>Project name<input data-bind="version" value="' + esc(d.version) + '"></label>' +
@@ -2136,34 +2860,48 @@ function advancedHtml(){
 
 /* ================= render ================= */
 function render(){
-  if (!store) return;
   const section = ui.section;
-  $('#depSel').hidden = !section;
-  $('#newDep').hidden = !section;
-  $('#counts').hidden = !section;
+  const newMode = !!session.role;
+  const isEng = section === 'engineer';
+  const scoped = !!(store && store.deployments.length);   // a real workbook, not an empty/Setup-only store
+  if (newMode && isEng && !scoped && ui.tab !== 'setup') ui.tab = 'customers';
+  $('#depSel').hidden = !section || !scoped || (newMode && session.role === 'customer');
+  $('#newDep').hidden = !section || !scoped || (newMode && session.role === 'customer');
+  $('#counts').hidden = !section || !scoped;
   $('#setupBtn').hidden = section !== 'engineer';
-  $('#sectionSel').hidden = !section;
-  $('#lockBtn').hidden = !aesKey;
+  $('#sectionSel').hidden = !section || newMode;
+  $('#lockBtn').hidden = !aesKey || newMode;
+  $('#signOutBtn').hidden = !newMode || !section;
+  $('#whoami').hidden = !newMode || !section;
+  if (newMode && section){
+    $('#whoami').textContent = session.role === 'customer'
+      ? (session.cname || session.cid || '')
+      : ('Deployment Engineer' + (session.cname ? ' · ' + session.cname : ''));
+  }
   const ss = $('#sectionSel');
-  if (ss && section) ss.value = section;
+  if (ss && section && !newMode) ss.value = section;
   const bl = $('#brandLogo');
   bl.innerHTML = '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
   const sel = $('#depSel');
-  if (section){
+  if (section && store){
     sel.innerHTML = store.deployments.map(d =>
       '<option value="' + d.id + '"' + (d.id === store.currentId ? ' selected' : '') + '>' + esc(d.name) + '</option>'
     ).join('');
-    $('#counts').textContent = cur().version || '';
+    $('#counts').textContent = cur() ? (cur().version || '') : '';
   } else {
     sel.innerHTML = '';
     $('#counts').textContent = '';
   }
   const tabs = $('#tabs');
-  tabs.hidden = section !== 'engineer';
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  tabs.hidden = !isEng;
+  document.querySelectorAll('#tabs button').forEach(b => {
+    b.classList.toggle('on', b.dataset.tab === ui.tab);
+    b.hidden = b.dataset.tab === 'customers' && !newMode;
+    b.disabled = !!(newMode && !scoped && b.dataset.tab !== 'customers');
+  });
   const m = $('#main');
-  if (!section) m.innerHTML = landingHtml();
-  else if (section === 'customer') m.innerHTML = customerDetailsHtml();
+  if (!section) m.innerHTML = ui.legacy ? legacyLandingHtml() : landingHtml();
+  else if (section === 'customer') m.innerHTML = (session.role === 'customer' && ui.custTab === 'picker') ? pickerHtml() : customerDetailsHtml();
   else if (ui.tab === 'intro') m.innerHTML = introHtml();
   else if (ui.tab === 'details') m.innerHTML = detailsHtml();
   else if (ui.tab === 'nodes') m.innerHTML = nodesHtml();
@@ -2171,10 +2909,15 @@ function render(){
   else if (ui.tab === 'doc') m.innerHTML = docPaneHtml();
   else if (ui.tab === 'advanced') m.innerHTML = advancedHtml();
   else if (ui.tab === 'setup') m.innerHTML = setupHtml();
+  else if (ui.tab === 'customers') m.innerHTML = customersHtml();
   const vs = $('#vaultStatus');
-  if (vs) vs.textContent = aesKey
-    ? 'Deployment Engineer section: unlocked for this session.'
-    : 'Sections locked — a password is required on every load.';
+  if (vs) vs.textContent = newMode
+    ? (session.role === 'customer'
+      ? 'Signed in as ' + (session.cname || session.cid) + ' — your entries sync to the shared store.'
+      : 'Deployment Engineer signed in — customers sync to the shared store.')
+    : (aesKey
+      ? 'Deployment Engineer section: unlocked for this session.'
+      : 'Sections locked — a password is required on every load.');
 }
 function gotoTab(t){ ui.tab = t; render(); window.scrollTo({ top:0 }); }
 
@@ -2330,12 +3073,43 @@ async function delNode(id){
 }
 
 /* ================= name modal ================= */
-function openNameModal(mode){
+function todayStamp(){ return new Date().toISOString().slice(0, 10); }
+function fillNameSelects(vendor, service){
+  const vs = $('#nameVendor'), ss = $('#nameSvc');
+  if (vs){ vs.innerHTML = VENDORS.map(v => '<option value="' + esc(v) + '"' + (v === vendor ? ' selected' : '') + '>' + esc(v) + '</option>').join(''); vs.value = vendor; }
+  if (ss){ ss.innerHTML = SERVICES.map(s => '<option value="' + s + '"' + (s === service ? ' selected' : '') + '>' + serviceLabel(s) + '</option>').join(''); ss.value = service; }
+}
+function openNameModal(mode, targetId){
   nameMode = mode;
-  $('#nameTitle').textContent = mode === 'new' ? 'New deployment' : mode === 'first' ? 'Name this deployment' : 'Rename deployment';
-  $('#nameInput').value = mode === 'rename' ? cur().name : '';
+  nameTarget = targetId || null;
+  $('#nameTitle').textContent = mode === 'new' ? 'New deployment' : mode === 'first' ? 'Name this deployment'
+    : mode === 'renameCustomer' ? 'Rename customer' : 'Rename deployment';
+  const showSvc = mode === 'new' || mode === 'first';
+  $('#nameSvcRow').hidden = !showSvc;
+  $('#nameHint').hidden = !showSvc;
+  const ref = mode === 'renameCustomer' ? null
+    : nameTarget && store ? (store.deployments.find(d => d.id === nameTarget) || null)
+    : (store ? cur() : null);
+  fillNameSelects(ref ? ref.vendor : VENDORS[0], ref ? ref.service : 'deployment');
+  const inp = $('#nameInput');
+  if (mode === 'rename' || mode === 'renameCustomer') inp.value = ref ? ref.name : '';
+  else if (mode === 'new'){
+    const v = $('#nameVendor').value, s = $('#nameSvc').value;
+    inp.value = v + ' ' + serviceLabel(s) + ' - ' + todayStamp();
+    inp.dataset.auto = 'yes';
+  } else { inp.value = ''; delete inp.dataset.auto; }
+  if (showSvc){
+    const regen = () => {
+      if (inp.dataset.auto !== 'yes') return;
+      inp.value = $('#nameVendor').value + ' ' + serviceLabel($('#nameSvc').value) + ' - ' + todayStamp();
+    };
+    const vs = $('#nameVendor'), ss = $('#nameSvc');
+    if (vs) vs.onchange = regen;
+    if (ss) ss.onchange = regen;
+    inp.oninput = () => { inp.dataset.auto = 'no'; };
+  }
   $('#nameModal').hidden = false;
-  setTimeout(() => { $('#nameInput').focus(); $('#nameInput').select(); }, 50);
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
 }
 function isPlaceholderDep(d){
   return !!d && !d.nodes.length && !d.project.company && (d.name === 'Deployment 1' || d.name === 'Deployment');
@@ -2346,21 +3120,85 @@ function maybePromptName(){
 async function saveName(){
   const v = $('#nameInput').value.trim();
   if (!v) return toast('Name is required', true);
+  const vend = ($('#nameVendor') && $('#nameVendor').value) || VENDORS[0];
+  const svc = ($('#nameSvc') && $('#nameSvc').value) || 'deployment';
+  if (nameMode === 'renameCustomer'){
+    const c = session.registry && (session.registry.customers || []).find(x => x.id === nameTarget);
+    if (!c){ $('#nameModal').hidden = true; return toast('Customer not found', true); }
+    c.name = v;
+    if (session.cid === c.id) session.cname = v;
+    try{
+      const keyC = await importKeyC(c);
+      const raw = await blobRead(acctPath(c.id), true);
+      if (raw){
+        const acct = await openBlob(keyC, raw);
+        acct.name = v;
+        await blobWrite(acctPath(c.id), JSON.stringify(await sealBlob(keyC, unb64(c.salt), acct)));
+      }
+      await writeRegistry();
+    }catch(e){ /* registry rename still applied */ }
+    $('#nameModal').hidden = true;
+    render();
+    return toast('Customer renamed');
+  }
   if (nameMode === 'new'){
-    const d = newDeployment(v);
+    if (session.role === 'engineer'){
+      $('#nameModal').hidden = true;
+      return createDeployment(vend, svc, v);
+    }
+    const d = newDeployment(v, vend, svc);
     store.deployments.push(d);
     store.currentId = d.id;
     ui.tab = 'details';
-  } else cur().name = v;
+  } else {
+    const d = nameTarget && store ? (store.deployments.find(x => x.id === nameTarget) || cur()) : cur();
+    d.name = v;
+    if (!$('#nameSvcRow').hidden){ d.vendor = vend; d.service = svc; }
+  }
   await save();
   $('#nameModal').hidden = true;
   render();
   if (nameMode === 'first') toast('Deployment named "' + v + '"');
 }
-async function delDeployment(){
-  const d = cur();
+async function delDeployment(targetId){
+  const inStore = targetId && store ? (store.deployments.find(x => x.id === targetId) || null) : null;
+  const stub = (targetId && session.missingStubs) ? (session.missingStubs.find(s => s.id === targetId) || null) : null;
+  if (targetId && !inStore && !stub) return toast('That deployment is not loaded', true);
+  const d = targetId ? (inStore || stub) : cur();
+  if (!d) return;
   if (!confirm('Delete deployment "' + d.name + '" and all its data?')) return;
   if (!confirm('This cannot be undone (export a backup first). Really delete?')) return;
+  if (targetId && !inStore && stub){
+    // stub-only delete: the file itself was missing/unreadable — drop the index entry
+    try{ await blobDelete(depPath(session.cid, targetId)); }catch(e){}
+    session.missingStubs = session.missingStubs.filter(s => s.id !== targetId);
+    await saveNow();
+    render();
+    return toast('Deployment deleted');
+  }
+  if (session.role){
+    const cid = session.cid;
+    store.deployments = store.deployments.filter(x => x.id !== d.id);
+    try{ await blobDelete(depPath(cid, d.id)); }catch(e){}
+    if (session.role === 'customer' && session.account){
+      session.account.deployments = (session.account.deployments || []).filter(s => s.id !== d.id);
+    }
+    if (session.raw && typeof session.raw.delete === 'function') session.raw.delete(d.id);
+    else session.raw = null;
+    if (!store.deployments.length){
+      store = null;
+      if (session.role === 'customer') ui.custTab = 'picker';
+      else ui.tab = 'customers';
+      await saveNow();
+      render();
+      return toast('Deployment deleted');
+    }
+    store.currentId = store.deployments[0].id;
+    await saveNow();
+    ui.tab = 'details';
+    render();
+    return toast('Deployment deleted');
+  }
   store.deployments = store.deployments.filter(x => x.id !== d.id);
   if (!store.deployments.length) store.deployments.push(newDeployment('Deployment 1'));
   store.currentId = store.deployments[0].id;
@@ -2528,6 +3366,19 @@ function wire(){
   $('#newDep').addEventListener('click', () => openNameModal('new'));
   $('#setupBtn').addEventListener('click', () => gotoTab('setup'));
   $('#lockBtn').addEventListener('click', lock);
+  $('#signOutBtn').addEventListener('click', () => signOut());
+  $('#c_save').addEventListener('click', () => custMode === 'reset' ? resetCustomerPassword(custTarget) : addCustomer());
+  $('#c_cancel').addEventListener('click', () => { $('#custModal').hidden = true; });
+  $('#c_pw').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); (custMode === 'reset' ? resetCustomerPassword(custTarget) : addCustomer()); } });
+  $('#c_name').addEventListener('input', () => {
+    const idEl = $('#c_id');
+    if (idEl.dataset.auto === 'yes') idEl.value = slugId($('#c_name').value);
+  });
+  $('#c_id').addEventListener('input', () => { $('#c_id').dataset.auto = 'no'; });
+  $('#main').addEventListener('keydown', e => {
+    if (!e.target || !e.target.id) return;
+    if ((e.target.id === 'custIdIn' || e.target.id === 'custPwIn') && e.key === 'Enter'){ e.preventDefault(); customerSignIn(); }
+  });
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => gotoTab(b.dataset.tab)));
 
   $('#main').addEventListener('change', async e => {
@@ -2545,7 +3396,7 @@ function wire(){
     }
     if (t.dataset && t.dataset.bind){
       const path = t.dataset.bind;
-      const target = path.startsWith('settings.') ? store : cur();
+      const target = path.startsWith('settings.') ? (store || ensureScopelessStore()) : cur();
       const val = t.type === 'checkbox' ? t.checked : t.value;
       setPath(target, path, val);
       if (path === 'networks.management.netmask') setPath(target, 'networks.management.hostNetmask', val);
@@ -2558,10 +3409,80 @@ function wire(){
 
   $('#main').addEventListener('click', async e => {
     const el = e.target.closest('[data-act]');
-    if (!el || !store) return;
+    if (!el) return;
     const act = el.dataset.act;
+    if (!store && !SCOPE_FREE_ACTS.has(act)) return;   // sign-in / picker / customers actions work scope-less
     if (act === 'enterCustomer'){ openGate('customer'); return; }
     if (act === 'enterEngineer'){ openGate('engineer'); return; }
+    if (act === 'custSignIn'){ await customerSignIn(); return; }
+    if (act === 'legacyMode'){ await enterLegacy(); return; }
+    if (act === 'leaveLegacy'){ leaveLegacy(); return; }
+    if (act === 'signOut'){ await signOut(); return; }
+    if (act === 'backToPicker'){
+      try{ await flushSync(); }catch(e){}
+      store = null; ui.custTab = 'picker'; render(); return;
+    }
+    if (act === 'openCustDep'){ await openCustomerDep(el.dataset.id); return; }
+    if (act === 'openCust'){
+      try{
+        const n = await openCustomer(el.dataset.id);
+        if (el.dataset.dep && store){
+          const hit = store.deployments.find(x => x.id === el.dataset.dep);
+          if (hit){ store.currentId = hit.id; ui.tab = 'intro'; render(); }
+        }
+        if (!n) toast('No deployments could be loaded for this customer', true);
+      }catch(e){ toast('Could not open customer: ' + e.message, true); }
+      return;
+    }
+    if (act === 'newDepFor'){
+      try{ await openCustomer(el.dataset.id); }
+      catch(e){ return toast('Could not open customer: ' + e.message, true); }
+      openNameModal('new');
+      return;
+    }
+    if (act === 'addCust'){
+      custMode = 'add'; custTarget = null;
+      $('#custTitle').textContent = 'Add customer';
+      $('#custIdRow').hidden = false;
+      $('#c_name').value = ''; $('#c_id').value = ''; $('#c_pw').value = '';
+      $('#c_id').dataset.auto = 'yes';
+      $('#c_err').hidden = true;
+      $('#c_save').textContent = 'Create customer';
+      $('#custModal').hidden = false;
+      setTimeout(() => $('#c_name').focus(), 50);
+      return;
+    }
+    if (act === 'resetPw'){
+      const c = regCustomer(el.dataset.id);
+      if (!c) return;
+      custMode = 'reset'; custTarget = c.id;
+      $('#custTitle').textContent = 'Set password — ' + c.name;
+      $('#custIdRow').hidden = true;
+      $('#c_pw').value = '';
+      $('#c_err').hidden = true;
+      $('#c_save').textContent = 'Set password';
+      $('#custModal').hidden = false;
+      setTimeout(() => $('#c_pw').focus(), 50);
+      return;
+    }
+    if (act === 'renameCust'){ openNameModal('renameCustomer', el.dataset.id); return; }
+    if (act === 'delCust'){ await delCustomer(el.dataset.id); return; }
+    if (act === 'renameDepTarget'){
+      if (session.cid !== el.dataset.id){
+        try{ await openCustomer(el.dataset.id); }
+        catch(e){ return toast('Could not open customer: ' + e.message, true); }
+      }
+      if (!store) return toast('No deployments to rename', true);
+      openNameModal('rename', el.dataset.dep);
+      return;
+    }
+    if (act === 'delDepTarget'){
+      if (session.cid !== el.dataset.id){
+        try{ await openCustomer(el.dataset.id); }
+        catch(e){ return toast('Could not open customer: ' + e.message, true); }
+      }
+      return delDeployment(el.dataset.dep);
+    }
     if (act === 'detailsNext'){
       if (validateDetails()){ gotoTab('nodes'); toast('Details saved — now add the nodes'); }
       return;
@@ -2597,6 +3518,20 @@ function wire(){
       return toast(p === 'text' ? 'Text badge restored' : 'HPE mark updated');
     }
     if (act === 'dlKit') return dlKit();
+    if (act === 'saveGhToken'){
+      const v = ($('#s_ghToken').value || '').trim();
+      if (!v) return toast('Paste a GitHub token first', true);
+      try{ localStorage.setItem('svtKit.ghToken', v); }catch(e){ return toast('Could not store the token in this browser', true); }
+      render();
+      toast('Token saved — the shared store is now GitHub-backed');
+      return;
+    }
+    if (act === 'clearGhToken'){
+      try{ localStorage.removeItem('svtKit.ghToken'); }catch(e){}
+      render();
+      toast('Token cleared — data stays in this browser');
+      return;
+    }
     if (act === 'dlVbs') return download('svt-launcher.vbs', vbsText());
     if (act === 'dlIni') return download('svt-launcher.ini', buildIni());
     if (act === 'dlReg') return download('register-protocols.reg', buildReg());
@@ -2696,6 +3631,7 @@ function wire(){
     if (e.key === 'Escape'){
       if (!$('#nodeModal').hidden) $('#nodeModal').hidden = true;
       else if (!$('#nameModal').hidden) $('#nameModal').hidden = true;
+      else if (!$('#custModal').hidden) $('#custModal').hidden = true;
       else if (!$('#countModal').hidden) $('#countModal').hidden = true;
       else closeMenus();
     }

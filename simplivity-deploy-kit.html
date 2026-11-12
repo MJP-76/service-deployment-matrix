@@ -718,13 +718,27 @@ function setPath(o, p, v){
 }
 
 /* ================= constants ================= */
-const LS_KEY = 'svtDeployKit.v1';
-const KIT_VERSION = '1.2.0';
+/* Storage namespace = product ID. Every localStorage key starts with this string, so two
+   different framework kits on one machine can never collide. Give each new vendor kit its
+   own ID — and never change it for a shipped kit, or its users' saved data is orphaned. */
+const KIT_NS = 'svt';
+const LS = {
+  legacy:    KIT_NS + 'DeployKit.v1',     // pre-multi-customer store (explicit migration only)
+  customer:  KIT_NS + 'Customer.v1',      // customer-scoped store
+  engineer:  KIT_NS + 'Engineer.v1',      // engineer-scoped store
+  engSv:     KIT_NS + 'Kit.engSettings',  // Setup settings while no scope is open
+  token:     KIT_NS + 'Kit.ghToken',      // GitHub PAT pasted in Setup (overrides the baked one)
+  dismissed: KIT_NS + 'Kit.dismissedVer', // dismissed update-banner version
+  blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
+  gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
+};
+const LS_KEY = LS.legacy;
+const KIT_VERSION = '1.2.1';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
-const PUB_KEY = 'svtCustomer.v1';
-const ENG_KEY = 'svtEngineer.v1';
+const PUB_KEY = LS.customer;
+const ENG_KEY = LS.engineer;
 const HPE_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0cm9rZS13aWR0aD0iMzYiIHZpZXdCb3g9IjAgMCA2MzAgMTgwIj48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIGQ9Ik0xOCAxODBWMG0xNTQgMTgwVjBNMTggODloMTM3bTk1IDkxVjBtMCAxOGgxMDJhMzIgMzIgMCAwIDEgMCAxMDBIMjUwbTIyMi02N1YxOGgxNTgiLz48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwM2E4ODMiIGQ9Ik02MzAgMTYySDQ3MlY4NmgxNTgiLz48L3N2Zz4K';
 const TSX_LOCKUP = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgMTAwIiB3aWR0aD0iNjAwIiBoZWlnaHQ9IjEwMCI+PGltYWdlIGhyZWY9ImRhdGE6aW1hZ2UvanBlZztiYXNlNjQsLzlqLzRRQVlSWGhwWmdBQVNVa3FBQWdBQUFBQUFBQUFBQUFBQVAvc0FCRkVkV05yZVFBQkFBUUFBQUJrQUFELzRRUXFhSFIwY0RvdkwyNXpMbUZrYjJKbExtTnZiUzk0WVhBdk1TNHdMd0E4UDNod1lXTnJaWFFnWW1WbmFXNDlJdSs3dnlJZ2FXUTlJbGMxVFRCTmNFTmxhR2xJZW5KbFUzcE9WR042YTJNNVpDSS9QaUE4ZURwNGJYQnRaWFJoSUhodGJHNXpPbmc5SW1Ga2IySmxPbTV6T20xbGRHRXZJaUI0T25odGNIUnJQU0pCWkc5aVpTQllUVkFnUTI5eVpTQTNMakl0WXpBd01DQTNPUzR4WWpZMVlUYzVZalFzSURJd01qSXZNRFl2TVRNdE1qSTZNREU2TURFZ0lDQWdJQ0FnSUNJK0lEeHlaR1k2VWtSR0lIaHRiRzV6T25Ka1pqMGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNVGs1T1M4d01pOHlNaTF5WkdZdGMzbHVkR0Y0TFc1ekl5SStJRHh5WkdZNlJHVnpZM0pwY0hScGIyNGdjbVJtT21GaWIzVjBQU0lpSUhodGJHNXpPbmh0Y0UxTlBTSm9kSFJ3T2k4dmJuTXVZV1J2WW1VdVkyOXRMM2hoY0M4eExqQXZiVzB2SWlCNGJXeHVjenB6ZEZKbFpqMGlhSFIwY0RvdkwyNXpMbUZrYjJKbExtTnZiUzk0WVhBdk1TNHdMM05VZVhCbEwxSmxjMjkxY21ObFVtVm1JeUlnZUcxc2JuTTZlRzF3UFNKb2RIUndPaTh2Ym5NdVlXUnZZbVV1WTI5dEwzaGhjQzh4TGpBdklpQjRiV3h1Y3pwa1l6MGlhSFIwY0RvdkwzQjFjbXd1YjNKbkwyUmpMMlZzWlcxbGJuUnpMekV1TVM4aUlIaHRjRTFOT2s5eWFXZHBibUZzUkc5amRXMWxiblJKUkQwaWVHMXdMbVJwWkRwbU9XVTJORGswTWkwNFpETXdMVFEyTWpndFlqVmpaQzB3WmpsbE1XWTJZMlF6TlRJaUlIaHRjRTFOT2tSdlkzVnRaVzUwU1VROUluaHRjQzVrYVdRNk1FTkVNelk0TmpRME1FRTJNVEZGUkRoRU5UVkJSalpDTlRsQk5EWXdSRGtpSUhodGNFMU5Pa2x1YzNSaGJtTmxTVVE5SW5odGNDNXBhV1E2TUVORU16WTROak0wTUVFMk1URkZSRGhFTlRWQlJqWkNOVGxCTkRZd1JEa2lJSGh0Y0RwRGNtVmhkRzl5Vkc5dmJEMGlRV1J2WW1VZ1NXeHNkWE4wY21GMGIzSWdNalV1TkNBb1RXRmphVzUwYjNOb0tTSStJRHg0YlhCTlRUcEVaWEpwZG1Wa1JuSnZiU0J6ZEZKbFpqcHBibk4wWVc1alpVbEVQU0o0YlhBdWFXbGtPakl5TmpnNE5qUTRMVE01TXpjdE5EbG1OaTA0TnpnMUxUVXdPREk1WTJRNU5XRmxPQ0lnYzNSU1pXWTZaRzlqZFcxbGJuUkpSRDBpWVdSdlltVTZaRzlqYVdRNmNHaHZkRzl6YUc5d09qY3paamd5WVRsaExUVXhNMll0TkdVMFpDMDRaR0psTFdWbU9XVXhaVEk0T1RFNU5TSXZQaUE4WkdNNmRHbDBiR1UrSUR4eVpHWTZRV3gwUGlBOGNtUm1PbXhwSUhodGJEcHNZVzVuUFNKNExXUmxabUYxYkhRaVBsUkVJRk5aVGs1RldGOU1iMmR2WDBOdmJHOXlYMFpwYm1Gc1BDOXlaR1k2YkdrK0lEd3ZjbVJtT2tGc2RENGdQQzlrWXpwMGFYUnNaVDRnUEM5eVpHWTZSR1Z6WTNKcGNIUnBiMjQrSUR3dmNtUm1PbEpFUmo0Z1BDOTRPbmh0Y0cxbGRHRStJRHcvZUhCaFkydGxkQ0JsYm1ROUluSWlQejcvN1FCSVVHaHZkRzl6YUc5d0lETXVNQUE0UWtsTkJBUUFBQUFBQUE4Y0FWb0FBeHNsUnh3Q0FBQUNBQUlBT0VKSlRRUWxBQUFBQUFBUS9PRWZpY2kzeVhndk5HSTBCMWgzNi8vdUFDWkJaRzlpWlFCa3dBQUFBQUVEQUJVRUF3WUtEUUFBREhzQUFCczBBQUFqbXdBQUxTSC8yd0NFQUFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVDQWdJQ0FnSUNBZ0lDQWdNREF3TURBd01EQXdNQkFRRUJBUUVCQWdFQkFnSUNBUUlDQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREEvL0NBQkVJQUdRQTRRTUJFUUFDRVFFREVRSC94QUVVQUFFQUFnTUFBd0VBQUFBQUFBQUFBQUFBQndnRkJna0JBZ1FEQVFFQUFnTUJBUUVBQUFBQUFBQUFBQUFBQkFVREJnY0NBUWdRQUFFRUFnRUNBd1FKQlFBQUFBQUFBQVFDQXdVR0FRY0FFZ2dRUUJNZ0VTTVVZSEFoTVNJek5CVTFKRVFXTnpnUkFBSUNBUUlFQXdVRUJ3UUxBQUFBQUFJREFRUUZFUVlBSVJJVE1TSVVRVkV5RlFjUVlYRWpJRUNCUWpNa0ZsTWx0WFpnY0ZKaWtrTTBWTFIxRnhJQUFRRUZBd1lJQ1FvRkJRQUFBQUFBQVFJQUVSSURCQ0V4UWZCUllYRXlFeENCa2FHeHdTSUZJTkh4UWxKeWtqTVVRT0ZpZ3FMU0l6UVZCbUJ3c3NKRFk2TWtOUllUQVFFQUFnSUJBZ1VFQXdFQkFRQUFBQUVSQUNFeFFWRmhjUkR3Z1pHaElFQ3h3V0J3MGZFdzRmL2FBQXdEQVFBQ0VRTVJBQUFCNytBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUhxK1JSZjgreUdHYkpOTnVvQUFBQUFBQUFBQUFIeVpJMVk5MjRmNy9QbTNWK3hheE5wYk82VDNJQUFEd2VRQUFBQUFBQVYvd0J0NUZyc3lqckp2SENiUmFMM3FVcUhmOFBKcnNCU2JseVJ1T2V6eEZ1OHo5OGJ2aW05SnE3Y3VFMTd5eStOZnRrQTU2djArL0lqejFQUnF1M0dqc3FpMWJQV1RYR3U0OXoxYzF4cm5PZWNzSDU2cS9NRGJKOXdXb0ZmdHQ0L0EyMmNnbEdoNkJhblJPLy9BSi9mRUQ3VnlpZk5VNjF5MnM5SWtQRlB0Vmd0T2RGaHFYWE9vNkR6NW42bld5VlJXL2liRG1mR2VBSk5MRTJhditqem0yejU2cXRLcEovd3o3RVJOZ24yUGI4aXJqbmZkeWg2cnNmbk9Cb1ZycWRmdHU0L1ZYZi9BTTYyNjUzK2tkbGdiRk9Xc2RTeThleGdiTldaejU3cUxNMTI3VUhaOTg4UzZEejlVbEhGT21iRFpmVDg5NkhraDc3amxSTmxneVBqbFJkbGhhOTdqeGxraHp0SHQ1MHcyVVY1SVU1NGJNQVJwZGFUbzlwcWY1L2ZNcFVXL2JyVzdNQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFCLy85b0FDQUVCQUFFRkF2b3puT01ZTnZWUmozSTI0VmlYYzh5Kyt5S3d3TEliRFZpd1ZpSmtUaDZUTnBhSmtxR2Q3ZjNlUnYyVkdNMlNhZEZJZ2h6bWF0RmFvcW9ReTZ5RXVBb2NnUkkxallXdlFOaVI3ZXF3RjdsMnJSeDlhNlpoZTNlT2tZSFZWMHRzVmN1UWJVWnVHNjBUVWNsU1oycmtHYVQyZk11Rjd4Mm51aHl5aGJpaGIxRzdCMWpyWjU5WGJOb2JZRWxWak5zdVBKM2ZzK0JSYmQraGR1VmFETjNoUlpjMWkxN3lldDFJMXRSUnRmMWp4dC85TlAyay93RHh6WWRDaWtSM2dwU1VKMXZqSzY1eG4vcXZ1Yy8xVlZqQXdxVlZUMnRqZHhISmZYV25Odm0wNGViMVZ1VHVEaDQ2VDFob2lIam9yV0VyL3dCVFhlTEwwbGE5YnA2TzJhcmE3RTJQMitBMitXdE94ZG0xcU91SGNGSGR1R3ZZeVIyZnNJRFhGWEFnTG5xTGtSTFI4N0dlTmxnMFdHR2NZRzJCRmsxQzVRYityaExNS1BiSmQ2VWRBQ0hqUXVKMTNCSnYxMnBjVGZvTlBiQnJmcXJsWWdhakdjbnUzTFg4dWZROVBVN1hwVnFyVWZjSy9XcStGVllFalhzR1RmTEhYWXExd2tOcTJ1UWRJcUZWamFWWHBmVXRTbUxyZDlLMUsvVFlmYlRRQWpKL1Z0Y3RGc2xJc0NiamFIUVl2WGtaN0UvVll5d2NSSGJHQTR1RXZjcnlEcjhYWFJmcUwvL2FBQWdCQWdBQkJRTDZOTnhjZzdoNk9OSHg1bEtWTFVweHFJNThvYyt5MHFURzVsRE1vMTVpSjl6YWdoa3JRVXRwUjc4K2M2dkJybUNwVnBMSnlGOUdmVno2VGEvVWRVLzdsT29UbEhNKzlsQzNldkNzWWRieDhGdG5DTXRkSFE2dkh4eUcwNTQxK1UxbnBZeVFyT0dWNDRsbnBXNHZyVjR4L3dDTVFGcjUySGxYOHZlR1B0NU0vWVp6KzJIL0FERjQ5N2l2aGo4dzQ2MXhmdWRaSHpuRGorYzVjeCtsYno2MkYvcUZ1ZW1SMGRMYlNzb0h5UzVuRGFQVVZsU1hlWnhuR2ZFSW5JaEtWcmlYMFNNYVVtZGNCV3NBZExDWFhGUE9jNjg5Q0Y1Um41cHppbFpWbmlTRjQ0dDFUbkVxeW5LczlXZXZQUWxXVTV5NHJLMXF5dFdIVllRaDViZU1rdVp4aHpLVTR6N3NyWGxmc2luUENjOWFHZDVnbUtZNFNXK1d2NmkvLzlvQUNBRURBQUVGQXZvejkzQ3JYWFExQldPRGtGZVpkZGJZYWFITHVHZjNpQ0FOS2JxOG5oRHh0VUs4eGJjcUpibTVKeGgySVpMYmdJN1gwQUl5cURIekUxUXQ0eUNLRlNVakVlbjl3TUd3SUN4RXBVeUNTOGdqaU9pUklHQVVPdHBhNDgxZVZTUnNtb2hFZ2tsSlFBNjFaaTRjeDFyaHlzNFBQYjllV1JFTW9WSkRyemgrVDljY1FiQXpYalkvZ3k4K1greVhLcFI2QS9CU3NKeFMvd0FjTnpIOHpML3BCbEpTSXpuNXlYNDRJQWVvZjFBWkdYYVE0RkZ0SWFEYy9uREU1akhCYzlVT0tKZ3VJU1VwNHc5aEJNeTNEQ05yTkxTSXkyd1JINWJjUzZqeG00dE14R3VzTVhBQit0MmVKZG9JODZ3ellKQnc5d1Fab0libnlyZnpCSTZDbTB3WWFjc3N0TUk0OURpdUtGanh4T1BzcGZiYWJTeTNrUnRSTHpTSDIyd21XeHgyRUROT0FNT0VGUmc1amlJVVJ0VG9UVHp5MEpjUU1Na1ZQc1MwQ0ZMOHdIZEJPS2k3WWZpTGlBWWRqNmkvLzlvQUNBRUNBZ1kvQXY0YWVpVXAybXpwYUtiTFVFOHZSOHFDRVdxSmJkU1FGOTQrY3E4STBKMDZmSVBqSzZkdTVQMGllWkliZTAyKzNPZHhjZUs1ak1rcENPOEVoNVNMbGpPTk9qNVROckQvQUlaWkk5WTJCcFV5ZGFaOVE0NmhhZmFQUXhYVmZscWVWRTdPcFdWalBsSGRvemZPV1RXT0FtZzRXUDhBTGl5OTM3dFhhSDFyV2UwYnJXZWN6RkxnNTdiMUYzQU4ySHRkMjJpRzJHaTg4dDI4N0FhV1NHaVJlR1Z4OURGV0xPY0dnVnNsb2w3QVorSGdWVWtiUmxnK3lXVExsRjFSS21QVDYxNDVYdEdYeTZod1RNUWRCZUNNNDRIQzl0M2lpV2xQTndaWjI0bU90b1RlZUJ4dWJlRU9Wd0Y3RmdEN3dNR09heGxLVHNueE1WQzluTTdCakpaeHY4Qk02OFlqT01XK0pwKzMzYk55ZG9VbkxGclZvMUwrZGtmQ3dtWmE4cHUwY2JmcVZYN2hHeVBUVmc3UnArZGxUVjdhaS9nZ3dhSU5nejFjR2RyYm1pRFBMUVlNOFh0SGkwUnZhREJuQm5XTkNHZUdlYi9CS1V1VkpWZWsycExQWEtteTFmUUlJKzAwVWlTcGEvOEFVTm5JR2puSFVNQnFIOGpQLzlvQUNBRURBZ1kvQXY0WmVibWhuMVV1SWVpOWY5QVV3UlNWTXBVdzNEWkoxQlRqOHFWUG5FSmtvU1NTY0FMeTN4VmFWeWYyNC84QURsRHNxbmZUbUgwVGdua3VpVitpOXcwWXFLNFBlSllTQUhYeFRGWnNUYUJjUyt4dmhlOHhSaXRJdFRHaU5KelJCeW1SVFYweFUvOEFiODFVS0ppdHVTckJLemlqVGhvYzQvS0tYdVpKY0t5cFNsV2ZkcDdTM2N6VlZOUmRpWFE5M3ZTQlk2WXZzcE9xV2paMHEwQmt5ZTZ2KzA3eXFqS2l6U3BZdHR2R0pVUjVyOURCTldrMUZRNjFSS2s4Z1NRN25PbHBuYzhTMVVpMGtKak1SUjZMaWJYSU5xWHZkZGMwazFINWlXK1dyWExNUFE1K2xvRkVoalN4cWc0c3o4ekZDRkcxV2pNNWt6VXpGQ1lVZzRZamk2V1ZRVk5xeGNlZmpzdDhyZ3kwMWt5RjF5Yk91ekxXemdzcXBpTHNyT1BWeC9EelB5OHk3TG1QS1hCemJwUDVXWGZscHc1UWJ3eWZodk5TL2s4akxtcDJvQy9RWE5PVmk4OUFZU2FuM2E5azgzVTduZGVXa2pBbFA5VFM2Y2x5RkowWmxISFUwUVdyN1BpYjRxbjk4am9IaXllNEJreXFmOHl1d2pONWNpQzBONnpmcnk4ZC9nZDAxcS9kcHFWUytPYWx3NkdtVkZZa3I3c3E2Y0ptRFBMSWdVN1NDbDdzMnR0eWlHcDd1QzFUS2VlbHhoaVRDdEN4ZWxUdERyN2pad1JLMlF4cWJRbWZVVFZqVVZPNnVBNWVZMzF2RzBzcUlBM2FlaHQvTDkxTHg0b2VuS3c4QlVrL2k1MDM1SE9MODdKbzBMaWtxRjJhK3pYanE1bEZWNGQwZ01tREZwZnEvd0JxbVZNUVArSk1TUVJtczZyeG9mcExUVlozOUFaQ2Y4Z2lkN1I2V2t5cG9PL1FvQSswMHVWTTJTbnFVY1dDMGxUeDZ2M1dqODgzRExMREZrOTRxdENydzY3SWFBN0hNd21JMlQ0RXloSmhXYlVxOUZZdFNlVy9ROXYwdnZMOEQ5eTBtZTkvcEQwcGE3SHV1c04wTVJDSk0vMXBMeUQ3TnZLQVduL3F1OVRURXBnVE1mRSsySno3UUx0WnV4Yi9BTXozUVlxNmRaTlVMcE12emlyNlJGanI3Y0NVdmwwa2l5VExRRWpVT0Q0bTNlZk01dDFNZkN6KzE5bjdyUVNnNVBCRWw2TlRuYzRaOHQ1WG5MR1V2WlBsWVMwM0JoVlc3d2VJanJZeXBteVdOTWwrN09XWmhKbDdJNnk5aFVuM29kemVSdDdOaWk0dXNGb3dWUDhBcS9kWVRwcnk3RERveTFNVUwyUzBDQ1NuUzdxQThGTTJaRkxyVWJFMUJoV25qeEdnOFRtZ3BxcWtxSmVlY2hTVmY3YjIzZmVGYktrU01SVHBNUit1dTFPc051S0pMbmw2aWJWS09kUng2QmgvSXovLzJnQUlBUUVCQmo4Qy93QkdkWjVSSE9abndpT0pUWnoxSHVqeUlFRWRzaG4zVEZRSDZUeENjZm02TDNUOEtKYjJIbDdOQlRZaFRDbjhJL1duV2JEQlNpdW8zT2FjNkF0U2hrMkdVK3dSR05lUFg1RnRyR2JPNjVqRzRsSm5XdDV4WXpwRjdKdENZTUtqWitCVWVNZjhSRHR2YXUzQnkyUlhKclluRjE2cVVJSmM2TjlWa2JHa2FxTDR5ODBEUEtaMTVjRFJ6Uzl2QmtUSHoxaHUwdlhWbmZEMEx0SmxMKzZFKzdUOE9LdExKM0haVGFOOXcxYU9UdGwxM2NGWlBraXJmZC96cUxmQVdUOFAzUjQvckdDMjJKRUE3a3pWZXBjSUowTDViVi9tN3d4cHo4NHJHUHc0ejlMSFRDRjdZMmw2cENsYWgwWDhoclhydEVSbUI2TWJSWDVJOElsdjNSeFhxNE9KSE5ieHpyc1ROdUNrU1JpOGNtVGVIZEhWaVJJdW8ya1BQbzE5dW5BaGtLNTVlekl4M252YTVLK3YyOW12WFlzVmo3dGVvdnY0dTdkSnRsK1Bzb2FoSTNIRmFaVUE0MVN0VDJhdUpkUnNRU3V1U2tOSWpYU0k0eDVYSmtybFB2NHUyVStKUHhyanFTVXo3U01GUk16NzU0eCtQdjVYTTRrTWZlbStEY05aQ3M1cHpYZFc3VGlZcHNFcnBkcnA3NDRmOU5aM0p1bjVVckEvTm92L0FETCs4cGY2Wkx1MUpkSHB1enEzK3oxNHkrUHhXWnptUWl6dXZFWktiT1R2U1ZzRE1xOWVVTGRXR3ZNVittdEU5UHZtZU1QbUtlK3Q2NDNKMzhWajhpRFF5QXNUV3NXNmlyTTlLZ0d1K1ZBYk9VZDJDMDl2R1gra2YxQXVmTmN0amtIZHdlZElwTitRcUNDbnlwN1o4MWtXMUh3NVJuK2FIU3hiSktSajdOMi8vUzk2NUhCbmpjbFlwWURiQ2NtbkVxR3VtMVpyRUZmMWdIWGx0UHNEREJFTyt4aFNaVHBweGRsRzljcG1kalhzUzVFYmN5UmQrU3UyVGdaTmhlYXQ2ZGRYWFFrUWt6STlDMWlPYmRrWlMxYmZzVGZMb3M3VnZYYkQ3RVk3SUVRSVZVTjd6YnBJa1FWSGMrY2VuYk9tcDhmMDNTczIxZlR2NmZ2SXM3WnAyWDExNWpKd1pxYldoOVkxOXdiVFVsWFg1dVZkYjJEUG5EaWk3WjdMWVpUQzdVb1ptbFVyT2IyaVRpSnl0aTJ2ME1NaFZ3Sm9yS0RUcE10VnJFY1pYY1dObnN0UEE1ZEdTcGl6VjJNeWlzYTJiRldUSFF1bU9xRFVmTHJVUWx5MTQzbTByRmsyd2pkdWpqc3ZONDZWVmFkTGlaTFI2ZlpwUEdLMnJ1cGxqK25kNkMyOXRES1hIRTlhc2w2bzZObWxGbGhuSTFydHhNaDBUUDVOclRsby9YajZNQUQ3QzFuWkh1TFc5eTFNL3ZSZjhSUUdLMmZ0aWVOdjdYdDVUS1l5aGs5c0tsenNiY0t1MWMxVlorNEVyZzVtdnF4bGVCblVablQ3K0tWME42YjBZZEs3VXVBcG1XcXl0cDFMQzdBTFlNVllrbHNKZWhSN3VLZjFDMlkrNVYzZHRMb3RrbW81K21WeHRRNXNTRTA0UHNXclZEVWpFSkg4OUpNVlBWcUVSdDdDYklXZjljNzYxeE55alVaK2ZnWjFoRjd0dTExVk4vV2ZTdW40S3NrNlpHUTRxNFVMREwyUVArYnpPU2E1N2l2WkpnQ0xTWE5naU5kUkFqQzBoeTBXTWErYVNtZnQySGtUL2dLemRySHNLZmhFOHJTbEtKbWZDTlRWeGJ0MzBIWXcrZXhDYW1RVEVheTdIdFRGT3hLdmV5cTZ2QmRQakl6cDdlUFRCS2N6aDEyYkdUMjNuNnhnenN4YlJGZTVSdkxnb1pWdDl2VDkzcExVdmhtT243Q001Z1JDSklpbndnUmpXWm43b2pncm1rd0dUeStaeUtkZjdDeGZiQzUvYkFmWmIveWJIK0gxT0x2L0FMbkMvd0RsY2Jac1hMZGFwWFZ0bkNFMTlsNmtKV01ZdXRyTEdzSVFDSSsrZUx1N2NEMVAyNXRURFRTbkp3QkFtMjBxVm5IbzZTOXNXN0YxNUsxNWtoSFg0VEgyWmJJNCsya3MxV3UyYVdYdmJkdWdpd2Q2b1hweVplb3VVNnBiaURIeTJPMU1PandZVWNZZjZkNDdkRDl6N2V6ZFJqTFdPTStyNVoxVmI3d050WHV1Vmo3OVFxRUdYYTZCYlhaSFVNZVhqTzNMbGNXV3NGNlhKNHQvZ3l0YTlXaXFjaVhqMjMxckJnWStCUlB2aUpqYlRhTmVGT3pOWDV4a25lTExWKzNNd3hyQzl3S1dLd2p3RllSSEcyZjhudjhBOFAzQnhsTTVpSzdqK25mMUNwWkRGNWZHVllpQXhXWnRWTGZZaXVNekNGU0xtRTJ0cnBIYUp5ZVdpK043QlBpS2Q0RFA3S3k0NDIzako2RVptajg3dTdleUJheDZYSURtc24rUWJCODQwcjhSMjI2ZUhJNGpxQWVQbzlUM0dpMm5kTzBjMU8zTStkcnBnck5oT1NIMDdqajR2V2RsV2xqWGtiSTZ4NUZ4dDNiZVdaYVZqOGx0aGZxR1Vuald0RDZWTzRMaXUwOHdZSWF0Ukd2S2RZNWNZL0oxOGh1Z3JHTnYwOGhYRnVhUWFpZlNzTHNwaG9SUUdUWExGeDFSckdzY1djMVk3YjhnN3FxWVRIRVV4TjdJa0JFSFhBejF4VHFqSGNlZnNDTkk4eERFN1Yrc2VScEx1aGw3VnVkMDRjYVNVUHhGVFBPNjB4QWpQVFRzWDFIcVBTS3hxdjZLNWVVNTRvWm5GV1YzTWRrcXlyZE95djRXSmNQVU9zZkVCajRFTTZFQlJNVHpqOUM1akNQc3RZSXRxV1k4YXQxQlEycllqVG41SERHdW5QcDE0bkNaaVJ4TzljQkpDd0RpT3FIZElpVnRJY3ZWWXJKREF5WFI4TTZlNFpKZ2hqY3BFLzhBZFlVM3VRNlA5dnJxRUxlZnVNWUxqSi9PeHZwcEd4SG9FWk1telpoMmpQVk1VTHlseTY1eEllUEtTOFBieE95dHZzN21WeUk5R1h0Szh5c0ZpUzBpMDZ3Y2Noc3ZYUFFzUGk4M3M4dXRUSDFSNksxT3Vxc2tmY3RJUUE2KzhwaU9jKzJmc1o5UjRkay9uek1iOHJKUHFsL0xQVDlsYU5ZcStuN3ZkNkZ4ejdtbXZzNExiK2FaZVZSTzNVdVNXT2VGZXozYWJPNnFPNHhOZ2VpUzhZNmVmQTkyenVxd3VKaVpRN05MN1I2ZXd1MVJVY1IrRXh3dkQ3ZHhsZkYwRmtUTzBpSmszT1BUcnNXWHNrMzJyQjZScWJDSXRJaVBDSSt4dVR4ODVqYTlwNUViQjIvZEN0VDZqS1NaSzZycTlnYTNXVTY5S3BBUDkzaDJTeFNydC9NV0ZFazh2bUxNVzdnS1pJeTVkZm9VaEZlSGtFZGNpSFdXbWtsTWNaUGJXVk8wdkg1VlFKc25TYUtMUWl0NnJFZGxwcmNJVDFwajkyZVhHTDI3alNzblJ4RlFLZFU3YkJkWkpTOWRKYzBGcUV6NSt3WTRvL1VWamNsODl4K09MR0lTTmxjWXlhNXB0b21XVmZUeXdtOUYwK2ZjaU5kT1hHUTIvbXEvcWNka2tTbDRSUFF3SmlZTk5oRE9jcXMxbkNMRmwrNll4UEdVMkRVZmx6d3VYakpSYWRZdUpaa1krYUJBV2V6WUdxdFFhUkhsL0xuVGlodHJFSGJaajhkNmpzSGVjRDdVK3F0T3VNN2pRVWtTL05mT25samx4amQvTkhJVmM5alhVclA4alpXaWxmc1kvV0t6c2hYS3V5WHRGV2k1a1NDWkFZaWZDT0J6MmF0WjVOMGFLTWZFWTNJSnFvN0ZkajJoUFFkSjU5eVNzRnJQVnhUdkt5RzdwZFJ1VmJxWVpta2t1VzFIcnNLaGd4ajRrbHlhNDFqV05ZNHhXN3M4L0xaQ3hoT3o4dHc3YmF2a0NKU1hlZzV4OFZ1dHBzdFFMVDZtVDFrc0luVUI2ZUx1SXlsWmR6SFpHczJwY3JOalVISWNNZ1k4dEpHZEo1VEdralBPT2ZGakQ0WElacTNqWFdadHFyWmk0cTdGSnpJL21QUkV1cldKUzdKK2N4bldPdlVvMGtpMS9RUzkvZnA1S3AvMFdXeDdQVFpDclBzZ1hEL0VWcis0V3NmaHgycTJld0dZU1BJR1ppalpxMnVuMmR3OGYxZ3d0UGJweDJzcnVhaGlxaGZ4VjdjcU5pMFkrMEJ2WGRHSjE5NHh4TlhHViszREM3bGg3Q2x0dTI3bnE2MVlQenVQbitFZXpUL1VaLy9hQUFnQkFRTUJQeUgvQUJsQWdCUUFCVlYwQVlObXZsdUlzZGp4a2FsN0lxQlQ2OEkvdXJBYWZXajhuVDRNY1gxR1ZLalZlYVc4WVF5ZUk5TkNvR1dNR1JwazB1b1g4SGtURm9VOFA2OGVOMW00VC80RkJWQThyRDlpK2RRRVpaNUdQVkk2Y2Vvb0FVYjBnSVVuQUhERlhTQnlwb3VyTmpwUk9DN2Y5dm1ibldFUmZNUll4VWdIS1pNdEhzckR0clpzRHZPa2dKSkF5YmdnWlJibXRjNDlNQzk0MWFQaTB5L2tGeEVGbkozc2dzRTJiN3dqUmJnZFYzdEN3Wm5Od2xkazA1NDBrV1hkUW5xWEJMVzBFYmhiOVF2OUF0Z0tUY2pMQUVUWExBUGxNeWlkWEtJUkxueW1XWnNRNktXelJDOUh4UUlEcWVENmIxR2RZZTRaWHppa1phMnZMclNBT09zc3pYTU5jWU9PeGJlbjJhbzljTUgwemxyTWlTSXJUT1JDOUQwczFVVUprYjcrYUFOcVYyUnhPZVJVYUNTWE5sOXVEK2lENFpwaTU0a3hGODVTUXNSSnJ2R0lpSWx4aG03VDJRWTF0TFpGOERzUzlpaGJvRmNnVzA2dWhYUmY5ZmpYK1MrZUtZbENLbWVqYUJoSHRmeFlqQ3ZnV0Q0SnNZd1VYQ29pUnNoRTkyNlVhYStDaEZLSmxDWGp6T3pKODFoS3JJNXZvSFdYNVNxNUdjbDZ2ajNjR1JEQStJb0ZRT0ZjVDBwaW9FaVU5OEprOTNNeFAxbFRZUlRZL0tHWUFhNzRyS0RYM2xSdHduOW02Z2dOQ2xDbVV4b0tIZ3A3Sk44eWoxeU00Nml3ODlCSGljenBveEVsWlBCTVFQanU2MFMzYnBPNmlCemtueEcrQ0NhdE9ZWUZxWVI2b1FJUEZYWmxwSVFoTG9TaWthbmtrd1phM0ZMZTZSYmJPSENUcTdRMERlZXdYNFQ0TXhTZUpMM3BIR3UvaDNkZTNaSFpsUnYybmxsN3FjNlRIaFZKSUJTc2xHaEFZL2dKME03SnFGdkdDRlVjNmJad2lZRVRHWVR6aUZGU05Gb3hOcnN5bDNRdEQ2WU5HelBiZG95RUJjTjhTNWtYY3c2WXV3U1pSZVpvN0xubHdmTnp3Q2Qwcks0NWhKdVhOajhvZ0o1bFJUekxWbS90M1lKS2hKcnlEdEdzOVJoaVNoVEwvZGF2OFNpMEJTRERTOS9LNXEybzhVUUE0NlhhTmlJQnlUL3BnQ0c0eTd0VUhRZFIyc3BYUEdJbGV2RlR5Vk15M3FjdklSQkdlN20rZGYxY2pOVkx5c0IvMFovLzJnQUlBUUlEQVQ4aC93QVo1MGM1djAvUi9PWkN1ZHlQdlIrNk5oR0FPVmRCaGVoTnBSNHV4M2czV1dJb1c4ZW82TlhrSnZGVkVYV25lVldNNGx5a0p5UFI3N2V2WDdnQVZmbEErYzVGc0hkMW52eStucWMzQ0c5WlExdzlBZTU2NDBIWFFCZnFEZndlbURRV1dZODFEVk9vbHQ1dURIUzlnSDhsbnBqeUE1MWI3dk04NDRBYS90am9NVjV3SnBYSjgrdnoyNVFiM0x2K3NPa0ZjL084OXg3OC93QWZiYmdLdlQrZjUreWNPTWZMQzJlSW5xWEE4RFg4dVZmVWo4LzM4Nk1BdDNNSmVVUDltZjJCZjl3ajg1OC9KdHk5NUE5Zi9QbW1mZ0Q5SGlTdnRkL25KaFBKNER1OUJGOCsyYzhzaVM3SDRwNjAxeWIrQVViRmtEM1Y3aHY4L0I0ZkFFQ0ZiL25COG43dnovOEF2d0xBK3Y1L0hXVkpCLzUrT3ZmQlljTi9qUEN6UHpmN01EblRmbjM0OTU2R0dIN2Z5NHlPKzMyTVRBU1V4eG1uK3pHU0NQdi9BTngvdUdEaHljTjUrZnIvQUhqcmlmb0ZKSFhrZEQ3Y2VzejBGNmNUeWZVQmVkK2dLc3ZvQ2Z3K3ltVVVVMG1tb1pwRy9ZNTZ5UW9sYm5wZWc3ZUd1d2hhNmxlNjM0ZU4vd0RkenNiaWhQN2Y5eXVxL0FlTTkyYTdYSGN3eGUyY0RXdC8rNEQ0MkdsSnhSeXNmSG5tczgrdi9jb21uMS83anlKZSs4VHVERllINlhqbVgrdzZmVSt0eDlocDlFYVROSy93aEg0MzJjM1BRZ2FEeHdIOHZmOEFvei8vMmdBSUFRTURBVDhoL3dBWlVIQU1RV3lQQWZEeU01Q29LK3lUZXdmdXRmTURnVlQwQXVKYmNFbytJTm5RYzZZakkwclVuZkIzbHA2TUlMazhOcHBEMkhyVjhPR0FJblZlNUhYRWVQN2tKT1NJendSMzlzbzZjYjRXNnNRaHJwcEJNTmZ6YTQyU0RUWGxuQXBqaEkxWmU5ZWVLNUV1TUNNZGplQksxSlVBWEI1KzFvQ3ZhbEx0T0VnbzlUK3h4ZWdqeGVSV3p2VHMrQUI5em5LUGRrMFFlaFlTbjcxMXBmTDZFMi9BM2J1Y0RtNjFkTmNGZVhaVHVFTi84TzFWRVhRZ09FS1Z0L0QxOWZxOE1BeTUvTjgrZnFpTTRETWVGakJMQmRYd1ZPR1JFVWRJRUk5UlQvbmZtTkJDdnpmWEdMZmliYXhyWEtSNURrektMeVB6NDlaejNsTTk1TnRkQStHRTJrOVA2WXZaSUxPOW1yZC9rY21RdmpXT2VyM3F1TjZOTVRoTnZLZm44TkhIQmVXeitpTktmUFVkL3V3K1VSN0Q5Zy9ZNmEzeCt5OTJoQkUwMnR5MmdmQ25ZQXF2UWN1VkJDTjAwalh3ZmpuOE0vZ2Z4Z2Z4MkxEamdwU0Q2SGYrUm5rSHNESTdnb3BQZHNkY29lNWgvanBod1ZnbHUzMk9DSTJ3K0tqOFAzanlHQllteStyWi9CL2ZLdWZuTTFuSWc3SzBkZjBBQUhNVGl2M3oxOHUzNjhmdDI1TEZHVEIzVVI3aG5hM2NiMk4zUXZNYjBuWFVKeUhXVXlLbnQ5Zy9aeEU5NnZNL2pSM3M2cWpCT0Y4WWxOYjZ0YjlFdTZVMDZmUFNjSnlPbjlFcUROclo0TzVFamRnNXhLNWNJRGhCTG8xM29XMkxXL0Z6L05jRDQ4d1lsSGl5bk5HOU8rdG0yeWdBdVdmTERWVVdSeXd3MXdqM0dGZTE1WHRyOEEzZFBhZlp2SFZsM2kyQmVKNFRzVHZ4aElMbnk0RCtjRkhMNTJ1MzYvRFppOGVKT0VtdEVnZFk3SkhndjRBN2VydDN0eW5XampuU0RrVGs4WlVQMXZlOVRHdTlQaWZRWGhkeTd3WUtYeS9UN2VkWjVWenhlQTF3NERyM3k3Rm5tWFl1QU9YeGdSSWkxTnFFdXIwR0pvOThNb0FUV3VJekZmUGd2MmNWcDVtdkgwMjgzZTdHNlllVktQejArSGtkbVBGMTQ0UGJRNiszNlh2cWRKY0h5UEpLN0ZjRWx6cUxkVkZKNVZYS0o3cXA0SU4vNFlrajJMMVk3VzJHcU1IK2pQL2FBQXdEQVFBQ0VRTVJBQUFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFHYUFBQUFBQUFBQUFBQUJQekFBQUFBQUFBQUFBQUN0OWM5WXI0VDZzVDVBQ2ZHWTZnSFJ6czllNklBa0wxSDc4dGtIVGNXTEFBaVNBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFILy9hQUFnQkFRTUJQeEQvQUJsRi93QUJFdkE1VldCbW0vMHpCU3RzZ1ZwaVRFRTJHQ1VXUmh1dkg3b1ExS2RjYk9qVW1PbVhUOUMwMTBCVEZxdFYwc0hRZHpaNEZ3bkJGazZPd0xZTVFyWDJqbnJBdUpKdi93QUo0WmNpQ3NLcUJ0L1l4SjB4VFdBYUZGVUpuYjF2ZEZxUU5BTndrS3VIK2ZXM0RRTEFRbGl2WVhtUGM3RndSMy9CcXNUQlhBd2RIQm92SXV4cUNHMnF0U0ZkUVN3UVRWQkhZQTVkN1NURG9jd1hMeGY3eTRVd0xaRlJBUVlkYVRFY2tzQ3lrd29DbVd6SjlQZzFMblVSUytXYWFCTkdreEtlUHVqWnVEME8wMFEreUowcTB0bFZEa25qV0R5RWFvVlpxWTJIdWs5TStjck1WVDR1dDZ1SE8zSjlPdHJJWFlWWVZ3SlBGRFQ0Z2V0UUFac1VYZ2lnRlFUYXVtTklCTE0yVDMxd29PR2JlWGdVOHdCUkZ1RmRsVFZvNWNVTGNOY3BZR3NQQ1JRQkZ3bjhTcW1FdnVIOUZvUFdlOFZPck5oYUM4c01uRTg5WTBwQXFtV1c3NE9nRGMzRndBWUF4b0R3M3B1am9ERzJQK3FHWHVVM2tvMGorZ1E4ZThJNjJwajBRQlZ4eUlvcVRkUEtoQ0R4dHdRZGlnams0QUpCdUIvRUNRYmJ4K3k2czFFSnFPTXRaUWdvTXdTSktuZGlwTjBBQWpQOXZQN0dNdTA4bDF4UEdTUXRhQzA3dm1OVUx1WVlYaVJLUlRRMGhLU1pNenRZN2ZrMVV5TzdhNmZuY2paSm9BakMrQ281L3dBQUdDTkIzVkRpRUN0Mi9sQ09wNktYY015VTAxZGszTVp4by8wQWtMczJlRlNTcHZHZ1dRMW04K0F0MnVncUVkTVRjU3Z1VUF6dGptdEdkSmR2dUxsbXlNeXMvSzRscC9hckZLK09aSDdHcFA2SmhVYlg0SXFtR0taeFZyVmVSQXJ4aHRBWk5kbTZSTjRaN3VnQkJxWVNtdVJ2Q01PYnp3ZnBQeklrRVJCRVJFb2pwRWVSeHNWRk5HY2FGMVFYREZTN2pNSXVnUUJsd0tURy9NSXJqRGRHdHNMd2NGS3FoSU1DajNFbG9xd1V0TE1hdUNIQXBTVEdPQkk3ZXpDRjlldHNxTG1CbDQrR1l2N3o3VWt0cGV2RSs4UWx0UUNtSmZKdTJFS2N6RndrS1FCZE5ya0NDTk9VdzF3d2VvV1RobUlJb0RTSGhWbjBKVG1LQzBLb3hJUS9TMzlEcnF6aVgzQ1pBQzY5V3dDTUFHTFR0Y09xYlFERXA4VUdDR0k0MlBORkFwMEpUZy8wWi8vYUFBZ0JBZ01CUHhEL0FCa0ZBVllibkZFQW5rMlR4NXhweVdNUHFzUjZxSDdvNHBIVklBZHFvR0JadVFsaTFFN1h3MFJyZ29tTUcvNkVGU0VEQWJLU21WMkIySG13ZVRIMXpML2tuNEx2cW0vdVFORG1sT2VicUNyelltekJTUklmSmxTMHgyb0Z3MVp0VFNpcTJnYVljd09Eb1hoZTZzRjVoNGhqR004V0dwWXBZeFpGSmpHUjVvSlVPZ0FPZ1krVUozZjZSeEk3cDRzOHZrdUFYVTBYb1BLcjZhZVByZzBnSmRnVTdVL0dDTjlnYmxuVTA5Ym8wL0FtWkIwcmliYUhlK1dIQnBJRlJkeDkrWHBBQlVOclZJREtCcjVPL3BOOU9SUmNsMDZuang5QWFIbFRBZFQySzNsUUxQS2hlUmFJZ203dTllUVIvcDY4S1JRa09INWRuT0V3L1hwQ3ZQQVI4S1hRT0kwaDluMzlMeDFrVnRQVm5EMG5TNCtRRDgrWXhJWTJDOUxyY21uajBlR3NCODB4NDdIWFRtRzJJVXhXQkRvZUQxNTI4OHM0TkIrZ3UzaHh5NkdkNjJ4a1V1c3NoNEpEZ0FXMllaTGMyREpCakpkQWtaK0VlbEFBY3E2QTlWeDFBc3BzdWJlbW40K0g1WDlzL21meVkxSk5JVjVZeDhrYTdOUDRoZkNuUVhLa0dDQnA3VVRaeFQ0UXhkdTI4NzJzS3JCd2VvMjV1aWp6RW41UHRUaGNyaTZCNkV2OHIvSEFHZmdjMlJBWVhzRTI5K1QzRmJnei9KSDJ3MkZnQjZjeDZuWERLQ1c0L2lHRHFxOUJOVW5TVFVXWERvMitIcEhoZThnV2lQdjkyZmNtSFRvN1hnL08zclQyeURqWm9QSWFPZmVNMWE2Wm9ETVNQejJQSThKcy9SZk8zU2dlWHFxZHRBVHhnYzBvcE5XbzYxUFFvWXVIUTlMTi93QVFxVHo0aHpVUk5hYzBJd2JtNENtZ0pmR01hcEhhTFdjQVg1RmVxbERvTEE2SUhId1dFUTk3OXljOXl6V0g0Sk83NUhwSHJ6alpBdno1WitNYm9YNTBHajZmRFI4ODFlYnlKZDhyVjd3L1FIUlorVmVqdWFOYU1GeDNjOGJFZUVlSHppNkhwZTA3citjSHBSdm04bmxPUTZzMWlSUlBrK3YzOGJ6d3BqbWNydmQ1WHYyeU9VRGl6UUJ5cndlY1NBU1RkMElqTnp0VFR0OXNkRzIzZTM0R09BcDgrV2ZmRDdDcnR5OWJQYldwU084T05HcDg5bms0VFRoTTBISmErOVc5L2YyL1NmNEdNZFd2b09oMGFBTVp2VzJqOXhRUFFhT01ZOGpybmxwNzVQWERWZVFHdjF0R2k4d0tVLzBaLzlvQUNBRURBd0UvRVA4QUdYcUFGVllBYlZYUUJ5NENuQUtSeWdBY0lvanBpWnlaQk5LRVNOVFlmVDkwKzFESzJ6MHNud1pGR2tzVnR4YTJkamh4YkswNjJVMmdSUWdPSXltQzdJMWFrUWdwWjR6dDJLNlRrZUNkRC9jcmx1dFVpelkxWE5EYk1yNWlqWUNTQ093Sk5nRm9RS0xMd2cwMEtaQ0M4UlV5RVo4SXc1VHcrNE9BUUNFdzBKbmp0WTYyQVRqdHpPMEcydGMxS1c5ZEU2NUN4UzdjVGt1ajNqNmZMT09QWGVIWXhXZ1ZvbDBVVWRIb2hpcDJuVURpVjFvK3ZlZHZNeXJxQ1cwclRXMndmQ0RpdzJtbHAzeGhEbWJMaE5vVjJxU0lFZ0VVQ3pUTWdtY0VZbUVRdElvV01yR0FJRmpXSVpxZ1FxdnR3K2RCYURxR0xSVUZoczBZWnRhTzQwaDJtQVFBNE5BYWd3QWtJQ0RXeVIybzFvZ295cE5jcmdFQ2lJQVJJOUxhNlRwNXJpaEdxTlp6SndCQ0pFRzBKeHRoWEhzMndld1RrVWQ2UkVZbUNpTUdGWkRDRXF3bk5sbCt0WnVoRGpWUVVLcmtLQkI0cUFNQUFBQ1dpTmI4UzZWQTRXTndiWVhXbHBNQVpKQnFWMVhFUmlXV2V3RGZZa2lxcENRbGlPa3VRQXFQUUFxK01tcERtRjhXeXJUeWJOSS9IeHhaenRRa0FCdFZRUHJsaTBRWGF3ZkNvOGUxOE1UQlVTVzJnQlowaGRPVElkNFhia3NSQkNxbm5UaXg1M3UrckFveHBFNmk2TVY5MEM4R2dOQllxb1pRbmlNa2dRRkJUNkdWZ0pWSkE4Z292cnZBaUJOZGJEZDhRQkFHOTNFU05Ra1c0ZkxxdWpJWU9WVzNSVDNOTFZtNGptWjZFVkNjSnh5Q2RJN3lWTE80dnFwZVVjQlVCYWo0TFNMRlViU0FDaG81bHRKVGozRTVSVVFDQWlmbzJLL1lJRldzQldOQUlSd0ZIQUFWd0dNMGR1RzNwWDJIRXlDK3lIRjQ1Tm1GclYxSEtFQjRiQ0hnSkVrWVBHUS9GVEd3V2thVmUzVGEvQWtWU2w0enAxemZaRnhlMGxYZHYyUFBsUmliTThOV00zcUx2alRBNUZzV2lxd0FVS1FDcFlCd0I4T1Radm9BU1NBQXdBQU5Zd0lVZXlxd1A2SFFBUUN2SmRxZzlHQWpSUWxPOGNCR3pTN1M0RGxZQUFhREp4cWdIbjJlY29rNklwdlM2SjRvalFVU29Fb3FRS1JaamYyWldlQVRoTEZyVmNTSnVqektEVlZnQ0U5OHJ3eVRFY2w3eEJNSUtrNHBUdWd2VE8vTThGdU02T3lnNUU1QTA2UVIySTQwbUV6THA2bFVkU2pUSkIyZzJhZXhJZ3hCQUNDRGcvcUkwU1NFQVNKRTBrYXY2Tm1vdFp5QUdoUUFVdElNYkkzQXNnQ0lNeHJ0WE5qM2daSWs3ZVhac0t4bWIzNEUzYTg4RTRBSFUvMFovOWs9IiB4PSIwIiB5PSIwIiB3aWR0aD0iMjI1IiBoZWlnaHQ9IjEwMCIvPjxyZWN0IHg9IjIzNyIgeT0iMzEiIHdpZHRoPSI2IiBoZWlnaHQ9IjM4IiBmaWxsPSIjQ0NEODE0Ii8+PHRleHQgeD0iMjU1IiB5PSI2MyIgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzMiIGZvbnQtd2VpZ2h0PSJib2xkIiBmb250LXN0eWxlPSJpdGFsaWMiIGZpbGw9IiMwOEJFRDUiPkFkdmFuY2VkIFNvbHV0aW9uczwvdGV4dD48L3N2Zz4=';
 const CHECKLIST = [
@@ -964,7 +978,7 @@ async function save(){
   if (!store) return;
   if (session.role){
     if (session.role === 'engineer' && !session.cid && !store.deployments.length){
-      try{ localStorage.setItem('svtKit.engSettings', JSON.stringify(store.settings)); }catch(e){}   // Setup edits with no customer open
+      try{ localStorage.setItem(LS.engSv, JSON.stringify(store.settings)); }catch(e){}   // Setup edits with no customer open
     }
     markDirty(); scheduleFlush(); return;
   }
@@ -990,7 +1004,7 @@ function hasNewBlobs(){
   try{
     for (let i = 0; i < (localStorage.length || 0); i++){
       const k = localStorage.key(i);
-      if (k && (k.indexOf(BLOB_PREFIX) === 0 || k === 'svtKit.ghToken')) return true;
+      if (k && (k.indexOf(BLOB_PREFIX) === 0 || k === LS.token)) return true;
     }
   }catch(e){}
   return false;
@@ -1159,8 +1173,8 @@ function lock(){
      customers/<id>/account.enc       customer-encrypted account + settings
      customers/<id>/deps/<dep>.enc    pub half (customer+engineer) + eng half (engineer only) */
 const GH_CONTENTS = 'https://api.github.com/repos/MJP-76/service-deployment-matrix/contents/';
-const KIT_GH_TOKEN = '';   // baked fine-grained PAT (Contents read/write on this repo) for distributed copies
-const BLOB_PREFIX = 'svtKit.blob.';
+const KIT_GH_TOKEN = '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';   // baked fine-grained PAT — Contents read/write on this repo only; rotate before it expires
+const BLOB_PREFIX = LS.blob;
 const REG_PATH = 'registry.enc';
 /* Acts that must work with no workbook open (landing, picker, Customers tab, Setup). */
 const SCOPE_FREE_ACTS = new Set([
@@ -1170,7 +1184,7 @@ const SCOPE_FREE_ACTS = new Set([
 ]);
 /* Engineer-side settings when no customer scope is open (Setup edits). */
 function engSettings(){
-  try{ const s = localStorage.getItem('svtKit.engSettings'); if (s) return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(s)); }catch(e){}
+  try{ const s = localStorage.getItem(LS.engSv); if (s) return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(s)); }catch(e){}
   return Object.assign({}, DEFAULT_SETTINGS);
 }
 function ensureScopelessStore(){
@@ -1178,8 +1192,17 @@ function ensureScopelessStore(){
   return store;
 }
 
+let ghAuthWarned = false;
+function ghAuthFail(r){
+  if (r && (r.status === 401 || r.status === 403)){
+    if (!ghAuthWarned){ ghAuthWarned = true; try{ toast('GitHub token invalid or expired — saving locally. Paste a new token in Setup → Shared store.', true); }catch(e){} }
+    throw new Error('GitHub auth ' + r.status);
+  }
+  throw new Error('GitHub ' + (r ? r.status : 'error'));
+}
+
 function ghToken(){
-  try{ const t = localStorage.getItem('svtKit.ghToken'); if (t) return t; }catch(e){}
+  try{ const t = localStorage.getItem(LS.token); if (t) return t; }catch(e){}
   return typeof KIT_GH_TOKEN === 'string' ? KIT_GH_TOKEN : '';
 }
 function acctPath(cid){ return 'customers/' + cid + '/account.enc'; }
@@ -1194,9 +1217,9 @@ function cachePut(path, text, sha){
   try{ localStorage.setItem(BLOB_PREFIX + path, JSON.stringify({ text: text, sha: sha || null, at: Date.now() })); }
   catch(e){ showStorageWarn(); }
 }
-function isGone(path){ try{ return localStorage.getItem('svtKit.gone.' + path) === '1'; }catch(e){ return false; } }
+function isGone(path){ try{ return localStorage.getItem(LS.gone + path) === '1'; }catch(e){ return false; } }
 function setGone(path, gone){
-  try{ if (gone) localStorage.setItem('svtKit.gone.' + path, '1'); else localStorage.removeItem('svtKit.gone.' + path); }catch(e){}
+  try{ if (gone) localStorage.setItem(LS.gone + path, '1'); else localStorage.removeItem(LS.gone + path); }catch(e){}
 }
 function ghHeaders(){
   return { Authorization: 'Bearer ' + ghToken(), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
@@ -1204,7 +1227,7 @@ function ghHeaders(){
 async function ghGet(path){
   const r = await fetch(GH_CONTENTS + path, { headers: ghHeaders(), cache: 'no-store' });
   if (r.status === 404) return null;
-  if (!r.ok) throw new Error('GitHub ' + r.status);
+  if (!r.ok) ghAuthFail(r);
   const j = await r.json();
   let text = '';
   if (j.content){
@@ -1222,14 +1245,14 @@ async function ghPut(path, text, sha){
   const body = { message: 'svtkit: update ' + path, content: btoa(bin) };
   if (sha) body.sha = sha;
   const r = await fetch(GH_CONTENTS + path, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
-  if (!r.ok) throw new Error('GitHub ' + r.status);
+  if (!r.ok) ghAuthFail(r);
   const j = await r.json();
   return j.content ? j.content.sha : null;
 }
 async function ghDelete(path, sha){
   const r = await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: delete ' + path) + (sha ? '&sha=' + sha : ''),
     { method: 'DELETE', headers: ghHeaders() });
-  if (!r.ok && r.status !== 404) throw new Error('GitHub ' + r.status);
+  if (!r.ok && r.status !== 404) ghAuthFail(r);
 }
 /* Read a blob: fresh=true prefers GitHub (falls back to the offline cache),
    otherwise the cache wins for speed. Returns parsed JSON or null. */
@@ -2595,11 +2618,11 @@ function setupHtml(){
   const d = store ? cur() : null;
   return '<div class="pane">' +
     '<section class="card"><h2>Shared store (GitHub)</h2>' +
-      '<p class="hint">A fine-grained personal access token scoped to <b>MJP-76/service-deployment-matrix</b> (Repository permissions: Contents — read and write) lets this copy sync the encrypted customer, account and deployment files through GitHub. Leave it empty to keep everything in this browser only. The token is saved in this browser\'s localStorage; copies handed to customers can carry one baked in instead.</p>' +
-      '<div class="grid"><label>GitHub token<input id="s_ghToken" type="password" value="" placeholder="' + (ghToken() ? '•••••••• token set' : 'ghp_…') + '" autocomplete="off"></label></div>' +
+      '<p class="hint">A fine-grained personal access token scoped to <b>MJP-76/service-deployment-matrix</b> (Repository permissions: Contents — read and write) syncs the encrypted customer, account and deployment files through GitHub. This copy ships with a baked token; paste one below to override it for this browser, or clear the override to revert to the baked token. With no token at all, data stays in this browser only. Any token entered here is saved in this browser\'s localStorage.</p>' +
+      '<div class="grid"><label>GitHub token<input id="s_ghToken" type="password" value="" placeholder="' + (ghToken() ? '•••••••• token set' : 'ghp_… or github_pat_…') + '" autocomplete="off"></label></div>' +
       '<div class="row"><button data-act="saveGhToken" class="primary">Save token</button>' +
-      '<button data-act="clearGhToken">Clear token</button>' +
-      '<span class="hint">' + (ghToken() ? 'Connected — files sync with GitHub.' : 'Not connected — data stays in this browser.') + '</span></div>' +
+      '<button data-act="clearGhToken">Clear override</button>' +
+      '<span class="hint">' + (ghToken() ? ('Connected — files sync with GitHub' + ((KIT_GH_TOKEN && !localStorage.getItem(LS.token)) ? ' (baked token)' : '') + '.') : 'Not connected — data stays in this browser.') + '</span></div>' +
     '</section>' +
     '<section class="card"><h2>Launcher kit (portable PuTTY / WinSCP + Deploy &amp; Upgrade Manager)</h2>' +
       '<p class="hint">Everything lives in one folder — <code>' + esc(S().installDir || DEFAULT_SETTINGS.installDir) + '</code> — which is also where the Upgrade Manager runs from. Portable PuTTY and WinSCP sit next to the launcher. The Deployment and Upgrade Manager are <b>found automatically</b> because their name and folder change with each installed version; set a path only to override the search.</p>' +
@@ -3521,15 +3544,17 @@ function wire(){
     if (act === 'saveGhToken'){
       const v = ($('#s_ghToken').value || '').trim();
       if (!v) return toast('Paste a GitHub token first', true);
-      try{ localStorage.setItem('svtKit.ghToken', v); }catch(e){ return toast('Could not store the token in this browser', true); }
+      ghAuthWarned = false;
+      try{ localStorage.setItem(LS.token, v); }catch(e){ return toast('Could not store the token in this browser', true); }
       render();
       toast('Token saved — the shared store is now GitHub-backed');
       return;
     }
     if (act === 'clearGhToken'){
-      try{ localStorage.removeItem('svtKit.ghToken'); }catch(e){}
+      ghAuthWarned = false;
+      try{ localStorage.removeItem(LS.token); }catch(e){}
       render();
-      toast('Token cleared — data stays in this browser');
+      toast((typeof KIT_GH_TOKEN === 'string' && KIT_GH_TOKEN) ? 'Token override cleared — using the baked token' : 'Token cleared — data stays in this browser');
       return;
     }
     if (act === 'dlVbs') return download('svt-launcher.vbs', vbsText());
@@ -3667,7 +3692,7 @@ async function checkVersion(){
     const meta = await r.json();
     const latest = meta && meta.version;
     if (!latest || !verNewer(latest, KIT_VERSION)) return;
-    const dismissed = localStorage.getItem('svtKit.dismissedVer');
+    const dismissed = localStorage.getItem(LS.dismissed);
     if (dismissed === latest) return;
     const bar = $('#updateBar'), txt = $('#updateText');
     if (!bar || !txt) return;
@@ -3676,7 +3701,7 @@ async function checkVersion(){
       '<a href="' + esc(KIT_REPO_URL) + '" target="_blank" rel="noopener">GitHub</a> — your saved data stays in this browser either way.';
     bar.hidden = false;
     $('#updateDismiss').onclick = () => {
-      try{ localStorage.setItem('svtKit.dismissedVer', latest); }catch(e){}
+      try{ localStorage.setItem(LS.dismissed, latest); }catch(e){}
       bar.hidden = true;
     };
   }catch(e){ /* offline / file:// restrictions — stay silent */ }

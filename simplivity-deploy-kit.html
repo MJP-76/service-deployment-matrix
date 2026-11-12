@@ -1,0 +1,2712 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>HPE SimpliVity Deploy Kit</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#0e1318;--panel:#151d25;--panel2:#1b242e;--line:#26313d;--txt:#e6edf3;--dim:#93a6b7;--acc:#01a982;--blue:#2f81f7;--purple:#a371f7;--green:#2da44e;--amber:#d4a72c;--orange:#e8703a;--red:#e5534b}
+html,body{margin:0}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:rgba(14,19,24,.96);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;white-space:nowrap}
+.brand span{color:var(--acc)}
+.brand-logo{height:26px;max-width:190px;background:#fff;padding:3px 8px;border-radius:6px;display:block}
+#brandLogo:empty{display:none}
+.tsx-mark{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:13px;line-height:1}
+.tsx-mark b{color:#f2fbfd;font-weight:800;letter-spacing:.02em;font-size:15px}
+.tsx-mark i{color:#ccd814;font-style:normal;font-weight:800}
+.tsx-mark em{color:#08bed5;font-style:italic;font-weight:700}
+select,input,textarea,button{font:inherit}
+select,input[type=text],input[type=password],input[type=date],input[type=number],textarea{padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:#0d1216;color:var(--txt);width:100%}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--acc)}
+button,.btn{cursor:pointer;border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:7px 12px;border-radius:8px}
+button:hover,.btn:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#04231c;font-weight:600}
+button.danger{color:#ffb3ae}
+button.danger:hover{border-color:var(--red)}
+#depSel{max-width:260px;width:auto}
+.flex{flex:1}
+.dim{color:var(--dim)}
+nav#tabs{display:flex;gap:4px;padding:8px 16px 0;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+nav#tabs button{border-radius:8px 8px 0 0;border-bottom:0;background:transparent;color:var(--dim);padding:8px 14px}
+nav#tabs button.on{background:var(--panel2);color:var(--txt);border-color:var(--line);box-shadow:inset 0 -2px 0 var(--acc)}
+nav#tabs[hidden]{display:none}
+main{flex:1;width:100%;max-width:1180px;margin:0 auto;padding:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.card h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--acc)}
+.rolehead{margin:24px 0 12px;padding:10px 14px;background:linear-gradient(90deg,#005758,#00747a);border-radius:10px}
+.rolehead h2{margin:0;color:#fff;font-size:13px;text-transform:uppercase;letter-spacing:.07em}
+.rolehead .hint{margin:4px 0 0;color:#cfe9ea}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim)}
+label.full{grid-column:1/-1}
+label.check,label.inline{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--txt)}
+label.check input,label.inline input{width:auto}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:6px 16px}
+.pwrow{display:flex;gap:6px;align-items:center}
+.pwrow input[type=checkbox]{width:auto}
+fieldset.net{border:1px solid var(--line);border-radius:10px;margin:0 0 12px;padding:10px 12px 12px}
+fieldset.net legend{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);padding:0 6px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .sep{width:1px;height:22px;background:var(--line)}
+.wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;background:var(--panel)}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);background:var(--panel2)}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#1a232e}
+.mono,.ln{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.ln{background:transparent;border:1px solid transparent;color:var(--txt);padding:2px 6px;border-radius:6px;cursor:pointer;width:auto}
+.ln:hover{border-color:var(--line);background:var(--panel2)}
+.sub{color:var(--dim);font-size:11px}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;text-decoration:none;color:#fff;white-spacenowrap;border:0;cursor:pointer;line-height:1.4}
+.chip.web{background:var(--blue)}
+.chip.ssh{background:var(--purple)}
+.chip.xfer{background:var(--green)}
+.chip.dep{background:var(--amber);color:#2a2100}
+.chip.upg{background:var(--orange)}
+.chip.vami{background:#57606a}
+.chip:hover{filter:brightness(1.15)}
+td .acts{display:flex;gap:6px;flex-wrap:wrap}
+.menu{position:relative;display:inline-block}
+.menu summary{list-style:none;cursor:pointer;padding:3px 7px;border-radius:6px;color:var(--dim);border:1px solid transparent;user-select:none}
+.menu summary::-webkit-details-marker{display:none}
+.menu summary:hover{border-color:var(--line);background:var(--panel2);color:var(--txt)}
+.menu-body{position:absolute;right:0;top:110%;z-index:40;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:5px;min-width:220px;box-shadow:0 12px 32px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:2px}
+.menu-body button{text-align:left;background:transparent;border:0;padding:7px 9px;border-radius:6px;font-size:13px;color:var(--txt);cursor:pointer}
+.menu-body button:hover{background:#253140}
+.tools{white-space:nowrap;text-align:right}
+.ico{padding:3px 7px;border-radius:6px;background:transparent;border:1px solid transparent;color:var(--dim);font-size:13px;cursor:pointer}
+.ico:hover{border-color:var(--line);color:var(--txt);background:var(--panel2)}
+.ico.danger:hover{color:#ffb3ae;border-color:#5a2b28}
+.empty{text-align:center;padding:48px 20px;color:var(--dim);border:1px dashed var(--line);border-radius:12px}
+.empty h2{color:var(--txt);margin-top:0}
+.hint{font-size:12.5px;color:var(--dim);margin:6px 0}
+.landing-card{max-width:780px;margin:0 auto}
+.gate-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.gate-card{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel2)}
+.gate-card h2{margin:0 0 6px;font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
+.gate-card p{margin:0 0 12px;font-size:13px;color:var(--dim)}
+.credrow{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.credlabel{min-width:180px;font-size:12px;color:var(--dim)}
+.warnbox{margin:0 0 10px;padding:8px 12px;border:1px solid #8a6d1a;background:#2a2312;color:#f0d78c;border-radius:8px;font-size:12.5px}
+.okbox{margin:0 0 10px;padding:8px 12px;border:1px solid #1f5f3f;background:#12241c;color:#7fd8b8;border-radius:8px;font-size:12.5px}
+input.missing,textarea.missing{border-color:var(--red) !important;box-shadow:0 0 0 1px var(--red)}
+.steps{font-size:13px;color:var(--dim);padding-left:20px}
+.steps li{margin:5px 0}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0d1216;border:1px solid var(--line);padding:1px 5px;border-radius:5px;font-size:12px;color:#cfe3ff}
+.overlay{position:fixed;inset:0;background:rgba(5,8,11,.72);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;overflow:auto}
+.overlay[hidden]{display:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;width:100%;max-width:660px;max-height:92vh;overflow:auto;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.panel h2{margin-top:0}
+.sec{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin:16px 0 6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.row.end{justify-content:flex-end}
+.err{color:#ffb3ae;font-size:13px;min-height:18px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(16px);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:99;font-size:13px;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:#5a2b28;color:#ffb3ae}
+#storageWarn{background:#3a2d10;border-bottom:1px solid #6b541c;color:#f0d78c;padding:8px 16px;font-size:13px}
+footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;text-align:center}
+.pane{animation:fade .15s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@media(max-width:700px){header{gap:6px}nav#tabs{padding:6px 8px 0}main{padding:10px}}
+@media print{
+  body{background:#fff}
+  body>*:not(main){display:none!important}
+  main{max-width:none;padding:0;margin:0}
+  .no-print{display:none!important}
+  .pane{animation:none}
+  .doc{box-shadow:none;border-radius:0;padding:0;border:0}
+}
+</style>
+<style id="docStyles">
+.doc{background:#fff;color:#1a1a1a;font:14px/1.5 Arial,Helvetica,sans-serif;padding:26px 30px;border-radius:12px;max-width:1000px;margin:0 auto;border:1px solid #d9d8d7}
+.doc .dochead{display:flex;flex-direction:column;gap:10px}
+.doc .dochead-logo{align-self:flex-start}
+.doc .dochead-logo img{height:44px;display:block}
+.doc h1{font-size:23px;margin:0 0 4px;color:#005758;letter-spacing:-.01em}
+.doc h1 span{font-weight:400;color:#666;font-size:17px}
+.doc .verbadge{display:inline-block;background:#005758;color:#fff;font-size:12px;font-weight:700;padding:3px 9px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:.03em}
+.doc .doccredit{font-size:13px;font-weight:bold;color:#00747a;margin:2px 0 4px}
+.doc .docmeta{color:#777;font-size:12px;margin-bottom:8px}
+.doc h2{font-size:15px;margin:24px 0 8px;padding-bottom:5px;border-bottom:2px solid #ccd814;color:#00747a;page-break-after:avoid}
+.doc h3{font-size:13px;margin:14px 0 6px;color:#2d9f88;page-break-after:avoid}
+.doc table{border-collapse:collapse;width:100%;margin:6px 0 14px;font-size:13px;background:#fff}
+.doc th,.doc td{border:1px solid #cbd3d8;padding:5px 9px;text-align:left;vertical-align:top;color:#1a1a1a}
+.doc th{background:#f0f0f0;color:#005758;font-weight:600}
+.doc table.kv td:first-child{background:#fffff6;color:#005758;width:230px;font-weight:600}
+.doc ul{margin:4px 0 10px;padding-left:22px}
+.doc li{margin:3px 0}
+.doc .ok{color:#2d9f88}
+.doc .no{color:#767676}
+.doc pre.links{background:#f0f0f0;border:1px solid #d9d8d7;padding:10px 12px;font:12px/1.65 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-all;margin:6px 0 14px;color:#222}
+.doc .sub{color:#777;font-size:12px}
+.doc .empty-doc{color:#888;font-style:italic}
+.doc .tsx-mark{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:15px;line-height:1.1}
+.doc .tsx-mark b{color:#005758;font-weight:800;letter-spacing:.02em;font-size:19px}
+.doc .tsx-mark i{color:#ccd814;font-style:normal;font-weight:800}
+.doc .tsx-mark em{color:#08bed5;font-style:italic;font-weight:700}
+.doc .hpe-slot{display:inline-block;margin-left:8px;vertical-align:middle}
+.doc .hpe-mark{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;color:#01a95c;background:#fff;border:1px solid #01a95c;border-radius:4px;padding:2px 7px;line-height:1.4}
+.doc .hpe-logo{height:30px;display:inline-block}
+@media print{
+  .doc{border:0;padding:0;margin:0;max-width:none}
+  .doc tr{page-break-inside:avoid}
+  .doc pre.links{page-break-inside:avoid}
+  @page{margin:12mm}
+}
+</style>
+<style>
+@media screen{
+  .doc{background:var(--panel);color:var(--txt);border:1px solid var(--line)}
+  .doc .dochead-logo{display:none}
+  .doc h1{color:var(--txt)}
+  .doc h1 span{color:var(--dim)}
+  .doc .docmeta{color:var(--dim)}
+  .doc h2{color:var(--acc)}
+  .doc h3{color:#2d9f88}
+  .doc table{background:transparent}
+  .doc th,.doc td{border-color:var(--line);color:var(--txt)}
+  .doc th{background:var(--panel2);color:var(--dim)}
+  .doc table.kv td:first-child{background:var(--panel2);color:var(--dim)}
+  .doc .ok{color:#2d9f88}
+  .doc .no{color:var(--dim)}
+  .doc pre.links{background:#0d1216;border-color:var(--line);color:#cfe3ff}
+  .doc .sub{color:var(--dim)}
+  .doc .empty-doc{color:var(--dim)}
+  .doc .tsx-mark b{color:#f2fbfd}
+  .doc .verbadge{background:var(--acc);color:#04231c}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Simpli<span>Vity</span> Deploy Kit</div>
+  <span id="brandLogo"></span>
+  <select id="sectionSel" title="Switch section" hidden>
+    <option value="customer">Customer Engineer</option>
+    <option value="engineer">Deployment Engineer</option>
+  </select>
+  <select id="depSel" title="Switch deployment" hidden></select>
+  <button id="newDep" title="New deployment" hidden>+ New</button>
+  <span class="flex"></span>
+  <span id="counts" class="dim"></span>
+  <button id="setupBtn" hidden>Setup</button>
+  <button id="lockBtn" hidden>Lock</button>
+</header>
+
+<nav id="tabs">
+  <button data-tab="intro" class="on">Instructions</button>
+  <button data-tab="details">Details</button>
+  <button data-tab="nodes">Nodes</button>
+  <button data-tab="vc">vCenter &amp; Arbiter</button>
+  <button data-tab="doc">Document</button>
+  <button data-tab="advanced">Advanced</button>
+</nav>
+
+<div id="storageWarn" hidden>Warning: this browser is not saving data (localStorage unavailable) — entries will be lost when you close the page.</div>
+
+<main id="main"></main>
+
+<footer>HPE service delivered by TD SYNNEX Advanced Solutions — Professional Services · Runs locally from this file · data stays in this browser's localStorage · shortcut links need the launcher kit from Setup</footer>
+
+<input type="file" id="xmlFile" accept=".xml,text/xml,application/xml" hidden>
+<input type="file" id="jsonFile" accept=".json,application/json" hidden>
+<input type="file" id="custFile" accept=".json,application/json" hidden>
+<input type="file" id="logoFile" accept="image/*" hidden>
+<input type="file" id="hpeLogoFile" accept="image/*" hidden>
+<script type="application/json" id="vaultData"></script>
+
+<div id="nodeModal" class="overlay" hidden>
+  <div class="panel">
+    <h2 id="nodeTitle">Add node</h2>
+    <div class="grid">
+      <label>Node name *<input id="n_name"></label>
+    </div>
+    <div class="hint" id="seqPreview" hidden></div>
+    <h3 class="sec">Section 1 · iLO information</h3>
+    <div class="grid">
+      <label>Serial number<input id="n_serial"></label>
+      <label>ILO FQDN hostname<input id="n_ilohost"></label>
+      <label>IP address<input id="n_iloip"></label>
+      <label>Subnet address<input id="n_ilosubnet"></label>
+      <label>Gateway<input id="n_ilogw"></label>
+      <label>DNS 1<input id="n_ilodns1"></label>
+      <label>DNS 2<input id="n_ilodns2"></label>
+      <label>Switch port type<input id="n_iloport"></label>
+      <label>VLAN ID<input id="n_ilovlan"></label>
+      <label>User<input id="n_ilouser"></label>
+      <label>Password<span class="pwrow"><input type="password" id="n_ilopass" autocomplete="off"><input type="checkbox" id="n_showpw" title="Show password"></span></label>
+    </div>
+    <h3 class="sec">Section 2 · ESX &amp; Omnistack management</h3>
+    <div class="grid">
+      <label>ESXi FQDN hostname<input id="n_esxihost"></label>
+      <label>Version<input id="n_esxiversion"></label>
+      <label>MTU size<input id="n_esximtu" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>IP address<input id="n_esxiip"></label>
+      <label>Subnet mask<input id="n_esxisubnet"></label>
+      <label>Gateway<input id="n_esxigw"></label>
+      <label>DNS 1<input id="n_esxidns1"></label>
+      <label>DNS 2<input id="n_esxidns2"></label>
+      <label>Switch port type<input id="n_esxiport"></label>
+      <label>VLAN ID<input id="n_esxivlan"></label>
+      <label>NIC(s) for management &amp; VMs<input id="n_esxinics"></label>
+      <label>Root password<span class="pwrow"><input type="password" id="n_esxipass" autocomplete="off"></span></label>
+    </div>
+    <h3 class="sec">Section 3 · OmniStack Virtual Controller (vSwitch0)</h3>
+    <div class="grid">
+      <label>OVC IP address<input id="n_ovcmgmt"></label>
+      <label>OVC "svtcli" password<input id="n_ovcpass" type="password" autocomplete="off"></label>
+    </div>
+    <h3 class="sec">Section 4 · ESXi storage VMK1 (vSwitch1)</h3>
+    <div class="grid">
+      <label>Port group<input id="n_vmkpg" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>MTU size<input id="n_vmkmtu" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>IP address<input id="n_vmkip"></label>
+      <label>Subnet mask<input id="n_vmksubnet"></label>
+      <label>VLAN ID<input id="n_vmkvlan"></label>
+      <label>NIC(s) for storage network<input id="n_vmknics"></label>
+    </div>
+    <h3 class="sec">Section 5 · OmniStack storage network (vSwitch1)</h3>
+    <div class="grid">
+      <label>Port group<input id="n_ovcstoragepg" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>IP address<input id="n_ovcstorage"></label>
+    </div>
+    <h3 class="sec">Section 6 · Federation (vSwitch1)</h3>
+    <div class="grid">
+      <label>Port group<input id="n_ovcfedpg" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>MTU size<input id="n_ovcfedmtu" readonly title="Fixed value (pre-flight standard)"></label>
+      <label>IP address<input id="n_ovcfed"></label>
+      <label>Subnet mask<input id="n_ovcfedsubnet"></label>
+      <label>VLAN ID<input id="n_ovcfedvlan"></label>
+    </div>
+    <div class="row end">
+      <button id="nodeCancel">Cancel</button>
+      <button id="nodeSave" class="primary">Save node</button>
+    </div>
+  </div>
+</div>
+
+<div id="nameModal" class="overlay" hidden>
+  <div class="panel" style="max-width:430px">
+    <h2 id="nameTitle">New deployment</h2>
+    <label>Deployment name<input id="nameInput" placeholder="Customer — PROD"></label>
+    <div class="row end">
+      <button id="nameCancel">Cancel</button>
+      <button id="nameSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+<div id="countModal" class="overlay" hidden>
+  <div class="panel" style="max-width:400px">
+    <h2>Add nodes</h2>
+    <p class="hint">How many nodes does this deployment have? The empty node forms are created together — fill in the first one&#39;s addresses and save, and the others are pre-filled automatically (each IP&#39;s last octet steps per node; netmask &amp; gateway are copied).</p>
+    <label>Number of nodes<input id="countInput" type="number" min="1" max="64" value="3"></label>
+    <div class="row end">
+      <button id="countCancel">Cancel</button>
+      <button id="countSave" class="primary">Create nodes</button>
+    </div>
+  </div>
+</div>
+
+<div id="unlockModal" class="overlay" hidden>
+  <div class="panel" style="max-width:390px;text-align:center">
+    <h2 id="gateTitle">Deployment Engineer</h2>
+    <p class="hint" id="gateHint">Enter the Deployment Engineer password to open the deployment sections.</p>
+    <input type="password" id="unlockPw" style="width:100%" autocomplete="current-password">
+    <div class="err" id="unlockErr" hidden></div>
+    <div class="row" style="justify-content:center"><button id="unlockBtn" class="primary">Unlock</button></div>
+    <div class="row" style="justify-content:center"><button id="unlockReset" class="danger">Reset this workbook…</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="text/plain" id="vbsSource">' svt-launcher.vbs - SimpliVity Deploy Kit protocol launcher
+' Registered URL schemes:
+'   svtputty://user@host:port               -> PuTTY
+'   svtwinscp://user:pass@host:port/sftp|scp -> WinSCP
+'   svtdeploy://launch                      -> SimpliVity Deployment Manager
+'   svtupgrade://launch                     -> SimpliVity Upgrade Manager
+' Configuration lives in svt-launcher.ini next to this script.
+Option Explicit
+
+Dim sh, fso, scriptDir, cfgPath
+Set sh = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
+cfgPath = scriptDir & "\svt-launcher.ini"
+
+Dim puttyExe, winscpExe, deployExe, upgradeExe, puttyPw, puttyKey
+puttyExe   = "C:\Program Files\PuTTY\putty.exe"
+winscpExe  = "C:\Program Files\WinSCP\WinSCP.exe"
+deployExe  = ""
+upgradeExe = ""
+puttyPw    = "0"
+puttyKey   = ""
+
+If fso.FileExists(cfgPath) Then
+  Dim ts, line, eq, k, v
+  Set ts = fso.OpenTextFile(cfgPath, 1)
+  Do Until ts.AtEndOfStream
+    line = Trim(ts.ReadLine)
+    If Len(line) > 0 Then
+      If Left(line, 1) <> ";" And Left(line, 1) <> "#" Then
+        eq = InStr(line, "=")
+        If eq > 0 Then
+          k = LCase(Trim(Left(line, eq - 1)))
+          v = Trim(Mid(line, eq + 1))
+          Select Case k
+            Case "putty"         : puttyExe  = v
+            Case "winscp"        : winscpExe = v
+            Case "deploy"        : deployExe = v
+            Case "upgrade"       : upgradeExe = v
+            Case "puttypassword" : puttyPw   = v
+            Case "puttykey"      : puttyKey  = v
+          End Select
+        End If
+      End If
+    End If
+  Loop
+  ts.Close
+End If
+
+If WScript.Arguments.Count = 0 Then WScript.Quit 1
+Dim url, p, scheme, rest
+url = WScript.Arguments(0)
+p = InStr(url, "://")
+If p = 0 Then WScript.Quit 1
+scheme = LCase(Left(url, p - 1))
+rest = Mid(url, p + 3)
+
+Dim user, pass, host, port, proto, at, cp, lp, slash
+user = "" : pass = "" : host = "" : port = "" : proto = "sftp"
+
+slash = InStr(rest, "/")
+If slash > 0 Then
+  proto = LCase(Mid(rest, slash + 1))
+  rest = Left(rest, slash - 1)
+End If
+
+at = InStrRev(rest, "@")
+If at > 0 Then
+  lp = Left(rest, at - 1)
+  rest = Mid(rest, at + 1)
+  cp = InStr(lp, ":")
+  If cp > 0 Then
+    user = Left(lp, cp - 1)
+    pass = Mid(lp, cp + 1)
+  Else
+    user = lp
+  End If
+End If
+
+cp = InStr(rest, ":")
+If cp > 0 Then
+  host = Left(rest, cp - 1)
+  port = Mid(rest, cp + 1)
+Else
+  host = rest
+End If
+
+Dim exe, cmd, u, toolName
+cmd = ""
+toolName = ""
+Select Case scheme
+  Case "svtputty"
+    toolName = "PuTTY"
+    exe = ResolveExe(puttyExe, "putty.exe")
+    cmd = "-ssh " & Q(UrlDecode(host))
+    If Len(port) > 0 Then cmd = cmd & " -P " & port
+    If Len(user) > 0 Then cmd = cmd & " -l " & Q(UrlDecode(user))
+    If Len(puttyKey) > 0 Then cmd = cmd & " -i " & Q(puttyKey)
+    If puttyPw = "1" And Len(pass) > 0 Then cmd = cmd & " -pw " & Q(UrlDecode(pass))
+  Case "svtwinscp"
+    toolName = "WinSCP"
+    exe = ResolveExe(winscpExe, "WinSCP.exe")
+    u = proto & "://"
+    If Len(user) > 0 Then
+      u = u & user
+      If Len(pass) > 0 Then u = u & ":" & pass
+      u = u & "@"
+    End If
+    u = u & host
+    If Len(port) > 0 Then u = u & ":" & port
+    u = u & "/"
+    cmd = Q(u)
+  Case "svtdeploy"
+    toolName = "SimpliVity Deployment Manager"
+    exe = ResolveExe(deployExe, "*deployment*manager*.exe")
+  Case "svtupgrade"
+    toolName = "SimpliVity Upgrade Manager"
+    exe = ResolveExe(upgradeExe, "*upgrade*manager*.exe")
+  Case Else
+    WScript.Quit 1
+End Select
+
+If Len(exe) = 0 Then
+  MsgBox toolName & " could not be found." & vbCrLf & vbCrLf & _
+         "Searched this kit folder, its parent folder, %USERPROFILE%\Downloads," & vbCrLf & _
+         "C:\Program Files\HPE and C:\Program Files (x86)\HPE." & vbCrLf & vbCrLf & _
+         "Drop the portable exe into the kit folder, or set its path in svt-launcher.ini.", _
+         vbExclamation, "SimpliVity Deploy Kit"
+  WScript.Quit 1
+End If
+
+Dim fullCmd
+fullCmd = Q(exe)
+If Len(cmd) > 0 Then fullCmd = fullCmd & " " & cmd
+sh.Run fullCmd, 1, False
+
+Function ResolveExe(cfg, pattern)
+  ResolveExe = ""
+  Dim base, p
+  cfg = Trim(cfg)
+  If Len(cfg) > 0 And InStr(cfg, "\") > 0 Then
+    If fso.FileExists(cfg) Then
+      ResolveExe = cfg
+      Exit Function
+    End If
+  End If
+  base = cfg
+  p = InStrRev(cfg, "\")
+  If p > 0 Then base = Mid(cfg, p + 1)
+  If Len(base) > 0 Then
+    If fso.FileExists(scriptDir & "\" & base) Then
+      ResolveExe = scriptDir & "\" & base
+      Exit Function
+    End If
+    If fso.FileExists(scriptDir & "\..\" & base) Then
+      ResolveExe = scriptDir & "\..\" & base
+      Exit Function
+    End If
+  End If
+  ResolveExe = FindNewest(pattern)
+End Function
+
+Function FindNewest(pattern)
+  Dim roots, r, best, bestDate, pf, top, subf, name, ok
+  best = ""
+  bestDate = CDate(0)
+  roots = Array(scriptDir, scriptDir & "\..", sh.ExpandEnvironmentStrings("%USERPROFILE%") & "\Downloads")
+  For Each r In roots
+    SearchDir CStr(r), pattern, 0, best, bestDate
+  Next
+  For Each pf In Array("C:\Program Files", "C:\Program Files (x86)")
+    ok = False
+    On Error Resume Next
+    Set top = fso.GetFolder(pf).SubFolders
+    If Err.Number = 0 Then ok = True
+    Err.Clear
+    On Error GoTo 0
+    If ok Then
+      For Each subf In top
+        name = LCase(subf.Name)
+        If InStr(name, "hpe") > 0 Or InStr(name, "hewlett") > 0 Or InStr(name, "simplivity") > 0 Or InStr(name, "omnistack") > 0 Then
+          SearchDir subf.Path, pattern, 0, best, bestDate
+        End If
+      Next
+    End If
+  Next
+  FindNewest = best
+End Function
+
+Sub SearchDir(dir, pattern, depth, ByRef best, ByRef bestDate)
+  If depth > 4 Then Exit Sub
+  Dim folder, f, coll, subf, ok
+  On Error Resume Next
+  Set folder = fso.GetFolder(dir)
+  If Err.Number <> 0 Then
+    Err.Clear
+    On Error GoTo 0
+    Exit Sub
+  End If
+  On Error GoTo 0
+  For Each f In folder.Files
+    If LCase(f.Name) Like LCase(pattern) Then
+      If InStr(LCase(f.Name), "uninstall") = 0 Then
+        If CDate(f.DateLastModified) > bestDate Then
+          bestDate = CDate(f.DateLastModified)
+          best = f.Path
+        End If
+      End If
+    End If
+  Next
+  If depth < 4 Then
+    ok = False
+    On Error Resume Next
+    Set coll = folder.SubFolders
+    If Err.Number = 0 Then ok = True
+    Err.Clear
+    On Error GoTo 0
+    If ok Then
+      For Each subf In coll
+        SearchDir subf.Path, pattern, depth + 1, best, bestDate
+      Next
+    End If
+  End If
+End Sub
+
+Function Q(s)
+  Q = """" & Replace(s, """", "\""") & """"
+End Function
+
+Function UrlDecode(s)
+  Dim i, c, cnt, idx, bytes()
+  cnt = 0
+  i = 1
+  Do While i <= Len(s)
+    If Mid(s, i, 1) = "%" Then
+      If i + 2 <= Len(s) Then
+        If IsHex(Mid(s, i + 1, 2)) Then
+          cnt = cnt + 1
+          i = i + 3
+        Else
+          cnt = cnt + 1
+          i = i + 1
+        End If
+      Else
+        cnt = cnt + 1
+        i = i + 1
+      End If
+    Else
+      cnt = cnt + 1
+      i = i + 1
+    End If
+  Loop
+  If cnt = 0 Then
+    UrlDecode = ""
+    Exit Function
+  End If
+  ReDim bytes(cnt - 1)
+  idx = 0
+  i = 1
+  Do While i <= Len(s)
+    c = Mid(s, i, 1)
+    If c = "%" Then
+      If i + 2 <= Len(s) Then
+        If IsHex(Mid(s, i + 1, 2)) Then
+          bytes(idx) = CInt("&H" & Mid(s, i + 1, 2))
+          idx = idx + 1
+          i = i + 3
+        Else
+          bytes(idx) = Asc(c)
+          idx = idx + 1
+          i = i + 1
+        End If
+      Else
+        bytes(idx) = Asc(c)
+        idx = idx + 1
+        i = i + 1
+      End If
+    Else
+      bytes(idx) = Asc(c)
+      idx = idx + 1
+      i = i + 1
+    End If
+  Loop
+  UrlDecode = BytesToUtf8(bytes)
+End Function
+
+Function BytesToUtf8(bytes)
+  Dim i, b, b2, b3, b4, cp, res
+  res = ""
+  i = 0
+  Do While i <= UBound(bytes)
+    b = bytes(i)
+    If b < &H80 Then
+      res = res & Chr(b)
+      i = i + 1
+    ElseIf (b And &HE0) = &HC0 Then
+      If i + 1 <= UBound(bytes) Then
+        b2 = bytes(i + 1)
+        cp = ((b And &H1F) * &H40) + (b2 And &H3F)
+        res = res & ChrW(cp)
+        i = i + 2
+      Else
+        i = i + 1
+      End If
+    ElseIf (b And &HF0) = &HE0 Then
+      If i + 2 <= UBound(bytes) Then
+        b2 = bytes(i + 1) : b3 = bytes(i + 2)
+        cp = ((b And &HF) * &H1000) + ((b2 And &H3F) * &H40) + (b3 And &H3F)
+        res = res & ChrW(cp)
+        i = i + 3
+      Else
+        i = i + 1
+      End If
+    ElseIf (b And &HF8) = &HF0 Then
+      If i + 3 <= UBound(bytes) Then
+        b2 = bytes(i + 1) : b3 = bytes(i + 2) : b4 = bytes(i + 3)
+        cp = ((b And &H7) * &H40000) + ((b2 And &H3F) * &H1000) + ((b3 And &H3F) * &H40) + (b4 And &H3F)
+        cp = cp - &H10000
+        res = res & ChrW(&HD800 + (cp \ &H400)) & ChrW(&HDC00 + (cp And &H3FF))
+        i = i + 4
+      Else
+        i = i + 1
+      End If
+    Else
+      i = i + 1
+    End If
+  Loop
+  BytesToUtf8 = res
+End Function
+
+Function IsHex(s)
+  Dim n
+  If Len(s) <> 2 Then
+    IsHex = False
+    Exit Function
+  End If
+  On Error Resume Next
+  n = CLng("&H" & s)
+  IsHex = (Err.Number = 0)
+  Err.Clear
+  On Error GoTo 0
+End Function
+</script>
+
+<script>
+'use strict';
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ue = s => encodeURIComponent(s || '');
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+function getPath(o, p){ return p.split('.').reduce((a, k) => (a == null ? a : a[k]), o); }
+function setPath(o, p, v){
+  const ks = p.split('.');
+  let x = o;
+  for (let i = 0; i < ks.length - 1; i++){
+    if (x[ks[i]] == null || typeof x[ks[i]] !== 'object') x[ks[i]] = {};
+    x = x[ks[i]];
+  }
+  x[ks[ks.length - 1]] = v;
+}
+
+/* ================= constants ================= */
+const LS_KEY = 'svtDeployKit.v1';
+const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
+const PUB_KEY = 'svtCustomer.v1';
+const ENG_KEY = 'svtEngineer.v1';
+const HPE_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHN0cm9rZS13aWR0aD0iMzYiIHZpZXdCb3g9IjAgMCA2MzAgMTgwIj48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAiIGQ9Ik0xOCAxODBWMG0xNTQgMTgwVjBNMTggODloMTM3bTk1IDkxVjBtMCAxOGgxMDJhMzIgMzIgMCAwIDEgMCAxMDBIMjUwbTIyMi02N1YxOGgxNTgiLz48cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiMwM2E4ODMiIGQ9Ik02MzAgMTYySDQ3MlY4NmgxNTgiLz48L3N2Zz4K';
+const TSX_LOCKUP = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MDAgMTAwIiB3aWR0aD0iNjAwIiBoZWlnaHQ9IjEwMCI+PGltYWdlIGhyZWY9ImRhdGE6aW1hZ2UvanBlZztiYXNlNjQsLzlqLzRRQVlSWGhwWmdBQVNVa3FBQWdBQUFBQUFBQUFBQUFBQVAvc0FCRkVkV05yZVFBQkFBUUFBQUJrQUFELzRRUXFhSFIwY0RvdkwyNXpMbUZrYjJKbExtTnZiUzk0WVhBdk1TNHdMd0E4UDNod1lXTnJaWFFnWW1WbmFXNDlJdSs3dnlJZ2FXUTlJbGMxVFRCTmNFTmxhR2xJZW5KbFUzcE9WR042YTJNNVpDSS9QaUE4ZURwNGJYQnRaWFJoSUhodGJHNXpPbmc5SW1Ga2IySmxPbTV6T20xbGRHRXZJaUI0T25odGNIUnJQU0pCWkc5aVpTQllUVkFnUTI5eVpTQTNMakl0WXpBd01DQTNPUzR4WWpZMVlUYzVZalFzSURJd01qSXZNRFl2TVRNdE1qSTZNREU2TURFZ0lDQWdJQ0FnSUNJK0lEeHlaR1k2VWtSR0lIaHRiRzV6T25Ka1pqMGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNVGs1T1M4d01pOHlNaTF5WkdZdGMzbHVkR0Y0TFc1ekl5SStJRHh5WkdZNlJHVnpZM0pwY0hScGIyNGdjbVJtT21GaWIzVjBQU0lpSUhodGJHNXpPbmh0Y0UxTlBTSm9kSFJ3T2k4dmJuTXVZV1J2WW1VdVkyOXRMM2hoY0M4eExqQXZiVzB2SWlCNGJXeHVjenB6ZEZKbFpqMGlhSFIwY0RvdkwyNXpMbUZrYjJKbExtTnZiUzk0WVhBdk1TNHdMM05VZVhCbEwxSmxjMjkxY21ObFVtVm1JeUlnZUcxc2JuTTZlRzF3UFNKb2RIUndPaTh2Ym5NdVlXUnZZbVV1WTI5dEwzaGhjQzh4TGpBdklpQjRiV3h1Y3pwa1l6MGlhSFIwY0RvdkwzQjFjbXd1YjNKbkwyUmpMMlZzWlcxbGJuUnpMekV1TVM4aUlIaHRjRTFOT2s5eWFXZHBibUZzUkc5amRXMWxiblJKUkQwaWVHMXdMbVJwWkRwbU9XVTJORGswTWkwNFpETXdMVFEyTWpndFlqVmpaQzB3WmpsbE1XWTJZMlF6TlRJaUlIaHRjRTFOT2tSdlkzVnRaVzUwU1VROUluaHRjQzVrYVdRNk1FTkVNelk0TmpRME1FRTJNVEZGUkRoRU5UVkJSalpDTlRsQk5EWXdSRGtpSUhodGNFMU5Pa2x1YzNSaGJtTmxTVVE5SW5odGNDNXBhV1E2TUVORU16WTROak0wTUVFMk1URkZSRGhFTlRWQlJqWkNOVGxCTkRZd1JEa2lJSGh0Y0RwRGNtVmhkRzl5Vkc5dmJEMGlRV1J2WW1VZ1NXeHNkWE4wY21GMGIzSWdNalV1TkNBb1RXRmphVzUwYjNOb0tTSStJRHg0YlhCTlRUcEVaWEpwZG1Wa1JuSnZiU0J6ZEZKbFpqcHBibk4wWVc1alpVbEVQU0o0YlhBdWFXbGtPakl5TmpnNE5qUTRMVE01TXpjdE5EbG1OaTA0TnpnMUxUVXdPREk1WTJRNU5XRmxPQ0lnYzNSU1pXWTZaRzlqZFcxbGJuUkpSRDBpWVdSdlltVTZaRzlqYVdRNmNHaHZkRzl6YUc5d09qY3paamd5WVRsaExUVXhNMll0TkdVMFpDMDRaR0psTFdWbU9XVXhaVEk0T1RFNU5TSXZQaUE4WkdNNmRHbDBiR1UrSUR4eVpHWTZRV3gwUGlBOGNtUm1PbXhwSUhodGJEcHNZVzVuUFNKNExXUmxabUYxYkhRaVBsUkVJRk5aVGs1RldGOU1iMmR2WDBOdmJHOXlYMFpwYm1Gc1BDOXlaR1k2YkdrK0lEd3ZjbVJtT2tGc2RENGdQQzlrWXpwMGFYUnNaVDRnUEM5eVpHWTZSR1Z6WTNKcGNIUnBiMjQrSUR3dmNtUm1PbEpFUmo0Z1BDOTRPbmh0Y0cxbGRHRStJRHcvZUhCaFkydGxkQ0JsYm1ROUluSWlQejcvN1FCSVVHaHZkRzl6YUc5d0lETXVNQUE0UWtsTkJBUUFBQUFBQUE4Y0FWb0FBeHNsUnh3Q0FBQUNBQUlBT0VKSlRRUWxBQUFBQUFBUS9PRWZpY2kzeVhndk5HSTBCMWgzNi8vdUFDWkJaRzlpWlFCa3dBQUFBQUVEQUJVRUF3WUtEUUFBREhzQUFCczBBQUFqbXdBQUxTSC8yd0NFQUFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVDQWdJQ0FnSUNBZ0lDQWdNREF3TURBd01EQXdNQkFRRUJBUUVCQWdFQkFnSUNBUUlDQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREF3TURBd01EQXdNREEvL0NBQkVJQUdRQTRRTUJFUUFDRVFFREVRSC94QUVVQUFFQUFnTUFBd0VBQUFBQUFBQUFBQUFBQndnRkJna0JBZ1FEQVFFQUFnTUJBUUVBQUFBQUFBQUFBQUFBQkFVREJnY0NBUWdRQUFFRUFnRUNBd1FKQlFBQUFBQUFBQVFDQXdVR0FRY0FFZ2dRUUJNZ0VTTVVZSEFoTVNJek5CVTFKRVFXTnpnUkFBSUNBUUlFQXdVRUJ3UUxBQUFBQUFJREFRUUZFUVlBSVJJVE1TSVVRVkV5RlFjUVlYRWpJRUNCUWpNa0ZsTWx0WFpnY0ZKaWtrTTBWTFIxRnhJQUFRRUZBd1lJQ1FvRkJRQUFBQUFBQVFJQUVSSURCQ0V4UWZCUllYRXlFeENCa2FHeHdTSUZJTkh4UWxKeWtqTVVRT0ZpZ3FMU0l6UVZCbUJ3c3NKRFk2TWtOUllUQVFFQUFnSUJBZ1VFQXdFQkFRQUFBQUVSQUNFeFFWRmhjUkR3Z1pHaElFQ3h3V0J3MGZFdzRmL2FBQXdEQVFBQ0VRTVJBQUFCNytBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUhxK1JSZjgreUdHYkpOTnVvQUFBQUFBQUFBQUFIeVpJMVk5MjRmNy9QbTNWK3hheE5wYk82VDNJQUFEd2VRQUFBQUFBQVYvd0J0NUZyc3lqckp2SENiUmFMM3FVcUhmOFBKcnNCU2JseVJ1T2V6eEZ1OHo5OGJ2aW05SnE3Y3VFMTd5eStOZnRrQTU2djArL0lqejFQUnF1M0dqc3FpMWJQV1RYR3U0OXoxYzF4cm5PZWNzSDU2cS9NRGJKOXdXb0ZmdHQ0L0EyMmNnbEdoNkJhblJPLy9BSi9mRUQ3VnlpZk5VNjF5MnM5SWtQRlB0Vmd0T2RGaHFYWE9vNkR6NW42bld5VlJXL2liRG1mR2VBSk5MRTJhditqem0yejU2cXRLcEovd3o3RVJOZ24yUGI4aXJqbmZkeWg2cnNmbk9Cb1ZycWRmdHU0L1ZYZi9BTTYyNjUzK2tkbGdiRk9Xc2RTeThleGdiTldaejU3cUxNMTI3VUhaOTg4UzZEejlVbEhGT21iRFpmVDg5NkhraDc3amxSTmxneVBqbFJkbGhhOTdqeGxraHp0SHQ1MHcyVVY1SVU1NGJNQVJwZGFUbzlwcWY1L2ZNcFVXL2JyVzdNQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFCLy85b0FDQUVCQUFFRkF2b3puT01ZTnZWUmozSTI0VmlYYzh5Kyt5S3d3TEliRFZpd1ZpSmtUaDZUTnBhSmtxR2Q3ZjNlUnYyVkdNMlNhZEZJZ2h6bWF0RmFvcW9ReTZ5RXVBb2NnUkkxallXdlFOaVI3ZXF3RjdsMnJSeDlhNlpoZTNlT2tZSFZWMHRzVmN1UWJVWnVHNjBUVWNsU1oycmtHYVQyZk11Rjd4Mm51aHl5aGJpaGIxRzdCMWpyWjU5WGJOb2JZRWxWak5zdVBKM2ZzK0JSYmQraGR1VmFETjNoUlpjMWkxN3lldDFJMXRSUnRmMWp4dC85TlAyay93RHh6WWRDaWtSM2dwU1VKMXZqSzY1eG4vcXZ1Yy8xVlZqQXdxVlZUMnRqZHhISmZYV25Odm0wNGViMVZ1VHVEaDQ2VDFob2lIam9yV0VyL3dCVFhlTEwwbGE5YnA2TzJhcmE3RTJQMitBMitXdE94ZG0xcU91SGNGSGR1R3ZZeVIyZnNJRFhGWEFnTG5xTGtSTFI4N0dlTmxnMFdHR2NZRzJCRmsxQzVRYityaExNS1BiSmQ2VWRBQ0hqUXVKMTNCSnYxMnBjVGZvTlBiQnJmcXJsWWdhakdjbnUzTFg4dWZROVBVN1hwVnFyVWZjSy9XcStGVllFalhzR1RmTEhYWXExd2tOcTJ1UWRJcUZWamFWWHBmVXRTbUxyZDlLMUsvVFlmYlRRQWpKL1Z0Y3RGc2xJc0NiamFIUVl2WGtaN0UvVll5d2NSSGJHQTR1RXZjcnlEcjhYWFJmcUwvL2FBQWdCQWdBQkJRTDZOTnhjZzdoNk9OSHg1bEtWTFVweHFJNThvYyt5MHFURzVsRE1vMTVpSjl6YWdoa3JRVXRwUjc4K2M2dkJybUNwVnBMSnlGOUdmVno2VGEvVWRVLzdsT29UbEhNKzlsQzNldkNzWWRieDhGdG5DTXRkSFE2dkh4eUcwNTQxK1UxbnBZeVFyT0dWNDRsbnBXNHZyVjR4L3dDTVFGcjUySGxYOHZlR1B0NU0vWVp6KzJIL0FERjQ5N2l2aGo4dzQ2MXhmdWRaSHpuRGorYzVjeCtsYno2MkYvcUZ1ZW1SMGRMYlNzb0h5UzVuRGFQVVZsU1hlWnhuR2ZFSW5JaEtWcmlYMFNNYVVtZGNCV3NBZExDWFhGUE9jNjg5Q0Y1Um41cHppbFpWbmlTRjQ0dDFUbkVxeW5LczlXZXZQUWxXVTV5NHJLMXF5dFdIVllRaDViZU1rdVp4aHpLVTR6N3NyWGxmc2luUENjOWFHZDVnbUtZNFNXK1d2NmkvLzlvQUNBRURBQUVGQXZvejkzQ3JYWFExQldPRGtGZVpkZGJZYWFITHVHZjNpQ0FOS2JxOG5oRHh0VUs4eGJjcUpibTVKeGgySVpMYmdJN1gwQUl5cURIekUxUXQ0eUNLRlNVakVlbjl3TUd3SUN4RXBVeUNTOGdqaU9pUklHQVVPdHBhNDgxZVZTUnNtb2hFZ2tsSlFBNjFaaTRjeDFyaHlzNFBQYjllV1JFTW9WSkRyemgrVDljY1FiQXpYalkvZ3k4K1greVhLcFI2QS9CU3NKeFMvd0FjTnpIOHpML3BCbEpTSXpuNXlYNDRJQWVvZjFBWkdYYVE0RkZ0SWFEYy9uREU1akhCYzlVT0tKZ3VJU1VwNHc5aEJNeTNEQ05yTkxTSXkyd1JINWJjUzZqeG00dE14R3VzTVhBQit0MmVKZG9JODZ3ellKQnc5d1Fab0libnlyZnpCSTZDbTB3WWFjc3N0TUk0OURpdUtGanh4T1BzcGZiYWJTeTNrUnRSTHpTSDIyd21XeHgyRUROT0FNT0VGUmc1amlJVVJ0VG9UVHp5MEpjUU1Na1ZQc1MwQ0ZMOHdIZEJPS2k3WWZpTGlBWWRqNmkvLzlvQUNBRUNBZ1kvQXY0YWVpVXAybXpwYUtiTFVFOHZSOHFDRVdxSmJkU1FGOTQrY3E4STBKMDZmSVBqSzZkdTVQMGllWkliZTAyKzNPZHhjZUs1ak1rcENPOEVoNVNMbGpPTk9qNVROckQvQUlaWkk5WTJCcFV5ZGFaOVE0NmhhZmFQUXhYVmZscWVWRTdPcFdWalBsSGRvemZPV1RXT0FtZzRXUDhBTGl5OTM3dFhhSDFyV2UwYnJXZWN6RkxnNTdiMUYzQU4ySHRkMjJpRzJHaTg4dDI4N0FhV1NHaVJlR1Z4OURGV0xPY0dnVnNsb2w3QVorSGdWVWtiUmxnK3lXVExsRjFSS21QVDYxNDVYdEdYeTZod1RNUWRCZUNNNDRIQzl0M2lpV2xQTndaWjI0bU90b1RlZUJ4dWJlRU9Wd0Y3RmdEN3dNR09heGxLVHNueE1WQzluTTdCakpaeHY4Qk02OFlqT01XK0pwKzMzYk55ZG9VbkxGclZvMUwrZGtmQ3dtWmE4cHUwY2JmcVZYN2hHeVBUVmc3UnArZGxUVjdhaS9nZ3dhSU5nejFjR2RyYm1pRFBMUVlNOFh0SGkwUnZhREJuQm5XTkNHZUdlYi9CS1V1VkpWZWsycExQWEtteTFmUUlJKzAwVWlTcGEvOEFVTm5JR2puSFVNQnFIOGpQLzlvQUNBRURBZ1kvQXY0WmVibWhuMVV1SWVpOWY5QVV3UlNWTXBVdzNEWkoxQlRqOHFWUG5FSmtvU1NTY0FMeTN4VmFWeWYyNC84QURsRHNxbmZUbUgwVGdua3VpVitpOXcwWXFLNFBlSllTQUhYeFRGWnNUYUJjUyt4dmhlOHhSaXRJdFRHaU5KelJCeW1SVFYweFUvOEFiODFVS0ppdHVTckJLemlqVGhvYzQvS0tYdVpKY0t5cFNsV2ZkcDdTM2N6VlZOUmRpWFE5M3ZTQlk2WXZzcE9xV2paMHEwQmt5ZTZ2KzA3eXFqS2l6U3BZdHR2R0pVUjVyOURCTldrMUZRNjFSS2s4Z1NRN25PbHBuYzhTMVVpMGtKak1SUjZMaWJYSU5xWHZkZGMwazFINWlXK1dyWExNUFE1K2xvRkVoalN4cWc0c3o4ekZDRkcxV2pNNWt6VXpGQ1lVZzRZamk2V1ZRVk5xeGNlZmpzdDhyZ3kwMWt5RjF5Yk91ekxXemdzcXBpTHNyT1BWeC9EelB5OHk3TG1QS1hCemJwUDVXWGZscHc1UWJ3eWZodk5TL2s4akxtcDJvQy9RWE5PVmk4OUFZU2FuM2E5azgzVTduZGVXa2pBbFA5VFM2Y2x5RkowWmxISFUwUVdyN1BpYjRxbjk4am9IaXllNEJreXFmOHl1d2pONWNpQzBONnpmcnk4ZC9nZDAxcS9kcHFWUytPYWx3NkdtVkZZa3I3c3E2Y0ptRFBMSWdVN1NDbDdzMnR0eWlHcDd1QzFUS2VlbHhoaVRDdEN4ZWxUdERyN2pad1JLMlF4cWJRbWZVVFZqVVZPNnVBNWVZMzF2RzBzcUlBM2FlaHQvTDkxTHg0b2VuS3c4QlVrL2k1MDM1SE9MODdKbzBMaWtxRjJhK3pYanE1bEZWNGQwZ01tREZwZnEvd0JxbVZNUVArSk1TUVJtczZyeG9mcExUVlozOUFaQ2Y4Z2lkN1I2V2t5cG9PL1FvQSswMHVWTTJTbnFVY1dDMGxUeDZ2M1dqODgzRExMREZrOTRxdENydzY3SWFBN0hNd21JMlQ0RXloSmhXYlVxOUZZdFNlVy9ROXYwdnZMOEQ5eTBtZTkvcEQwcGE3SHV1c04wTVJDSk0vMXBMeUQ3TnZLQVduL3F1OVRURXBnVE1mRSsySno3UUx0WnV4Yi9BTXozUVlxNmRaTlVMcE12emlyNlJGanI3Y0NVdmwwa2l5VExRRWpVT0Q0bTNlZk01dDFNZkN6KzE5bjdyUVNnNVBCRWw2TlRuYzRaOHQ1WG5MR1V2WlBsWVMwM0JoVlc3d2VJanJZeXBteVdOTWwrN09XWmhKbDdJNnk5aFVuM29kemVSdDdOaWk0dXNGb3dWUDhBcS9kWVRwcnk3RERveTFNVUwyUzBDQ1NuUzdxQThGTTJaRkxyVWJFMUJoV25qeEdnOFRtZ3BxcWtxSmVlY2hTVmY3YjIzZmVGYktrU01SVHBNUit1dTFPc051S0pMbmw2aWJWS09kUng2QmgvSXovLzJnQUlBUUVCQmo4Qy93QkdkWjVSSE9abndpT0pUWnoxSHVqeUlFRWRzaG4zVEZRSDZUeENjZm02TDNUOEtKYjJIbDdOQlRZaFRDbjhJL1duV2JEQlNpdW8zT2FjNkF0U2hrMkdVK3dSR05lUFg1RnRyR2JPNjVqRzRsSm5XdDV4WXpwRjdKdENZTUtqWitCVWVNZjhSRHR2YXUzQnkyUlhKclluRjE2cVVJSmM2TjlWa2JHa2FxTDR5ODBEUEtaMTVjRFJ6Uzl2QmtUSHoxaHUwdlhWbmZEMEx0SmxMKzZFKzdUOE9LdExKM0haVGFOOXcxYU9UdGwxM2NGWlBraXJmZC96cUxmQVdUOFAzUjQvckdDMjJKRUE3a3pWZXBjSUowTDViVi9tN3d4cHo4NHJHUHc0ejlMSFRDRjdZMmw2cENsYWgwWDhoclhydEVSbUI2TWJSWDVJOElsdjNSeFhxNE9KSE5ieHpyc1ROdUNrU1JpOGNtVGVIZEhWaVJJdW8ya1BQbzE5dW5BaGtLNTVlekl4M252YTVLK3YyOW12WFlzVmo3dGVvdnY0dTdkSnRsK1Bzb2FoSTNIRmFaVUE0MVN0VDJhdUpkUnNRU3V1U2tOSWpYU0k0eDVYSmtybFB2NHUyVStKUHhyanFTVXo3U01GUk16NzU0eCtQdjVYTTRrTWZlbStEY05aQ3M1cHpYZFc3VGlZcHNFcnBkcnA3NDRmOU5aM0p1bjVVckEvTm92L0FETCs4cGY2Wkx1MUpkSHB1enEzK3oxNHkrUHhXWnptUWl6dXZFWktiT1R2U1ZzRE1xOWVVTGRXR3ZNVittdEU5UHZtZU1QbUtlK3Q2NDNKMzhWajhpRFF5QXNUV3NXNmlyTTlLZ0d1K1ZBYk9VZDJDMDl2R1gra2YxQXVmTmN0amtIZHdlZElwTitRcUNDbnlwN1o4MWtXMUh3NVJuK2FIU3hiSktSajdOMi8vUzk2NUhCbmpjbFlwWURiQ2NtbkVxR3VtMVpyRUZmMWdIWGx0UHNEREJFTyt4aFNaVHBweGRsRzljcG1kalhzUzVFYmN5UmQrU3UyVGdaTmhlYXQ2ZGRYWFFrUWt6STlDMWlPYmRrWlMxYmZzVGZMb3M3VnZYYkQ3RVk3SUVRSVZVTjd6YnBJa1FWSGMrY2VuYk9tcDhmMDNTczIxZlR2NmZ2SXM3WnAyWDExNWpKd1pxYldoOVkxOXdiVFVsWFg1dVZkYjJEUG5EaWk3WjdMWVpUQzdVb1ptbFVyT2IyaVRpSnl0aTJ2ME1NaFZ3Sm9yS0RUcE10VnJFY1pYY1dObnN0UEE1ZEdTcGl6VjJNeWlzYTJiRldUSFF1bU9xRFVmTHJVUWx5MTQzbTByRmsyd2pkdWpqc3ZONDZWVmFkTGlaTFI2ZlpwUEdLMnJ1cGxqK25kNkMyOXRES1hIRTlhc2w2bzZObWxGbGhuSTFydHhNaDBUUDVOclRsby9YajZNQUQ3QzFuWkh1TFc5eTFNL3ZSZjhSUUdLMmZ0aWVOdjdYdDVUS1l5aGs5c0tsenNiY0t1MWMxVlorNEVyZzVtdnF4bGVCblVablQ3K0tWME42YjBZZEs3VXVBcG1XcXl0cDFMQzdBTFlNVllrbHNKZWhSN3VLZjFDMlkrNVYzZHRMb3RrbW81K21WeHRRNXNTRTA0UHNXclZEVWpFSkg4OUpNVlBWcUVSdDdDYklXZjljNzYxeE55alVaK2ZnWjFoRjd0dTExVk4vV2ZTdW40S3NrNlpHUTRxNFVMREwyUVArYnpPU2E1N2l2WkpnQ0xTWE5naU5kUkFqQzBoeTBXTWErYVNtZnQySGtUL2dLemRySHNLZmhFOHJTbEtKbWZDTlRWeGJ0MzBIWXcrZXhDYW1RVEVheTdIdFRGT3hLdmV5cTZ2QmRQakl6cDdlUFRCS2N6aDEyYkdUMjNuNnhnenN4YlJGZTVSdkxnb1pWdDl2VDkzcExVdmhtT243Q001Z1JDSklpbndnUmpXWm43b2pncm1rd0dUeStaeUtkZjdDeGZiQzUvYkFmWmIveWJIK0gxT0x2L0FMbkMvd0RsY2Jac1hMZGFwWFZ0bkNFMTlsNmtKV01ZdXRyTEdzSVFDSSsrZUx1N2NEMVAyNXRURFRTbkp3QkFtMjBxVm5IbzZTOXNXN0YxNUsxNWtoSFg0VEgyWmJJNCsya3MxV3UyYVdYdmJkdWdpd2Q2b1hweVplb3VVNnBiaURIeTJPMU1PandZVWNZZjZkNDdkRDl6N2V6ZFJqTFdPTStyNVoxVmI3d050WHV1Vmo3OVFxRUdYYTZCYlhaSFVNZVhqTzNMbGNXV3NGNlhKNHQvZ3l0YTlXaXFjaVhqMjMxckJnWStCUlB2aUpqYlRhTmVGT3pOWDV4a25lTExWKzNNd3hyQzl3S1dLd2p3RllSSEcyZjhudjhBOFAzQnhsTTVpSzdqK25mMUNwWkRGNWZHVllpQXhXWnRWTGZZaXVNekNGU0xtRTJ0cnBIYUp5ZVdpK043QlBpS2Q0RFA3S3k0NDIzako2RVptajg3dTdleUJheDZYSURtc24rUWJCODQwcjhSMjI2ZUhJNGpxQWVQbzlUM0dpMm5kTzBjMU8zTStkcnBnck5oT1NIMDdqajR2V2RsV2xqWGtiSTZ4NUZ4dDNiZVdaYVZqOGx0aGZxR1Vuald0RDZWTzRMaXUwOHdZSWF0Ukd2S2RZNWNZL0oxOGh1Z3JHTnYwOGhYRnVhUWFpZlNzTHNwaG9SUUdUWExGeDFSckdzY1djMVk3YjhnN3FxWVRIRVV4TjdJa0JFSFhBejF4VHFqSGNlZnNDTkk4eERFN1Yrc2VScEx1aGw3VnVkMDRjYVNVUHhGVFBPNjB4QWpQVFRzWDFIcVBTS3hxdjZLNWVVNTRvWm5GV1YzTWRrcXlyZE95djRXSmNQVU9zZkVCajRFTTZFQlJNVHpqOUM1akNQc3RZSXRxV1k4YXQxQlEycllqVG41SERHdW5QcDE0bkNaaVJ4TzljQkpDd0RpT3FIZElpVnRJY3ZWWXJKREF5WFI4TTZlNFpKZ2hqY3BFLzhBZFlVM3VRNlA5dnJxRUxlZnVNWUxqSi9PeHZwcEd4SG9FWk1telpoMmpQVk1VTHlseTY1eEllUEtTOFBieE95dHZzN21WeUk5R1h0Szh5c0ZpUzBpMDZ3Y2Noc3ZYUFFzUGk4M3M4dXRUSDFSNksxT3Vxc2tmY3RJUUE2KzhwaU9jKzJmc1o5UjRkay9uek1iOHJKUHFsL0xQVDlsYU5ZcStuN3ZkNkZ4ejdtbXZzNExiK2FaZVZSTzNVdVNXT2VGZXozYWJPNnFPNHhOZ2VpUzhZNmVmQTkyenVxd3VKaVpRN05MN1I2ZXd1MVJVY1IrRXh3dkQ3ZHhsZkYwRmtUTzBpSmszT1BUcnNXWHNrMzJyQjZScWJDSXRJaVBDSSt4dVR4ODVqYTlwNUViQjIvZEN0VDZqS1NaSzZycTlnYTNXVTY5S3BBUDkzaDJTeFNydC9NV0ZFazh2bUxNVzdnS1pJeTVkZm9VaEZlSGtFZGNpSFdXbWtsTWNaUGJXVk8wdkg1VlFKc25TYUtMUWl0NnJFZGxwcmNJVDFwajkyZVhHTDI3alNzblJ4RlFLZFU3YkJkWkpTOWRKYzBGcUV6NSt3WTRvL1VWamNsODl4K09MR0lTTmxjWXlhNXB0b21XVmZUeXdtOUYwK2ZjaU5kT1hHUTIvbXEvcWNka2tTbDRSUFF3SmlZTk5oRE9jcXMxbkNMRmwrNll4UEdVMkRVZmx6d3VYakpSYWRZdUpaa1krYUJBV2V6WUdxdFFhUkhsL0xuVGlodHJFSGJaajhkNmpzSGVjRDdVK3F0T3VNN2pRVWtTL05mT25samx4amQvTkhJVmM5alhVclA4alpXaWxmc1kvV0t6c2hYS3V5WHRGV2k1a1NDWkFZaWZDT0J6MmF0WjVOMGFLTWZFWTNJSnFvN0ZkajJoUFFkSjU5eVNzRnJQVnhUdkt5RzdwZFJ1VmJxWVpta2t1VzFIcnNLaGd4ajRrbHlhNDFqV05ZNHhXN3M4L0xaQ3hoT3o4dHc3YmF2a0NKU1hlZzV4OFZ1dHBzdFFMVDZtVDFrc0luVUI2ZUx1SXlsWmR6SFpHczJwY3JOalVISWNNZ1k4dEpHZEo1VEdralBPT2ZGakQ0WElacTNqWFdadHFyWmk0cTdGSnpJL21QUkV1cldKUzdKK2N4bldPdlVvMGtpMS9RUzkvZnA1S3AvMFdXeDdQVFpDclBzZ1hEL0VWcis0V3NmaHgycTJld0dZU1BJR1ppalpxMnVuMmR3OGYxZ3d0UGJweDJzcnVhaGlxaGZ4VjdjcU5pMFkrMEJ2WGRHSjE5NHh4TlhHViszREM3bGg3Q2x0dTI3bnE2MVlQenVQbitFZXpUL1VaLy9hQUFnQkFRTUJQeUgvQUJsQWdCUUFCVlYwQVlObXZsdUlzZGp4a2FsN0lxQlQ2OEkvdXJBYWZXajhuVDRNY1gxR1ZLalZlYVc4WVF5ZUk5TkNvR1dNR1JwazB1b1g4SGtURm9VOFA2OGVOMW00VC80RkJWQThyRDlpK2RRRVpaNUdQVkk2Y2Vvb0FVYjBnSVVuQUhERlhTQnlwb3VyTmpwUk9DN2Y5dm1ibldFUmZNUll4VWdIS1pNdEhzckR0clpzRHZPa2dKSkF5YmdnWlJibXRjNDlNQzk0MWFQaTB5L2tGeEVGbkozc2dzRTJiN3dqUmJnZFYzdEN3Wm5Od2xkazA1NDBrV1hkUW5xWEJMVzBFYmhiOVF2OUF0Z0tUY2pMQUVUWExBUGxNeWlkWEtJUkxueW1XWnNRNktXelJDOUh4UUlEcWVENmIxR2RZZTRaWHppa1phMnZMclNBT09zc3pYTU5jWU9PeGJlbjJhbzljTUgwemxyTWlTSXJUT1JDOUQwczFVVUprYjcrYUFOcVYyUnhPZVJVYUNTWE5sOXVEK2lENFpwaTU0a3hGODVTUXNSSnJ2R0lpSWx4aG03VDJRWTF0TFpGOERzUzlpaGJvRmNnVzA2dWhYUmY5ZmpYK1MrZUtZbENLbWVqYUJoSHRmeFlqQ3ZnV0Q0SnNZd1VYQ29pUnNoRTkyNlVhYStDaEZLSmxDWGp6T3pKODFoS3JJNXZvSFdYNVNxNUdjbDZ2ajNjR1JEQStJb0ZRT0ZjVDBwaW9FaVU5OEprOTNNeFAxbFRZUlRZL0tHWUFhNzRyS0RYM2xSdHduOW02Z2dOQ2xDbVV4b0tIZ3A3Sk44eWoxeU00Nml3ODlCSGljenBveEVsWlBCTVFQanU2MFMzYnBPNmlCemtueEcrQ0NhdE9ZWUZxWVI2b1FJUEZYWmxwSVFoTG9TaWthbmtrd1phM0ZMZTZSYmJPSENUcTdRMERlZXdYNFQ0TXhTZUpMM3BIR3UvaDNkZTNaSFpsUnYybmxsN3FjNlRIaFZKSUJTc2xHaEFZL2dKME03SnFGdkdDRlVjNmJad2lZRVRHWVR6aUZGU05Gb3hOcnN5bDNRdEQ2WU5HelBiZG95RUJjTjhTNWtYY3c2WXV3U1pSZVpvN0xubHdmTnp3Q2Qwcks0NWhKdVhOajhvZ0o1bFJUekxWbS90M1lKS2hKcnlEdEdzOVJoaVNoVEwvZGF2OFNpMEJTRERTOS9LNXEybzhVUUE0NlhhTmlJQnlUL3BnQ0c0eTd0VUhRZFIyc3BYUEdJbGV2RlR5Vk15M3FjdklSQkdlN20rZGYxY2pOVkx5c0IvMFovLzJnQUlBUUlEQVQ4aC93QVo1MGM1djAvUi9PWkN1ZHlQdlIrNk5oR0FPVmRCaGVoTnBSNHV4M2czV1dJb1c4ZW82TlhrSnZGVkVYV25lVldNNGx5a0p5UFI3N2V2WDdnQVZmbEErYzVGc0hkMW52eStucWMzQ0c5WlExdzlBZTU2NDBIWFFCZnFEZndlbURRV1dZODFEVk9vbHQ1dURIUzlnSDhsbnBqeUE1MWI3dk04NDRBYS90am9NVjV3SnBYSjgrdnoyNVFiM0x2K3NPa0ZjL084OXg3OC93QWZiYmdLdlQrZjUreWNPTWZMQzJlSW5xWEE4RFg4dVZmVWo4LzM4Nk1BdDNNSmVVUDltZjJCZjl3ajg1OC9KdHk5NUE5Zi9QbW1mZ0Q5SGlTdnRkL25KaFBKNER1OUJGOCsyYzhzaVM3SDRwNjAxeWIrQVViRmtEM1Y3aHY4L0I0ZkFFQ0ZiL25COG43dnovOEF2d0xBK3Y1L0hXVkpCLzUrT3ZmQlljTi9qUEN6UHpmN01EblRmbjM0OTU2R0dIN2Z5NHlPKzMyTVRBU1V4eG1uK3pHU0NQdi9BTngvdUdEaHljTjUrZnIvQUhqcmlmb0ZKSFhrZEQ3Y2VzejBGNmNUeWZVQmVkK2dLc3ZvQ2Z3K3ltVVVVMG1tb1pwRy9ZNTZ5UW9sYm5wZWc3ZUd1d2hhNmxlNjM0ZU4vd0RkenNiaWhQN2Y5eXVxL0FlTTkyYTdYSGN3eGUyY0RXdC8rNEQ0MkdsSnhSeXNmSG5tczgrdi9jb21uMS83anlKZSs4VHVERllINlhqbVgrdzZmVSt0eDlocDlFYVROSy93aEg0MzJjM1BRZ2FEeHdIOHZmOEFvei8vMmdBSUFRTURBVDhoL3dBWlVIQU1RV3lQQWZEeU01Q29LK3lUZXdmdXRmTURnVlQwQXVKYmNFbytJTm5RYzZZakkwclVuZkIzbHA2TUlMazhOcHBEMkhyVjhPR0FJblZlNUhYRWVQN2tKT1NJendSMzlzbzZjYjRXNnNRaHJwcEJNTmZ6YTQyU0RUWGxuQXBqaEkxWmU5ZWVLNUV1TUNNZGplQksxSlVBWEI1KzFvQ3ZhbEx0T0VnbzlUK3h4ZWdqeGVSV3p2VHMrQUI5em5LUGRrMFFlaFlTbjcxMXBmTDZFMi9BM2J1Y0RtNjFkTmNGZVhaVHVFTi84TzFWRVhRZ09FS1Z0L0QxOWZxOE1BeTUvTjgrZnFpTTRETWVGakJMQmRYd1ZPR1JFVWRJRUk5UlQvbmZtTkJDdnpmWEdMZmliYXhyWEtSNURrektMeVB6NDlaejNsTTk1TnRkQStHRTJrOVA2WXZaSUxPOW1yZC9rY21RdmpXT2VyM3F1TjZOTVRoTnZLZm44TkhIQmVXeitpTktmUFVkL3V3K1VSN0Q5Zy9ZNmEzeCt5OTJoQkUwMnR5MmdmQ25ZQXF2UWN1VkJDTjAwalh3ZmpuOE0vZ2Z4Z2Z4MkxEamdwU0Q2SGYrUm5rSHNESTdnb3BQZHNkY29lNWgvanBod1ZnbHUzMk9DSTJ3K0tqOFAzanlHQllteStyWi9CL2ZLdWZuTTFuSWc3SzBkZjBBQUhNVGl2M3oxOHUzNjhmdDI1TEZHVEIzVVI3aG5hM2NiMk4zUXZNYjBuWFVKeUhXVXlLbnQ5Zy9aeEU5NnZNL2pSM3M2cWpCT0Y4WWxOYjZ0YjlFdTZVMDZmUFNjSnlPbjlFcUROclo0TzVFamRnNXhLNWNJRGhCTG8xM29XMkxXL0Z6L05jRDQ4d1lsSGl5bk5HOU8rdG0yeWdBdVdmTERWVVdSeXd3MXdqM0dGZTE1WHRyOEEzZFBhZlp2SFZsM2kyQmVKNFRzVHZ4aElMbnk0RCtjRkhMNTJ1MzYvRFppOGVKT0VtdEVnZFk3SkhndjRBN2VydDN0eW5XampuU0RrVGs4WlVQMXZlOVRHdTlQaWZRWGhkeTd3WUtYeS9UN2VkWjVWenhlQTF3NERyM3k3Rm5tWFl1QU9YeGdSSWkxTnFFdXIwR0pvOThNb0FUV3VJekZmUGd2MmNWcDVtdkgwMjgzZTdHNlllVktQejArSGtkbVBGMTQ0UGJRNiszNlh2cWRKY0h5UEpLN0ZjRWx6cUxkVkZKNVZYS0o3cXA0SU4vNFlrajJMMVk3VzJHcU1IK2pQL2FBQXdEQVFBQ0VRTVJBQUFRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFHYUFBQUFBQUFBQUFBQUJQekFBQUFBQUFBQUFBQUN0OWM5WXI0VDZzVDVBQ2ZHWTZnSFJ6czllNklBa0wxSDc4dGtIVGNXTEFBaVNBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFILy9hQUFnQkFRTUJQeEQvQUJsRi93QUJFdkE1VldCbW0vMHpCU3RzZ1ZwaVRFRTJHQ1VXUmh1dkg3b1ExS2RjYk9qVW1PbVhUOUMwMTBCVEZxdFYwc0hRZHpaNEZ3bkJGazZPd0xZTVFyWDJqbnJBdUpKdi93QUo0WmNpQ3NLcUJ0L1l4SjB4VFdBYUZGVUpuYjF2ZEZxUU5BTndrS3VIK2ZXM0RRTEFRbGl2WVhtUGM3RndSMy9CcXNUQlhBd2RIQm92SXV4cUNHMnF0U0ZkUVN3UVRWQkhZQTVkN1NURG9jd1hMeGY3eTRVd0xaRlJBUVlkYVRFY2tzQ3lrd29DbVd6SjlQZzFMblVSUytXYWFCTkdreEtlUHVqWnVEME8wMFEreUowcTB0bFZEa25qV0R5RWFvVlpxWTJIdWs5TStjck1WVDR1dDZ1SE8zSjlPdHJJWFlWWVZ3SlBGRFQ0Z2V0UUFac1VYZ2lnRlFUYXVtTklCTE0yVDMxd29PR2JlWGdVOHdCUkZ1RmRsVFZvNWNVTGNOY3BZR3NQQ1JRQkZ3bjhTcW1FdnVIOUZvUFdlOFZPck5oYUM4c01uRTg5WTBwQXFtV1c3NE9nRGMzRndBWUF4b0R3M3B1am9ERzJQK3FHWHVVM2tvMGorZ1E4ZThJNjJwajBRQlZ4eUlvcVRkUEtoQ0R4dHdRZGlnams0QUpCdUIvRUNRYmJ4K3k2czFFSnFPTXRaUWdvTXdTSktuZGlwTjBBQWpQOXZQN0dNdTA4bDF4UEdTUXRhQzA3dm1OVUx1WVlYaVJLUlRRMGhLU1pNenRZN2ZrMVV5TzdhNmZuY2paSm9BakMrQ281L3dBQUdDTkIzVkRpRUN0Mi9sQ09wNktYY015VTAxZGszTVp4by8wQWtMczJlRlNTcHZHZ1dRMW04K0F0MnVncUVkTVRjU3Z1VUF6dGptdEdkSmR2dUxsbXlNeXMvSzRscC9hckZLK09aSDdHcFA2SmhVYlg0SXFtR0taeFZyVmVSQXJ4aHRBWk5kbTZSTjRaN3VnQkJxWVNtdVJ2Q01PYnp3ZnBQeklrRVJCRVJFb2pwRWVSeHNWRk5HY2FGMVFYREZTN2pNSXVnUUJsd0tURy9NSXJqRGRHdHNMd2NGS3FoSU1DajNFbG9xd1V0TE1hdUNIQXBTVEdPQkk3ZXpDRjlldHNxTG1CbDQrR1l2N3o3VWt0cGV2RSs4UWx0UUNtSmZKdTJFS2N6RndrS1FCZE5ya0NDTk9VdzF3d2VvV1RobUlJb0RTSGhWbjBKVG1LQzBLb3hJUS9TMzlEcnF6aVgzQ1pBQzY5V3dDTUFHTFR0Y09xYlFERXA4VUdDR0k0MlBORkFwMEpUZy8wWi8vYUFBZ0JBZ01CUHhEL0FCa0ZBVllibkZFQW5rMlR4NXhweVdNUHFzUjZxSDdvNHBIVklBZHFvR0JadVFsaTFFN1h3MFJyZ29tTUcvNkVGU0VEQWJLU21WMkIySG13ZVRIMXpML2tuNEx2cW0vdVFORG1sT2VicUNyelltekJTUklmSmxTMHgyb0Z3MVp0VFNpcTJnYVljd09Eb1hoZTZzRjVoNGhqR004V0dwWXBZeFpGSmpHUjVvSlVPZ0FPZ1krVUozZjZSeEk3cDRzOHZrdUFYVTBYb1BLcjZhZVByZzBnSmRnVTdVL0dDTjlnYmxuVTA5Ym8wL0FtWkIwcmliYUhlK1dIQnBJRlJkeDkrWHBBQlVOclZJREtCcjVPL3BOOU9SUmNsMDZuang5QWFIbFRBZFQySzNsUUxQS2hlUmFJZ203dTllUVIvcDY4S1JRa09INWRuT0V3L1hwQ3ZQQVI4S1hRT0kwaDluMzlMeDFrVnRQVm5EMG5TNCtRRDgrWXhJWTJDOUxyY21uajBlR3NCODB4NDdIWFRtRzJJVXhXQkRvZUQxNTI4OHM0TkIrZ3UzaHh5NkdkNjJ4a1V1c3NoNEpEZ0FXMllaTGMyREpCakpkQWtaK0VlbEFBY3E2QTlWeDFBc3BzdWJlbW40K0g1WDlzL21meVkxSk5JVjVZeDhrYTdOUDRoZkNuUVhLa0dDQnA3VVRaeFQ0UXhkdTI4NzJzS3JCd2VvMjV1aWp6RW41UHRUaGNyaTZCNkV2OHIvSEFHZmdjMlJBWVhzRTI5K1QzRmJnei9KSDJ3MkZnQjZjeDZuWERLQ1c0L2lHRHFxOUJOVW5TVFVXWERvMitIcEhoZThnV2lQdjkyZmNtSFRvN1hnL08zclQyeURqWm9QSWFPZmVNMWE2Wm9ETVNQejJQSThKcy9SZk8zU2dlWHFxZHRBVHhnYzBvcE5XbzYxUFFvWXVIUTlMTi93QVFxVHo0aHpVUk5hYzBJd2JtNENtZ0pmR01hcEhhTFdjQVg1RmVxbERvTEE2SUhId1dFUTk3OXljOXl6V0g0Sk83NUhwSHJ6alpBdno1WitNYm9YNTBHajZmRFI4ODFlYnlKZDhyVjd3L1FIUlorVmVqdWFOYU1GeDNjOGJFZUVlSHppNkhwZTA3citjSHBSdm04bmxPUTZzMWlSUlBrK3YzOGJ6d3BqbWNydmQ1WHYyeU9VRGl6UUJ5cndlY1NBU1RkMElqTnp0VFR0OXNkRzIzZTM0R09BcDgrV2ZmRDdDcnR5OWJQYldwU084T05HcDg5bms0VFRoTTBISmErOVc5L2YyL1NmNEdNZFd2b09oMGFBTVp2VzJqOXhRUFFhT01ZOGpybmxwNzVQWERWZVFHdjF0R2k4d0tVLzBaLzlvQUNBRURBd0UvRVA4QUdYcUFGVllBYlZYUUJ5NENuQUtSeWdBY0lvanBpWnlaQk5LRVNOVFlmVDkwKzFESzJ6MHNud1pGR2tzVnR4YTJkamh4YkswNjJVMmdSUWdPSXltQzdJMWFrUWdwWjR6dDJLNlRrZUNkRC9jcmx1dFVpelkxWE5EYk1yNWlqWUNTQ093Sk5nRm9RS0xMd2cwMEtaQ0M4UlV5RVo4SXc1VHcrNE9BUUNFdzBKbmp0WTYyQVRqdHpPMEcydGMxS1c5ZEU2NUN4UzdjVGt1ajNqNmZMT09QWGVIWXhXZ1ZvbDBVVWRIb2hpcDJuVURpVjFvK3ZlZHZNeXJxQ1cwclRXMndmQ0RpdzJtbHAzeGhEbWJMaE5vVjJxU0lFZ0VVQ3pUTWdtY0VZbUVRdElvV01yR0FJRmpXSVpxZ1FxdnR3K2RCYURxR0xSVUZoczBZWnRhTzQwaDJtQVFBNE5BYWd3QWtJQ0RXeVIybzFvZ295cE5jcmdFQ2lJQVJJOUxhNlRwNXJpaEdxTlp6SndCQ0pFRzBKeHRoWEhzMndld1RrVWQ2UkVZbUNpTUdGWkRDRXF3bk5sbCt0WnVoRGpWUVVLcmtLQkI0cUFNQUFBQ1dpTmI4UzZWQTRXTndiWVhXbHBNQVpKQnFWMVhFUmlXV2V3RGZZa2lxcENRbGlPa3VRQXFQUUFxK01tcERtRjhXeXJUeWJOSS9IeHhaenRRa0FCdFZRUHJsaTBRWGF3ZkNvOGUxOE1UQlVTVzJnQlowaGRPVElkNFhia3NSQkNxbm5UaXg1M3UrckFveHBFNmk2TVY5MEM4R2dOQllxb1pRbmlNa2dRRkJUNkdWZ0pWSkE4Z292cnZBaUJOZGJEZDhRQkFHOTNFU05Ra1c0ZkxxdWpJWU9WVzNSVDNOTFZtNGptWjZFVkNjSnh5Q2RJN3lWTE80dnFwZVVjQlVCYWo0TFNMRlViU0FDaG81bHRKVGozRTVSVVFDQWlmbzJLL1lJRldzQldOQUlSd0ZIQUFWd0dNMGR1RzNwWDJIRXlDK3lIRjQ1Tm1GclYxSEtFQjRiQ0hnSkVrWVBHUS9GVEd3V2thVmUzVGEvQWtWU2w0enAxemZaRnhlMGxYZHYyUFBsUmliTThOV00zcUx2alRBNUZzV2lxd0FVS1FDcFlCd0I4T1Radm9BU1NBQXdBQU5Zd0lVZXlxd1A2SFFBUUN2SmRxZzlHQWpSUWxPOGNCR3pTN1M0RGxZQUFhREp4cWdIbjJlY29rNklwdlM2SjRvalFVU29Fb3FRS1JaamYyWldlQVRoTEZyVmNTSnVqektEVlZnQ0U5OHJ3eVRFY2w3eEJNSUtrNHBUdWd2VE8vTThGdU02T3lnNUU1QTA2UVIySTQwbUV6THA2bFVkU2pUSkIyZzJhZXhJZ3hCQUNDRGcvcUkwU1NFQVNKRTBrYXY2Tm1vdFp5QUdoUUFVdElNYkkzQXNnQ0lNeHJ0WE5qM2daSWs3ZVhac0t4bWIzNEUzYTg4RTRBSFUvMFovOWs9IiB4PSIwIiB5PSIwIiB3aWR0aD0iMjI1IiBoZWlnaHQ9IjEwMCIvPjxyZWN0IHg9IjIzNyIgeT0iMzEiIHdpZHRoPSI2IiBoZWlnaHQ9IjM4IiBmaWxsPSIjQ0NEODE0Ii8+PHRleHQgeD0iMjU1IiB5PSI2MyIgZm9udC1mYW1pbHk9IkFyaWFsLCBIZWx2ZXRpY2EsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzMiIGZvbnQtd2VpZ2h0PSJib2xkIiBmb250LXN0eWxlPSJpdGFsaWMiIGZpbGw9IiMwOEJFRDUiPkFkdmFuY2VkIFNvbHV0aW9uczwvdGV4dD48L3N2Zz4=';
+const CHECKLIST = [
+  ['delivered',   'Server hardware has been delivered to site or delivery date confirmed'],
+  ['racked',      'Server hardware has been rack mounted or assistant is available to rack mount'],
+  ['access',      'On site access for the consultant has been secured'],
+  ['room',        'Meeting room / work area has been reserved'],
+  ['l2',          'Layer 2 networking has been configured'],
+  ['ports',       'Sufficient network ports and adapters are available'],
+  ['infosight',   'HPE InfoSight Registration Completed'],
+  ['vcenter',     'vCenter(s) Installed']
+];
+const DEFAULT_SETTINGS = {
+  putty:   'putty.exe',
+  winscp:  'WinSCP.exe',
+  deploy:  '',
+  upgrade: '',
+  installDir: '%USERPROFILE%\\Downloads\\svt-tools',
+  wscript: 'C:\\Windows\\System32\\wscript.exe',
+  puttyPw: false,
+  winscpPw: true,
+  puttyKey: '',
+  logoData: TSX_LOCKUP,
+  logoHpe: '',
+  tdsynnexEmail: ''
+};
+
+/* ================= state ================= */
+let store = null;
+let aesKey = null;
+let vaultSalt = null;
+let pendingEng = null;
+let pendingLegacyEngs = null;
+let pendingSection = null;
+const ui = { section: null, tab: 'intro', includeCreds: false, includeChecklist: true };
+let editingNodeId = null;
+let nodeDraft = null;
+let nameMode = 'new';
+let printRestore = null;
+
+/* ================= model ================= */
+function newDeployment(name){
+  return {
+    id: uid(),
+    name: name || 'Deployment 1',
+    version: '',
+    project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'' },
+    checklist: {},
+    ntp: '',
+    dns: { domain:'', primary:'', secondary:'', search:'', findHostName:true },
+    networks: {
+      ilo:        { netmask:'', gateway:'', dns1:'', dns2:'', vlan:'' },
+      management: { netmask:'', hostNetmask:'', gateway:'', hostGateway:'', vlan:'', mtu:'1500', vSwitch:'', portGroup:'VM Network', hostPortGroup:'Management Network' },
+      storage:    { netmask:'', vmkNetmask:'', vcGateway:'', vmkGateway:'', vlan:'', mtu:'9000', vSwitch:'', portGroup:'SVT_StoragePortGroup', vmkPortGroup:'SVT_StorPG' },
+      federation: { netmask:'', gateway:'', vlan:'', mtu:'9000', vSwitch:'', portGroup:'SVT_FedPortGroup' }
+    },
+    creds: {
+      ilo:     { user:'administrator', pass:'TBA Onsite' },
+      esxi:    { user:'root', pass:'TBA Onsite' },
+      ovc:     { user:'svtcli', pass:'TBA Onsite' },
+      vcenter: { user:'administrator@vsphere.local', pass:'TBA Onsite' }
+    },
+    nodes: [],
+    vcenter: { hostname:'', ip:'', datacenter:'', cluster:'', env:'', version:'', ssoUser:'administrator@vsphere.local', ssoPass:'TBA Onsite', rootUser:'', rootPass:'TBA Onsite' },
+    arbiter: { hostname:'', ip:'', domain:'', email:'', user:'', pass:'TBA Onsite' },
+    engineer: { name:'', email:'' }
+  };
+}
+function newNode(){
+  return { id: uid(), name:'', serial:'',
+    ilo:{ host:'', ip:'', user:'', pass:'TBA Onsite', subnet:'', gateway:'', dns1:'', dns2:'', portType:'', vlan:'' },
+    esxi:{ host:'', ip:'', version:'', pass:'TBA Onsite', mtu:'1500', subnet:'', gateway:'', dns1:'', dns2:'', portType:'', vlan:'', nics:'' },
+    ovc:{ mgmt:'', storage:'', fed:'', pass:'TBA Onsite', storagePg:'SVT_StoragePortGroup', fedPg:'SVT_FedPortGroup', fedSubnet:'', fedMtu:'9000', fedVlan:'' },
+    vmk:{ ip:'', subnet:'', vlan:'', mtu:'9000', portGroup:'SVT_StorPG', nics:'' } };
+}
+function normalizeNode(n){
+  const b = newNode();
+  n = n || {};
+  const out = Object.assign(b, n, {
+    ilo: Object.assign({}, b.ilo, n.ilo || {}),
+    esxi: Object.assign({}, b.esxi, n.esxi || {}),
+    ovc: Object.assign({}, b.ovc, n.ovc || {}),
+    vmk: Object.assign({}, b.vmk, n.vmk || {})
+  });
+  if (!out.esxi.mtu) out.esxi.mtu = '1500';
+  if (!out.vmk.mtu) out.vmk.mtu = '9000';
+  if (!out.ovc.fedMtu) out.ovc.fedMtu = '9000';
+  if (!out.vmk.portGroup) out.vmk.portGroup = 'SVT_StorPG';
+  if (!out.ovc.storagePg) out.ovc.storagePg = 'SVT_StoragePortGroup';
+  if (!out.ovc.fedPg) out.ovc.fedPg = 'SVT_FedPortGroup';
+  if (!out.ilo.pass) out.ilo.pass = 'TBA Onsite';
+  if (!out.esxi.pass) out.esxi.pass = 'TBA Onsite';
+  if (!out.ovc.pass) out.ovc.pass = 'TBA Onsite';
+  return out;
+}
+function normalizeDep(src){
+  src = src || {};
+  const base = newDeployment(src.name);
+  const dep = Object.assign({}, base, src);
+  dep.id = src.id || uid();
+  dep.name = src.name || 'Deployment';
+  dep.project = Object.assign({}, base.project, src.project || {});
+  dep.checklist = Object.assign({}, src.checklist || {});
+  dep.dns = Object.assign({}, base.dns, src.dns || {});
+  dep.networks = {};
+  for (const k of Object.keys(base.networks)) dep.networks[k] = Object.assign({}, base.networks[k], (src.networks || {})[k] || {});
+  const mg = dep.networks.management, st = dep.networks.storage, fe = dep.networks.federation;
+  if (!mg.mtu) mg.mtu = '1500';
+  if (!st.mtu) st.mtu = '9000';
+  if (!fe.mtu) fe.mtu = '9000';
+  if (mg.netmask) mg.hostNetmask = mg.netmask;
+  else if (mg.hostNetmask) mg.netmask = mg.hostNetmask;
+  if (mg.gateway) mg.hostGateway = mg.gateway;
+  else if (mg.hostGateway) mg.gateway = mg.hostGateway;
+  if (!mg.portGroup) mg.portGroup = 'VM Network';
+  if (!mg.hostPortGroup) mg.hostPortGroup = 'Management Network';
+  if (!st.portGroup) st.portGroup = 'SVT_StoragePortGroup';
+  if (!st.vmkPortGroup) st.vmkPortGroup = 'SVT_StorPG';
+  if (!fe.portGroup) fe.portGroup = 'SVT_FedPortGroup';
+  dep.creds = {};
+  for (const k of Object.keys(base.creds)) dep.creds[k] = Object.assign({}, base.creds[k], (src.creds || {})[k] || {});
+  if (dep.creds.ovc.user === 'admin') dep.creds.ovc.user = 'svtcli';
+  for (const k of Object.keys(dep.creds)) if (!dep.creds[k].pass) dep.creds[k].pass = 'TBA Onsite';
+  dep.nodes = (Array.isArray(src.nodes) ? src.nodes : []).map(normalizeNode);
+  dep.vcenter = Object.assign({}, base.vcenter, src.vcenter || {});
+  dep.arbiter = Object.assign({}, base.arbiter, src.arbiter || {});
+  if (!dep.vcenter.ssoPass) dep.vcenter.ssoPass = 'TBA Onsite';
+  if (!dep.vcenter.rootPass) dep.vcenter.rootPass = 'TBA Onsite';
+  if (!dep.arbiter.pass) dep.arbiter.pass = 'TBA Onsite';
+  dep.engineer = Object.assign({}, base.engineer, src.engineer || {});
+  dep.ntp = typeof src.ntp === 'string' ? src.ntp : (Array.isArray(src.ntp) ? src.ntp.join('\n') : '');
+  return dep;
+}
+function normalizeStore(s){
+  s = s || {};
+  const out = {
+    v: 1,
+    currentId: s.currentId || null,
+    deployments: (Array.isArray(s.deployments) ? s.deployments : []).map(normalizeDep),
+    settings: Object.assign({}, DEFAULT_SETTINGS, s.settings || {})
+  };
+  if (!out.deployments.length){ const d = newDeployment('Deployment 1'); out.deployments.push(d); out.currentId = d.id; }
+  if (!out.deployments.find(d => d.id === out.currentId)) out.currentId = out.deployments[0].id;
+  return out;
+}
+function cur(){ return store.deployments.find(d => d.id === store.currentId) || store.deployments[0]; }
+const S = () => store.settings;
+
+function splitStore(){
+  const pubs = store.deployments.map(d => ({
+    id: d.id, name: d.name, version: d.version, project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter
+  }));
+  const engs = store.deployments.map(d => ({
+    id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter
+  }));
+  return { pubs, engs };
+}
+function makePubBlob(){
+  const { pubs } = splitStore();
+  return { v: 2, currentId: store.currentId, deployments: pubs, settings: store.settings, savedAt: Date.now() };
+}
+function applyEng(engs){
+  for (const part of engs || []){
+    const dep = store.deployments.find(x => x.id === part.id);
+    if (!dep) continue;
+    if (part.networks) dep.networks = part.networks;
+    if (part.creds) dep.creds = part.creds;
+    if (part.nodes) dep.nodes = part.nodes.map(normalizeNode);
+    // vCenter moved to the customer-writable blob: take the legacy engineer-side copy
+    // only while the pub side still holds untouched defaults (old-file migration);
+    // once the customer has set anything, the pub side always wins.
+    if (part.vcenter){
+      if (isDefaultVcenter(dep.vcenter)) dep.vcenter = Object.assign({}, newDeployment().vcenter, part.vcenter);
+      else {
+        // pub side has customer-set values: only fill fields still at their defaults
+        const b = newDeployment().vcenter;
+        for (const k of Object.keys(b)) if ((dep.vcenter[k] === b[k] || dep.vcenter[k] === '') && part.vcenter[k]) dep.vcenter[k] = part.vcenter[k];
+      }
+    }
+    if (part.arbiter) dep.arbiter = Object.assign({}, newDeployment().arbiter, part.arbiter);
+  }
+}
+function isDefaultVcenter(v){
+  const b = newDeployment().vcenter;
+  return v && v.hostname === b.hostname && v.ip === b.ip && v.datacenter === b.datacenter &&
+    v.cluster === b.cluster && v.ssoPass === b.ssoPass && v.rootPass === b.rootPass &&
+    v.ssoUser === b.ssoUser && v.rootUser === b.rootUser;
+}
+
+/* ================= persistence ================= */
+function b64(bytes){
+  const u = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let s = '';
+  for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+  return btoa(s);
+}
+function unb64(s){
+  const bin = atob(s);
+  const u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+async function deriveKey(pw, salt){
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:150000, hash:'SHA-256' }, base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function save(){
+  if (!store) return;
+  try{
+    localStorage.setItem(PUB_KEY, JSON.stringify(makePubBlob()));
+    if (aesKey && vaultSalt){
+      const { engs } = splitStore();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, new TextEncoder().encode(JSON.stringify(engs)));
+      localStorage.setItem(ENG_KEY, JSON.stringify({ enc:1, salt:b64(vaultSalt), iv:b64(iv), ct:b64(ct) }));
+    }
+  }catch(e){ showStorageWarn(); }
+}
+function showStorageWarn(){ const w = $('#storageWarn'); if (w) w.hidden = false; }
+function readBaked(){
+  try{
+    const vd = document.getElementById('vaultData');
+    if (vd && vd.textContent && vd.textContent.trim()) return JSON.parse(vd.textContent.trim());
+  }catch(e){}
+  return null;
+}
+async function init(){
+  let localPub = null, localEng = null;
+  try{
+    const p = localStorage.getItem(PUB_KEY); if (p) localPub = JSON.parse(p);
+    const g = localStorage.getItem(ENG_KEY); if (g) localEng = JSON.parse(g);
+  }catch(e){ showStorageWarn(); }
+  if (!localPub){
+    try{
+      const old = localStorage.getItem(LS_KEY);
+      if (old){
+        const ob = JSON.parse(old);
+        if (ob && !ob.enc && ob.data){
+          store = normalizeStore(ob.data);
+          pendingLegacyEngs = splitStore().engs;
+          localStorage.setItem(PUB_KEY, JSON.stringify(makePubBlob()));
+          localStorage.removeItem(LS_KEY);
+          ui.section = null; ui.tab = 'intro';
+          render();
+          return;
+        }
+        if (ob && ob.enc){ localEng = ob; localStorage.removeItem(LS_KEY); }
+      }
+    }catch(e){}
+  }
+  const baked = readBaked();
+  if (localPub && baked && baked.customer && (baked.customer.savedAt || 0) > (localPub.savedAt || 0)){
+    if (confirm('This file contains newer saved data than this browser has. Load it?')){
+      localPub = baked.customer;
+      localEng = baked.engineer || localEng;
+      localStorage.setItem(PUB_KEY, JSON.stringify(localPub));
+      if (localEng) localStorage.setItem(ENG_KEY, JSON.stringify(localEng));
+    }
+  } else if (!localPub && baked && baked.customer){
+    localPub = baked.customer;
+    localEng = baked.engineer || null;
+    localStorage.setItem(PUB_KEY, JSON.stringify(localPub));
+    if (localEng) localStorage.setItem(ENG_KEY, JSON.stringify(localEng));
+  }
+  store = normalizeStore(localPub || {});
+  pendingEng = (localEng && localEng.enc) ? localEng : null;
+  ui.section = null;
+  ui.tab = 'intro';
+  render();
+}
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function openGate(section){
+  pendingSection = section;
+  const errEl = $('#unlockErr');
+  errEl.hidden = true;
+  $('#unlockPw').value = '';
+  $('#gateTitle').textContent = section === 'customer' ? 'Customer Engineer' : 'Deployment Engineer';
+  $('#gateHint').textContent = section === 'customer'
+    ? 'Enter the Customer Engineer password to open the customer details.'
+    : 'Enter the Deployment Engineer password to open the deployment sections.';
+  const ss = $('#sectionSel');
+  if (ss) ss.value = ui.section || 'customer';
+  $('#unlockModal').hidden = false;
+  setTimeout(() => $('#unlockPw').focus(), 50);
+}
+async function tryPassword(){
+  const pw = $('#unlockPw').value;
+  const errEl = $('#unlockErr');
+  errEl.hidden = true;
+  const section = pendingSection || 'engineer';
+  let hash = '';
+  try{ hash = await sha256Hex(pw); }catch(e){
+    errEl.hidden = false; errEl.textContent = 'Encryption unavailable in this browser';
+    return;
+  }
+  if (hash !== PWD[section]){
+    errEl.hidden = false;
+    errEl.textContent = 'Wrong password for the ' + (section === 'customer' ? 'Customer' : 'Deployment') + ' Engineer section';
+    $('#unlockPw').select();
+    return;
+  }
+  $('#unlockPw').value = '';
+  $('#unlockModal').hidden = true;
+  if (section === 'customer'){
+    ui.section = 'customer';
+    render();
+    maybePromptName();
+    return;
+  }
+  if (pendingEng){
+    try{
+      const salt = unb64(pendingEng.salt);
+      const k = await deriveKey(pw, salt);
+      const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:unb64(pendingEng.iv) }, k, unb64(pendingEng.ct));
+      const payload = JSON.parse(new TextDecoder().decode(pt));
+      if (payload && Array.isArray(payload.deployments)){
+        store = normalizeStore(payload);
+        localStorage.setItem(PUB_KEY, JSON.stringify(makePubBlob()));
+      } else if (Array.isArray(payload)){
+        applyEng(payload);
+      }
+      aesKey = k; vaultSalt = salt;
+    }catch(e){
+      errEl.hidden = false;
+      errEl.textContent = 'Could not decrypt the saved deployment data with this password';
+      return;
+    }
+  } else if (pendingLegacyEngs){
+    applyEng(pendingLegacyEngs);
+    pendingLegacyEngs = null;
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    aesKey = await deriveKey(pw, salt);
+    vaultSalt = salt;
+  } else {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    aesKey = await deriveKey(pw, salt);
+    vaultSalt = salt;
+  }
+  ui.section = 'engineer';
+  await save();
+  render();
+  maybePromptName();
+  toast('Deployment Engineer section unlocked');
+}
+function lock(){
+  aesKey = null; vaultSalt = null;
+  pendingEng = null; pendingLegacyEngs = null; pendingSection = null;
+  ui.section = null; ui.tab = 'intro';
+  $('#main').innerHTML = '';
+  $('#depSel').innerHTML = '';
+  $('#counts').textContent = '';
+  $('#brandLogo').innerHTML = '';
+  $('#sectionSel').hidden = true;
+  $('#lockBtn').hidden = true;
+  render();
+}
+/* ================= shortcuts ================= */
+function webUrl(host, port, path){
+  if (!host) return '';
+  const p = Number(port) || 443;
+  const sch = p === 80 ? 'http' : 'https';
+  let u = sch + '://' + host + ((p === 443 || p === 80) ? '' : ':' + p);
+  if (path){ if (path[0] !== '/') path = '/' + path; u += path; }
+  return u;
+}
+function sshUrl(user, pass, ip, port){
+  if (!ip) return '';
+  if (pass === 'TBA Onsite') pass = '';
+  let auth = '';
+  if (user) auth = ue(user) + (S().puttyPw && pass ? ':' + ue(pass) : '') + '@';
+  return 'svtputty://' + auth + ip + ':' + (Number(port) || 22);
+}
+function winscpDirectUrl(user, pass, ip, port){
+  if (!ip) return '';
+  let auth = '';
+  if (user) auth = ue(user) + (S().winscpPw && pass ? ':' + ue(pass) : '') + '@';
+  return 'sftp://' + auth + ip + ':' + (Number(port) || 22) + '/';
+}
+function scpUrl(user, pass, ip, port){
+  if (!ip) return '';
+  if (pass === 'TBA Onsite') pass = '';
+  let auth = '';
+  if (user) auth = ue(user) + (S().winscpPw && pass ? ':' + ue(pass) : '') + '@';
+  return 'svtwinscp://' + auth + ip + ':' + (Number(port) || 22) + '/sftp';
+}
+function puttyCmd(user, pass, ip, port){
+  if (!ip) return '';
+  let c = '"' + S().putty + '" -ssh ' + ip;
+  if (Number(port) && Number(port) !== 22) c += ' -P ' + port;
+  if (user) c += ' -l "' + user + '"';
+  if (S().puttyKey) c += ' -i "' + S().puttyKey + '"';
+  if (S().puttyPw && pass) c += ' -pw "' + pass + '"';
+  return c;
+}
+function iloHostOf(n){ return n.ilo.host || ((n.esxi.host || n.name || 'Node') + '-ILO'); }
+function iloCred(n){ const c = cur().creds; return { user: n.ilo.user || c.ilo.user, pass: n.ilo.pass || c.ilo.pass }; }
+function esxiCred(n){ const c = cur().creds; return { user: c.esxi.user, pass: n.esxi.pass || c.esxi.pass }; }
+function ovcCred(n){ const c = cur().creds; return { user: c.ovc.user, pass: n.ovc.pass || c.ovc.pass }; }
+
+/* ================= XML import ================= */
+function parseSvtXml(text){
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length || doc.querySelector('parsererror')) throw new Error('not valid XML');
+  const root = doc.documentElement;
+  if (!root || root.nodeName !== 'DeploymentConfiguration') throw new Error('not a SimpliVity DeploymentConfiguration file');
+  const g = (el, tags) => {
+    const list = Array.isArray(tags) ? tags : [tags];
+    for (const t of list){
+      const n = el ? el.getElementsByTagName(t)[0] : null;
+      if (n && n.textContent.trim()) return n.textContent.trim();
+    }
+    return '';
+  };
+  const res = { ntp: [], dns: {}, networks: {}, nodes: [] };
+  const ntpEl = root.getElementsByTagName('NTPServers')[0];
+  if (ntpEl) res.ntp = Array.from(ntpEl.getElementsByTagName('string')).map(s => s.textContent.trim()).filter(Boolean);
+  const dnsEl = root.getElementsByTagName('DnsInfo')[0];
+  if (dnsEl) res.dns = {
+    domain: g(dnsEl, 'Domain'), primary: g(dnsEl, 'PrimaryServer'), secondary: g(dnsEl, 'SecondaryServer'),
+    search: g(dnsEl, 'SearchDomain'), findHostName: g(dnsEl, 'FindHostName').toLowerCase() === 'true'
+  };
+  const net = (tag, map) => {
+    const el = root.getElementsByTagName(tag)[0];
+    const out = {};
+    if (el) for (const k of Object.keys(map)) out[k] = g(el, map[k]);
+    return out;
+  };
+  res.networks.federation = net('FederationNetwork', {
+    netmask:'VirtualControllerNetmask', vlan:'VirtualControllerVlanId', portGroup:'PortGroupName',
+    mtu:'MTU', vSwitch:'VSwitchName', gateway:'Gateway'
+  });
+  res.networks.management = net('ManagementNetwork', {
+    netmask:'VirtualControllerNetmask', hostNetmask:'HostNetmask', gateway:['GatewayIpAddress','Gateway'],
+    hostGateway:'HostGateway', vlan:['VlanId','VirtualControllerVlanId'], mtu:'MTU',
+    vSwitch:'VSwitchName', portGroup:'PortGroupName', hostPortGroup:'HostManagementPortGroupName'
+  });
+  res.networks.storage = net('StorageNetwork', {
+    netmask:'VirtualControllerNetmask', vmkNetmask:'VmKernelNetmask', vcGateway:'VirtualControllerGateway',
+    vmkGateway:'VMKernelGateway', vlan:['VlanId','VirtualControllerVlanId'], mtu:'MTU',
+    vSwitch:'VSwitchName', portGroup:'PortGroupName', vmkPortGroup:'VmKernelPortGroupName'
+  });
+  const infos = Array.from(root.getElementsByTagName('OmniCubeNetworkInformation'));
+  res.nodes = infos.map((el, i) => ({
+    id: uid(),
+    name: g(el, 'Hostname'),
+    serial: g(el, 'SerialNumber'),
+    ilo: { host:'', ip:'', user:'', pass:'' },
+    esxi: { host: g(el, 'Hostname'), ip: g(el, ['HostManagementIp','IpAddress']), version:'' },
+    ovc: {
+      mgmt: g(el, 'VirtualControllerManagementIp'),
+      storage: g(el, 'VirtualControllerStorageIp'),
+      fed: g(el, 'VirtualControllerFederationIp')
+    },
+    vmk: { ip: g(el, 'HostStorageIp') }
+  }));
+  return res;
+}
+function applyImport(d, imp){
+  if (imp.ntp.length) d.ntp = imp.ntp.join('\n');
+  for (const key of Object.keys(imp.dns || {})){
+    const val = imp.dns[key];
+    if (typeof val === 'string' && val === '') continue;
+    d.dns[key] = val;
+  }
+  for (const k of Object.keys(imp.networks)){
+    if (!d.networks[k]) continue;
+    for (const f of Object.keys(imp.networks[k])){
+      const v = imp.networks[k][f];
+      if (v === '' || v == null) continue;
+      d.networks[k][f] = v;
+    }
+  }
+  let added = 0, updated = 0;
+  for (const n of imp.nodes){
+    const ex = n.serial ? d.nodes.find(x => x.serial === n.serial) : null;
+    if (ex){
+      if (n.name) ex.name = n.name;
+      if (n.esxi.ip) ex.esxi.ip = n.esxi.ip;
+      if (n.esxi.host) ex.esxi.host = n.esxi.host;
+      if (n.ovc.mgmt) ex.ovc.mgmt = n.ovc.mgmt;
+      if (n.ovc.storage) ex.ovc.storage = n.ovc.storage;
+      if (n.ovc.fed) ex.ovc.fed = n.ovc.fed;
+      if (n.vmk.ip) ex.vmk.ip = n.vmk.ip;
+      if (n.serial) ex.serial = n.serial;
+      updated++;
+    } else {
+      if (!n.name) n.name = 'Node ' + (d.nodes.length + 1);
+      d.nodes.push(normalizeNode(n));
+      added++;
+    }
+  }
+  return { added, updated };
+}
+function xmlEsc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&apos;' }[c]));
+}
+function xt(name, val){
+  val = val == null ? '' : String(val).trim();
+  return val ? '<' + name + '>' + xmlEsc(val) + '</' + name + '>' : '<' + name + ' />';
+}
+function buildDeploymentXml(d){
+  const N = d.networks, D = d.dns;
+  const ntp = d.ntp.split('\n').map(s => s.trim()).filter(Boolean);
+  const L = [];
+  const push = (indent, s) => L.push('  '.repeat(indent) + s);
+  L.push('<?xml version="1.0" encoding="utf-8"?>');
+  L.push('<DeploymentConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">');
+  push(1, xt('SchemaVersion', '10'));
+  if (ntp.length){
+    push(1, '<NTPServers>');
+    ntp.forEach(s => push(2, '<string>' + xmlEsc(s) + '</string>'));
+    push(1, '</NTPServers>');
+  } else push(1, '<NTPServers />');
+  push(1, '<DeploymentLocation />');
+  push(1, '<OmniCubeInformation />');
+  push(1, '<FederationNetwork>');
+  push(2, xt('VirtualControllerNetmask', N.federation.netmask));
+  push(2, xt('VirtualControllerVlanId', N.federation.vlan));
+  push(2, xt('PortGroupName', N.federation.portGroup));
+  push(2, xt('MTU', N.federation.mtu));
+  push(2, xt('VSwitchName', N.federation.vSwitch));
+  push(2, xt('Gateway', N.federation.gateway));
+  push(1, '</FederationNetwork>');
+  push(1, '<DnsInfo>');
+  push(2, xt('Domain', D.domain));
+  push(2, xt('PrimaryServer', D.primary));
+  push(2, xt('SecondaryServer', D.secondary));
+  push(2, xt('SearchDomain', D.search));
+  push(2, xt('FindHostName', D.findHostName ? 'true' : 'false'));
+  push(1, '</DnsInfo>');
+  push(1, '<ManagementNetwork>');
+  push(2, xt('VirtualControllerNetmask', N.management.netmask));
+  push(2, xt('VirtualControllerVlanId', N.management.vlan));
+  push(2, xt('PortGroupName', N.management.portGroup));
+  push(2, xt('HostNetmask', N.management.hostNetmask));
+  push(2, xt('HostGateway', N.management.hostGateway));
+  push(2, xt('GatewayIpAddress', N.management.gateway));
+  push(2, xt('VSwitchName', N.management.vSwitch));
+  push(2, xt('HostManagementPortGroupName', N.management.hostPortGroup));
+  push(2, xt('MTU', N.management.mtu));
+  push(2, xt('VlanId', N.management.vlan));
+  push(1, '</ManagementNetwork>');
+  push(1, '<StorageNetwork>');
+  push(2, xt('VirtualControllerNetmask', N.storage.netmask));
+  push(2, xt('VirtualControllerVlanId', N.storage.vlan));
+  push(2, xt('PortGroupName', N.storage.portGroup));
+  push(2, xt('VmKernelNetmask', N.storage.vmkNetmask));
+  push(2, xt('VSwitchName', N.storage.vSwitch));
+  push(2, xt('MTU', N.storage.mtu));
+  push(2, xt('VlanId', N.storage.vlan));
+  push(2, xt('VirtualControllerGateway', N.storage.vcGateway));
+  push(2, xt('VMKernelGateway', N.storage.vmkGateway));
+  push(2, xt('VmKernelPortGroupName', N.storage.vmkPortGroup));
+  push(1, '</StorageNetwork>');
+  if (d.nodes.length){
+    push(1, '<OmniCubesNetworkInfo>');
+    for (const n of d.nodes){
+      push(2, '<OmniCubeNetworkInformation>');
+      push(3, xt('IpAddress', n.esxi.ip));
+      push(3, xt('SerialNumber', n.serial));
+      push(3, xt('HostManagementIp', n.esxi.ip));
+      push(3, xt('VirtualControllerManagementIp', n.ovc.mgmt));
+      push(3, xt('VirtualControllerStorageIp', n.ovc.storage));
+      push(3, xt('VirtualControllerFederationIp', n.ovc.fed));
+      push(3, xt('HostStorageIp', n.vmk.ip));
+      push(3, xt('Hostname', n.esxi.host));
+      push(2, '</OmniCubeNetworkInformation>');
+    }
+    push(1, '</OmniCubesNetworkInfo>');
+  } else push(1, '<OmniCubesNetworkInfo />');
+  L.push('</DeploymentConfiguration>');
+  return L.join('\n') + '\n';
+}
+function networkWarnings(d){
+  const w = [];
+  const mg = d.networks.management, st = d.networks.storage, fe = d.networks.federation;
+  if (mg.netmask && mg.hostNetmask && mg.netmask !== mg.hostNetmask)
+    w.push('Management: OVC netmask (' + mg.netmask + ') differs from Host netmask (' + mg.hostNetmask + ')');
+  if (mg.gateway && mg.hostGateway && mg.gateway !== mg.hostGateway)
+    w.push('Management: OVC gateway (' + mg.gateway + ') differs from Host gateway (' + mg.hostGateway + ')');
+  if (mg.mtu && mg.mtu !== '1500') w.push('Management MTU is ' + mg.mtu + ' — must be 1500');
+  if (st.mtu && st.mtu !== '9000') w.push('Storage MTU is ' + st.mtu + ' — must be 9000');
+  if (fe.mtu && fe.mtu !== '9000') w.push('Federation MTU is ' + fe.mtu + ' — must be 9000');
+  const fixed = [
+    [mg.portGroup, 'VM Network', 'Management port group'],
+    [mg.hostPortGroup, 'Management Network', 'Management host port group'],
+    [st.portGroup, 'SVT_StoragePortGroup', 'Storage port group'],
+    [st.vmkPortGroup, 'SVT_StorPG', 'Storage VMkernel port group'],
+    [fe.portGroup, 'SVT_FedPortGroup', 'Federation port group']
+  ];
+  for (const [val, exp, label] of fixed){
+    if (val && String(val).trim() !== exp) w.push(label + ' is "' + val + '" — pre-flight standard is "' + exp + '"');
+  }
+  return w;
+}
+function netWarningsHtml(d){
+  const w = networkWarnings(d);
+  return w.length
+    ? '<div class="warnbox">⚠ ' + w.map(esc).join('<br>⚠ ') + '</div>'
+    : '<div class="okbox">✓ Network plan matches the pre-flight standard.</div>';
+}
+function updateNetWarnings(){
+  const el = document.getElementById('netWarnings');
+  if (el && store) el.innerHTML = netWarningsHtml(cur());
+}
+function xmlWarnings(d){
+  const w = [];
+  const ntpCount = d.ntp.split('\n').filter(s => s.trim()).length;
+  if (!d.nodes.length) w.push('No nodes defined');
+  if (!ntpCount) w.push('No NTP servers');
+  if (!d.dns.domain) w.push('DNS domain missing');
+  ['management', 'storage', 'federation'].forEach(k => { if (!d.networks[k].vlan) w.push(k + ' network VLAN missing'); });
+  d.nodes.forEach((n, i) => {
+    const nm = n.name || ('Node ' + (i + 1));
+    if (!n.serial) w.push(nm + ': serial number missing');
+    if (!n.esxi.ip) w.push(nm + ': ESXi management IP missing');
+    if (!n.ovc.mgmt) w.push(nm + ': OVC management IP missing');
+    if (!n.ovc.storage) w.push(nm + ': OVC storage IP missing');
+    if (!n.ovc.fed) w.push(nm + ': OVC federation IP missing');
+    if (!n.vmk.ip) w.push(nm + ': storage VMkernel IP missing');
+    if (n.esxi.mtu && n.esxi.mtu !== '1500') w.push(nm + ': ESXi MTU is ' + n.esxi.mtu + ' — must be 1500');
+    if (n.vmk.mtu && n.vmk.mtu !== '9000') w.push(nm + ': storage VMK MTU is ' + n.vmk.mtu + ' — must be 9000');
+    if (n.ovc.fedMtu && n.ovc.fedMtu !== '9000') w.push(nm + ': federation MTU is ' + n.ovc.fedMtu + ' — must be 9000');
+    if (n.vmk.portGroup && n.vmk.portGroup.trim() !== 'SVT_StorPG') w.push(nm + ': VMK port group is "' + n.vmk.portGroup + '" — standard "SVT_StorPG"');
+    if (n.ovc.storagePg && n.ovc.storagePg.trim() !== 'SVT_StoragePortGroup') w.push(nm + ': OVC storage port group is "' + n.ovc.storagePg + '" — standard "SVT_StoragePortGroup"');
+    if (n.ovc.fedPg && n.ovc.fedPg.trim() !== 'SVT_FedPortGroup') w.push(nm + ': federation port group is "' + n.ovc.fedPg + '" — standard "SVT_FedPortGroup"');
+  });
+  return w.concat(networkWarnings(d));
+}
+function exportDeploymentXml(){
+  const d = cur();
+  const w = xmlWarnings(d);
+  if (w.length){
+    if (!confirm('Check before exporting:\n\n• ' + w.join('\n• ') + '\n\nExport the XML anyway?')) return;
+  }
+  const slug = (d.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'deployment');
+  download(slug + '-SimpliVity-AllNodes.xml', buildDeploymentXml(d), 'application/xml;charset=utf-8');
+  toast('Deployment XML exported — import it into SimpliVity Deployment Manager');
+}
+function fillIloIps(){
+  const prefix = ($('#iloPrefix') && $('#iloPrefix').value || '').trim();
+  if (!prefix) return toast('Enter an iLO IP prefix, e.g. 10.250.221.', true);
+  let count = 0;
+  for (const n of cur().nodes){
+    if (!n.ilo.ip && n.esxi.ip){
+      const last = n.esxi.ip.split('.').pop();
+      n.ilo.ip = prefix + last;
+      count++;
+    }
+  }
+  save(); render();
+  toast(count ? 'Set ' + count + ' iLO IP(s)' : 'No nodes needed an iLO IP');
+}
+
+const DETAILS_REQUIRED = [
+  ['Project name', 'version'],
+  ['Company', 'project.company'],
+  ['Contact name', 'project.contactName'],
+  ['Contact email', 'project.contactEmail'],
+  ['Management netmask', 'networks.management.netmask'],
+  ['Management gateway', 'networks.management.gateway'],
+  ['Management VLAN', 'networks.management.vlan'],
+  ['Storage VLAN', 'networks.storage.vlan'],
+  ['Federation VLAN', 'networks.federation.vlan']
+];
+function validateDetails(){
+  const d = cur();
+  const missing = [];
+  document.querySelectorAll('#main [data-bind].missing').forEach(el => el.classList.remove('missing'));
+  for (const [label, path] of DETAILS_REQUIRED){
+    const v = getPath(d, path);
+    if (v == null || String(v).trim() === ''){
+      missing.push(label);
+      const el = document.querySelector('#main [data-bind="' + path + '"]');
+      if (el) el.classList.add('missing');
+    }
+  }
+  if (missing.length){
+    toast('Required fields missing: ' + missing.join(', '), true);
+    const first = document.querySelector('#main .missing');
+    if (first && first.scrollIntoView) first.scrollIntoView({ block:'center', behavior:'smooth' });
+    return false;
+  }
+  return true;
+}
+
+/* ================= document ================= */
+function kvTable(rows){
+  const r = rows.filter(x => x[1] !== '' && x[1] != null);
+  if (!r.length) return '<p class="sub">Not recorded.</p>';
+  return '<table class="kv">' + r.map(x => '<tr><td>' + esc(x[0]) + '</td><td>' + esc(x[1]) + '</td></tr>').join('') + '</table>';
+}
+function nodesDocTable(d){
+  if (!d.nodes.length) return '<p class="empty-doc">No nodes recorded.</p>';
+  const attrs = [
+    ['Serial number', n => n.serial],
+    ['iLO hostname', n => iloHostOf(n)],
+    ['iLO user', n => n.ilo.user || d.creds.ilo.user],
+    ...(ui.includeCreds ? [['iLO password', n => n.ilo.pass || d.creds.ilo.pass], ['ESXi root password', n => n.esxi.pass || d.creds.esxi.pass], ['OVC svtcli password', n => n.ovc.pass || d.creds.ovc.pass]] : []),
+    ['iLO IP', n => n.ilo.ip],
+    ['ESXi hostname', n => n.esxi.host || n.name],
+    ['ESXi management IP', n => n.esxi.ip],
+    ['ESXi version', n => n.esxi.version],
+    ['OVC management IP', n => n.ovc.mgmt],
+    ['OVC storage IP', n => n.ovc.storage],
+    ['OVC federation IP', n => n.ovc.fed],
+    ['Storage VMkernel IP', n => n.vmk.ip]
+  ];
+  return '<table class="nodes"><thead><tr><th></th>' +
+    d.nodes.map((n, i) => '<th>' + esc(n.name || ('Node ' + (i + 1))) + '</th>').join('') +
+    '</tr></thead><tbody>' +
+    attrs.map(([label, fn]) => '<tr><td>' + esc(label) + '</td>' +
+      d.nodes.map(n => '<td>' + esc(fn(n) || '—') + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table>';
+}
+function netDocHtml(d){
+  const N = d.networks;
+  const part = (title, o, labels) => {
+    const rows = Object.keys(labels).map(k => [labels[k], o[k]]).filter(r => r[1]);
+    if (!rows.length) return '';
+    return '<h3>' + title + '</h3>' + kvTable(rows);
+  };
+  const parts = [
+    part('iLO / BMC network', N.ilo, { netmask:'Netmask', gateway:'Gateway', dns1:'DNS 1', dns2:'DNS 2', vlan:'VLAN ID' }),
+    part('Management network', N.management, { netmask:'Netmask (OVC & Host)', gateway:'Gateway (OVC & Host)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', hostPortGroup:'Host port group' }),
+    part('Storage network', N.storage, { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway', vmkGateway:'VMkernel gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }),
+    part('Federation network', N.federation, { netmask:'Netmask', gateway:'Gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' })
+  ].filter(Boolean);
+  return parts.length ? parts.join('') : '<p class="empty-doc">No network details recorded.</p>';
+}
+function linksText(d){
+  const c = d.creds;
+  const pw = ui.includeCreds;
+  const L = [];
+  for (const n of d.nodes){
+    L.push(n.name || 'Node');
+    if (n.ilo.ip) L.push('  iLO web   ' + webUrl(n.ilo.ip));
+    if (n.esxi.ip){
+      L.push('  ESXi ssh  ' + sshUrl(c.esxi.user, pw ? c.esxi.pass : '', n.esxi.ip));
+      L.push('  ESXi cmd  ' + puttyCmd(c.esxi.user, pw ? c.esxi.pass : '', n.esxi.ip));
+    }
+    if (n.ovc.mgmt){
+      L.push('  OVC ssh   ' + sshUrl(c.ovc.user, pw ? c.ovc.pass : '', n.ovc.mgmt));
+      L.push('  OVC cmd   ' + puttyCmd(c.ovc.user, pw ? c.ovc.pass : '', n.ovc.mgmt));
+    }
+    L.push('');
+  }
+  const v = d.vcenter;
+  if (v.ip || v.hostname){
+    L.push('vCenter');
+    if (v.hostname || v.ip) L.push('  Web       ' + webUrl(v.hostname || v.ip));
+    if (v.ip || v.hostname) L.push('  VAMI      ' + webUrl(v.ip || v.hostname, 5480));
+    if (v.ip){
+      L.push('  SSH URL   ' + sshUrl(v.ssoUser, pw ? v.ssoPass : '', v.ip));
+      L.push('  SSH cmd   ' + puttyCmd(v.ssoUser, pw ? v.ssoPass : '', v.ip));
+      L.push('  WinSCP    ' + '"' + S().winscp + '" "' + winscpDirectUrl(v.ssoUser, pw ? v.ssoPass : '', v.ip) + '"');
+    }
+    L.push('');
+  }
+  L.push('Local tools (need the launcher kit from Setup):');
+  L.push('  Deployment Manager   svtdeploy://launch');
+  L.push('  Upgrade Manager      svtupgrade://launch');
+  return L.join('\n');
+}
+function hpeMark(){
+  const h = S().logoHpe;
+  if (h) return '<span class="hpe-slot"><img class="hpe-logo" src="' + esc(h) + '" alt="HPE"></span>';
+  return '<span class="hpe-slot"><span class="hpe-mark">HPE</span></span>';
+}
+function docCreditHtml(){
+  return ''; /* credit line + HPE mark removed at customer's request */
+}
+function docInner(d){
+  const p = d.project;
+  const secs = [];
+  secs.push(['Customer & project', kvTable([
+    ['Company', p.company], ['Project name', d.version], ['Installation address', p.address], ['Installation date', p.installDate],
+    ['Contact', p.contactName], ['Title', p.contactTitle], ['Email', p.contactEmail], ['Phone', p.contactPhone],
+    ['Project stakeholder', p.stakeholder || ''],
+    ['Assigned engineer', d.engineer.name ? d.engineer.name + (d.engineer.email ? ' <' + d.engineer.email + '>' : '') : '']
+  ])]);
+  if (ui.includeChecklist){
+    secs.push(['Pre-flight checklist',
+      '<ul>' + CHECKLIST.map(([k, label]) =>
+        '<li class="' + (d.checklist[k] ? 'ok' : 'no') + '">' + (d.checklist[k] ? '☑' : '☐') + ' ' + esc(label) + '</li>'
+      ).join('') + '</ul>']);
+  }
+  const ntp = d.ntp.split('\n').map(s => s.trim()).filter(Boolean);
+  secs.push(['Infrastructure',
+    '<h3>NTP servers</h3>' + (ntp.length ? '<ul>' + ntp.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<p class="sub">Not recorded.</p>') +
+    '<h3>DNS</h3>' + kvTable([
+      ['Domain name', d.dns.domain], ['Search domain', d.dns.search], ['Primary server', d.dns.primary],
+      ['Secondary server', d.dns.secondary]
+    ])]);
+  secs.push(['Network plan', netDocHtml(d)]);
+  secs.push(['Nodes', nodesDocTable(d)]);
+  secs.push(['vCenter', kvTable([
+    ['Hostname', d.vcenter.hostname], ['IP address', d.vcenter.ip],
+    ['VAMI URL (https://ip:5480)', (d.vcenter.ip || d.vcenter.hostname) ? webUrl(d.vcenter.ip || d.vcenter.hostname, 5480) : ''],
+    ['Cluster name', d.vcenter.cluster],
+    ['Environment', d.vcenter.env], ['Version', d.vcenter.version], ['SSO user', d.vcenter.ssoUser],
+    ...(ui.includeCreds ? [['SSO password', d.vcenter.ssoPass]] : [])
+  ])]);
+  secs.push(['Arbiter / management server', kvTable([
+    ['Hostname', d.arbiter.hostname], ['IP address', d.arbiter.ip], ['Domain', d.arbiter.domain], ['Contact', d.arbiter.email]
+  ])]);
+  if (ui.includeCreds){
+    secs.push(['Credentials', kvTable([
+      ['ESXi', d.creds.esxi.user + ' / ' + d.creds.esxi.pass],
+      ['vCenter', d.vcenter.ssoUser + ' / ' + d.vcenter.ssoPass],
+      ['vCenter root', d.vcenter.rootUser + ' / ' + d.vcenter.rootPass],
+      ['OVC (svtcli)', d.creds.ovc.user + ' / ' + d.creds.ovc.pass]
+    ])]);
+  }
+  secs.push(['Connection shortcuts', '<pre class="links">' + esc(linksText(d)) + '</pre>']);
+  const logo = S().logoData
+    ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
+    : '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  return '<div class="doc">' +
+    '<div class="dochead">' +
+    '<div class="dochead-logo">' + logo + '</div>' +
+    '<div class="dochead-text">' +
+    '<h1>' + esc(d.name) + ' <span>— Deployment Reference</span><span class="verbadge">' + esc(d.version || '') + '</span></h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project ' + esc(d.version || '—') + ' · HPE SimpliVity deployment · Generated ' + esc(new Date().toLocaleString()) + ' · ' + d.nodes.length + ' node(s)' +
+    (p.company ? ' · ' + esc(p.company) : '') + '</div></div>' +
+    '</div>' +
+    secs.map((s, i) => '<h2>' + (i + 1) + ' · ' + esc(s[0]) + '</h2>' + s[1]).join('\n') +
+    '</div>';
+}
+function docPaneHtml(){
+  const d = cur();
+  return '<div class="pane">' +
+    '<div class="toolbar no-print">' +
+      '<label class="check inline"><input type="checkbox" data-ui="includeCreds" ' + (ui.includeCreds ? 'checked' : '') + '> Include credentials</label>' +
+      '<label class="check inline"><input type="checkbox" data-ui="includeChecklist" ' + (ui.includeChecklist ? 'checked' : '') + '> Include checklist</label>' +
+      '<span class="flex"></span>' +
+      '<button data-act="emailDoc" title="Generate an .eml draft to the customer contact and the assigned engineer with the document attached">Email draft…</button>' +
+      '<button data-act="exportHtml" class="primary">Export standalone HTML</button>' +
+      '<button data-act="print">Print / Save PDF</button>' +
+    '</div>' + docInner(d) + '</div>';
+}
+function docFname(d){
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const verStamp = (d.version || 'v0').replace(/[^\w.]+/g, '-');
+  return (d.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'deployment') + '-' + verStamp + '-' + dateStamp + '-reference.html';
+}
+function buildDocHtml(d){
+  const css = $('#docStyles').textContent;
+  return '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">\n' +
+    '<title>' + esc(d.name) + ' — Deployment Reference ' + esc(d.version || '') + '</title>\n' +
+    '<style>\nbody{margin:0;background:#eceff1;padding:24px}\n' + css + '\n</style>\n</head>\n<body>\n' +
+    docInner(d) +
+    '\n<div style="max-width:1000px;margin:14px auto 0;font:12px Arial,Helvetica,sans-serif;color:#777;text-align:left">' +
+    'Generated by SimpliVity Deploy Kit · ' + esc(new Date().toLocaleString()) +
+    ' · shortcut links need the launcher kit on this machine.</div>\n</body>\n</html>';
+}
+function exportDocHtml(){
+  const d = cur();
+  const fname = docFname(d);
+  download(fname, buildDocHtml(d), 'text/html;charset=utf-8');
+  toast('Standalone document exported');
+}
+function b64Utf8(s){
+  const bytes = new TextEncoder().encode(s);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function b64Fold(s){ return (s.match(/.{1,76}/g) || []).join('\r\n'); }
+function buildEmailEml(d, cust, eng){
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const fname = docFname(d);
+  const subject = 'HPE SimpliVity deployment reference — ' + d.name + ' ' + (d.version || '') + ' (' + dateStamp + ')';
+  const firstName = d.project.contactName ? d.project.contactName.split(/\s+/)[0] : '';
+  const bodyLines = [
+    firstName ? 'Hi ' + firstName + ',' : 'Hello,',
+    '',
+    'Please find attached the deployment reference for ' + d.name + ' — project ' + (d.version || '') + ', issued ' + dateStamp + ' (' + d.nodes.length + ' node' + (d.nodes.length === 1 ? '' : 's') + ').',
+    '',
+    'This email starts the record for the deployment; further updates will follow the same thread.',
+    '',
+    'Kind regards,'
+  ];
+  if (d.engineer.name) bodyLines.push(d.engineer.name);
+  const body = bodyLines.join('\r\n');
+  const boundary = '----=_SVT_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  const from = d.engineer.name ? '=?UTF-8?B?' + b64Utf8(d.engineer.name) + '?= <' + eng + '>' : eng;
+  const to = [cust, eng].filter((v, i, a) => a.indexOf(v) === i).join(', ');
+  return [
+    'From: ' + from,
+    'To: ' + to,
+    'Subject: =?UTF-8?B?' + b64Utf8(subject) + '?=',
+    'Date: ' + new Date().toUTCString().replace('GMT', '+0000'),
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64Fold(b64Utf8(body)),
+    '',
+    '--' + boundary,
+    'Content-Type: text/html; name="' + fname + '"',
+    'Content-Transfer-Encoding: base64',
+    'Content-Disposition: attachment; filename="' + fname + '"',
+    '',
+    b64Fold(b64Utf8(buildDocHtml(d))),
+    '',
+    '--' + boundary + '--',
+    ''
+  ].join('\r\n');
+}
+function emailDraft(){
+  const d = cur();
+  const cust = (d.project.contactEmail || '').trim();
+  const eng = (d.engineer.email || '').trim();
+  if (!cust) return toast('Add the customer contact email first (Details → Customer & project)', true);
+  if (!eng) return toast('Add the assigned engineer email first (Details → Customer & project)', true);
+  const eml = buildEmailEml(d, cust, eng);
+  const fname = docFname(d).replace(/-reference\.html$/, '.eml');
+  download(fname, eml, 'message/rfc822');
+  toast('Email draft saved — open it in Outlook: the document is attached and it is addressed to the customer and the engineer. Press Send to start the trail.');
+}
+function buildCustomerEml(d, to){
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const fname = (d.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'deployment') + '-customer-details.json';
+  const payload = JSON.stringify({ type:'svtCustomerDetails', exported:new Date().toISOString(),
+    deployment:{ name:d.name, version:d.version, project:d.project, checklist:d.checklist, ntp:d.ntp, dns:d.dns } }, null, 2);
+  const subject = 'Customer details — ' + d.name + ' ' + (d.version || '') + ' (' + dateStamp + ')';
+  const body = [
+    'Hello,',
+    '',
+    'Please find attached our completed deployment details for ' + d.name + '.',
+    '',
+    'Kind regards,' + (d.project.contactName ? '\n' + d.project.contactName : '')
+  ].join('\r\n');
+  const boundary = '----=_SVTCUST_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const eml = [
+    'To: ' + to,
+    'Subject: =?UTF-8?B?' + b64Utf8(subject) + '?=',
+    'Date: ' + new Date().toUTCString().replace('GMT', '+0000'),
+    'MIME-Version: 1.0',
+    'Content-Type: multipart/mixed; boundary="' + boundary + '"',
+    '',
+    '--' + boundary,
+    'Content-Type: text/plain; charset="utf-8"',
+    'Content-Transfer-Encoding: base64',
+    '',
+    b64Fold(b64Utf8(body)),
+    '',
+    '--' + boundary,
+    'Content-Type: application/json; name="' + fname + '"',
+    'Content-Transfer-Encoding: base64',
+    'Content-Disposition: attachment; filename="' + fname + '"',
+    '',
+    b64Fold(b64Utf8(payload)),
+    '',
+    '--' + boundary + '--',
+    ''
+  ].join('\r\n');
+  return { eml, fname };
+}
+function emailCustomer(){
+  const d = cur();
+  const to = (S().tdsynnexEmail || '').trim();
+  if (!to) return toast('Set the TD SYNNEX recipient first (field above)', true);
+  const { eml, fname } = buildCustomerEml(d, to);
+  download(fname.replace(/\.json$/, '.eml'), eml, 'message/rfc822');
+  toast('Email draft saved — open it in Outlook and press Send (your details are attached as JSON)');
+}
+async function importCustomerFile(file){
+  try{
+    const data = JSON.parse(await file.text());
+    if (!data || data.type !== 'svtCustomerDetails' || !data.deployment) throw new Error('not a customer details file');
+    if (!confirm('Import customer details for "' + (data.deployment.name || 'this deployment') + '"? This replaces the project, checklist, NTP and DNS of the current deployment.')) return;
+    const d = cur();
+    const c = data.deployment;
+    d.project = c.project || d.project;
+    d.checklist = c.checklist || {};
+    d.ntp = c.ntp || '';
+    d.dns = c.dns || d.dns;
+    if (c.name && (d.name === 'Deployment 1' || !d.name)) d.name = c.name;
+    if (c.version && !d.version) d.version = c.version;
+    await save(); render();
+    toast('Customer details imported');
+  }catch(e){ toast('Import failed: ' + e.message, true); }
+}
+async function saveIntoFile(){
+  await save();
+  const pub = localStorage.getItem(PUB_KEY);
+  const eng = localStorage.getItem(ENG_KEY);
+  const payload = JSON.stringify({
+    customer: pub ? JSON.parse(pub) : null,
+    engineer: eng ? JSON.parse(eng) : null
+  });
+  const clone = document.documentElement.cloneNode(true);
+  const main = clone.querySelector('#main'); if (main) main.innerHTML = '';
+  clone.querySelectorAll('.overlay').forEach(o => o.setAttribute('hidden', ''));
+  const sel = clone.querySelector('#depSel'); if (sel) sel.innerHTML = '';
+  const ss = clone.querySelector('#sectionSel'); if (ss){ ss.setAttribute('hidden',''); ss.value = 'customer'; }
+  const bl = clone.querySelector('#brandLogo'); if (bl) bl.innerHTML = '';
+  const ct = clone.querySelector('#counts'); if (ct) ct.textContent = '';
+  const tst = clone.querySelector('#toast'); if (tst) tst.textContent = '';
+  const sw = clone.querySelector('#storageWarn'); if (sw) sw.setAttribute('hidden','');
+  const tabs = clone.querySelector('#tabs'); if (tabs) tabs.removeAttribute('hidden');
+  clone.querySelectorAll('#tabs button').forEach(b => { if (b.dataset.tab === 'intro') b.classList.add('on'); else b.classList.remove('on'); });
+  const vd = clone.querySelector('#vaultData'); if (vd) vd.textContent = payload;
+  let fname = 'deployment.html';
+  try{ fname = decodeURIComponent(location.pathname.split('/').pop() || 'deployment.html'); }catch(e){}
+  download(fname, '<!doctype html>\n' + clone.outerHTML, 'text/html;charset=utf-8');
+  toast('Saved with data — drop this file over the old one in the customer folder (Teams will sync it)');
+}
+function introHtml(){
+  return '<div class="doc">' +
+    '<div class="dochead"><div class="dochead-text"><h1>How to complete this workbook</h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project: ' + esc(cur().name) + ' · Version ' + esc(cur().version || '—') + ' · Shared collection sheet for your HPE SimpliVity deployment</div></div></div>' +
+
+    '<h2>1 · What this is</h2>' +
+    '<p>This page gathers everything needed for your HPE SimpliVity deployment — site details, network plans, node addresses and credentials — in one place instead of emailed spreadsheets. Entries are saved in this browser on this machine only. Once the data is complete it produces:</p>' +
+    '<ul>' +
+    '<li>the <b>DeploymentConfiguration XML</b> that SimpliVity Deployment Manager imports to run the deployment;</li>' +
+    '<li>a branded <b>deployment reference document</b> (Document tab) to print or export as a standalone HTML file;</li>' +
+    '<li><b>one-click shortcuts</b> to iLO, ESXi, OVC and vCenter while the build is in progress.</li>' +
+    '</ul>' +
+
+    '<h2>2 · Who completes what</h2>' +
+    '<table><thead><tr><th>Where</th><th>Completed by</th><th>What goes in it</th></tr></thead><tbody>' +
+    '<tr><td>Landing</td><td>Both — choose a section</td><td>Customer Engineer and Deployment Engineer sections, each protected by its own password on every load</td></tr>' +
+    '<tr><td>Customer Engineer</td><td>End customer engineer</td><td>Company, project name and contacts, the pre-flight checklist and NTP/DNS — then email the details to TD SYNNEX</td></tr>' +
+    '<tr><td>Details (engineer)</td><td>Deployment engineer</td><td>Network plans and site credentials (ESXi, vCenter incl. root, OVC) — required fields validated by Save &amp; next → Nodes</td></tr>' +
+    '<tr><td>Nodes</td><td>Deployment engineer</td><td>Sections 1–6 repeated for every node: iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation</td></tr>' +
+    '<tr><td>vCenter &amp; Arbiter</td><td>End customer engineer</td><td>Sections 7 and 8 — one vCenter and one Arbiter per deployment (a cluster / datacenter is its own deployment), including the deployment DNS and NTP servers; the VAMI page opens on port 5480</td></tr>' +
+    '<tr><td>Advanced</td><td>Deployment engineer</td><td>Import / export the DeploymentConfiguration XML and import the customer details email</td></tr>' +
+    '<tr><td>Document</td><td>Both — review</td><td>Check the generated reference, then print, export or generate the email draft</td></tr>' +
+    '</tbody></table>' +
+
+    '<h2>3 · Step by step</h2>' +
+    '<ol>' +
+    '<li><b>Choose your section on the landing page</b> — Customer Engineer or Deployment Engineer; each asks for its password every time the file is opened.</li>' +
+    '<li><b>Customer Engineer</b> — fill the company block, contacts, the pre-flight checklist and NTP/DNS, then press <b>Email details to TD SYNNEX…</b>.</li>' +
+    '<li><b>Deployment Engineer → Details</b> — enter the four network plans and the site credentials (ESXi, vCenter including root, OVC). Required fields are marked; press <b>Save &amp; next → Nodes</b> to validate and continue.</li>' +
+    '<li><b>Add the nodes</b> — press <b>Add nodes…</b> and say how many the deployment has (e.g. 3). Fill in the first node\'s addresses and save: the other nodes are pre-filled automatically — each IP\'s last octet steps per node (…101 → …102, …103) and netmask &amp; gateway are copied. You can also use <b>Advanced → Import XML…</b> when a saved configuration XML already exists — it fills every address in one step. <b>Fill iLO IPs</b> derives iLO addresses from a prefix.</li>' +
+    '<li><b>Enter vCenter and Arbiter</b> on their own tab — one of each per deployment (a cluster / datacenter is its own deployment). The deployment DNS and NTP servers are entered with vCenter, Section 7.</li>' +
+    '<li><b>Review the Document tab</b> — switch on <i>Include credentials</i> if the reference should carry passwords, then Print / Save as PDF, Export standalone HTML, or use <b>Email draft…</b> to send it to the customer contact and the assigned engineer.</li>' +
+    '<li><b>Advanced</b> — export the <code>…-SimpliVity-AllNodes.xml</code> for SimpliVity Deployment Manager, and import the JSON attached to the customer\'s details email.</li>' +
+    '<li><b>Handover</b> — the <b>Setup</b> page (next to the version in the header) holds the launcher kit and <b>Save into file</b>, which bakes your data into the file so the next engineer picks up where you left off.</li>' +
+    '</ol>' +
+
+    '<h2>4 · Good to know</h2>' +
+    '<ul>' +
+    '<li>Everything stays in <b>this browser on this machine</b> — nothing is uploaded. The deployment section is stored encrypted under its password.</li>' +
+    '<li>JSON backups and documents exported with credentials contain passwords in clear text — handle them exactly like the credentials themselves.</li>' +
+    '<li>Export a JSON backup (Setup → Deployment &amp; data) before moving to another PC or browser.</li>' +
+    '<li>Re-importing the same XML is safe: existing nodes are matched by serial number, nothing is duplicated, and hand-entered values are kept when the XML does not contain them.</li>' +
+    '<li>Web shortcuts (iLO, vCenter, VAMI) work anywhere; SSH, WinSCP and the managers need the launcher kit installed once.</li>' +
+    '</ul>' +
+    '</div>';
+}
+function doPrint(){
+  if (!store) return;
+  if (ui.tab !== 'doc'){ ui.tab = 'doc'; render(); setTimeout(() => window.print(), 250); }
+  else window.print();
+}
+
+/* ================= panes ================= */
+function netFieldset(title, base, fields, d, ro){
+  ro = ro || [];
+  const o = getPath(d, base) || {};
+  return '<fieldset class="net"><legend>' + esc(title) + '</legend><div class="grid">' +
+    Object.keys(fields).map(k =>
+      '<label>' + esc(fields[k]) + '<input' + (ro.includes(k) ? ' readonly title="Fixed value (pre-flight standard)"' : '') + ' data-bind="' + base + '.' + k + '" value="' + esc(o[k] || '') + '"></label>'
+    ).join('') + '</div></fieldset>';
+}
+function credField(label, path, d){
+  const v = getPath(d, path) || '';
+  const isPass = path.endsWith('.pass');
+  return '<label>' + esc(label) + '<span class="pwrow">' +
+    '<input type="' + (isPass ? 'password' : 'text') + '" data-bind="' + path + '" value="' + esc(v) + '" autocomplete="off">' +
+    (isPass ? '<input type="checkbox" class="showpw" title="Show password">' : '') +
+    '</span></label>';
+}
+function credRow(label, userPath, passPath, d, ro){
+  const uv = getPath(d, userPath) || '';
+  const pv = getPath(d, passPath) || 'TBA Onsite';
+  return '<div class="credrow">' +
+    '<span class="credlabel">' + esc(label) + '</span>' +
+    '<input data-bind="' + userPath + '" value="' + esc(uv) + '" autocomplete="off" style="flex:1">' +
+    '<span class="pwrow"><input type="password" data-bind="' + passPath + '" value="' + esc(pv) + '" autocomplete="off" style="flex:1"' + (ro ? ' readonly title="Supplied by the customer"' : '') + '><input type="checkbox" class="showpw" title="Show password"></span>' +
+    '</div>';
+}
+function detailsHtml(){
+  const d = cur();
+  const p = d.project;
+  return '<div class="pane">' +
+  '<div class="rolehead"><h2>Deployment Engineer</h2><p class="hint">Everything saves as you go — complete the required fields, then press Save &amp; next → Nodes.</p></div>' +
+  '<section class="card"><h2>Customer &amp; Project</h2><div class="grid">' +
+    '<label>Company<input data-bind="project.company" value="' + esc(p.company) + '"></label>' +
+    '<label>Project name<input data-bind="version" value="' + esc(d.version) + '"></label>' +
+    '<label>Installation date<input type="date" data-bind="project.installDate" value="' + esc(p.installDate) + '"></label>' +
+    '<label class="full">Installation address<textarea rows="2" data-bind="project.address">' + esc(p.address) + '</textarea></label>' +
+    '<label>Contact name<input data-bind="project.contactName" value="' + esc(p.contactName) + '"></label>' +
+    '<label>Contact title<input data-bind="project.contactTitle" value="' + esc(p.contactTitle) + '"></label>' +
+    '<label>Contact email<input data-bind="project.contactEmail" value="' + esc(p.contactEmail) + '"></label>' +
+    '<label>Contact phone<input data-bind="project.contactPhone" value="' + esc(p.contactPhone) + '"></label>' +
+    '<label>Project stakeholder<input data-bind="project.stakeholder" value="' + esc(p.stakeholder || '') + '"></label>' +
+    '<label>Assigned engineer<input data-bind="engineer.name" value="' + esc(d.engineer.name) + '" placeholder="Phil Boorman"></label>' +
+    '<label>Engineer email<input data-bind="engineer.email" value="' + esc(d.engineer.email) + '" placeholder="phil.boorman@tdsynnex.com"></label>' +
+  '</div></section>' +
+
+  '<section class="card"><h2>Pre-Flight Checklist</h2><div class="checks">' +
+    CHECKLIST.map(([k, label]) =>
+      '<label class="check"><input type="checkbox" data-bind="checklist.' + k + '" ' + (d.checklist[k] ? 'checked' : '') + '> <span>' + esc(label) + '</span></label>'
+    ).join('') +
+  '</div></section>' +
+
+  '<section class="card"><h2>Networks (site plan — feeds the XML)</h2><p class="hint">Site-level values shared by every node; per-node addresses go on the Nodes tab (Sections 1–6).</p>' +
+    '<div id="netWarnings">' + netWarningsHtml(d) + '</div>' +
+    netFieldset('iLO / BMC network', 'networks.ilo', { netmask:'Netmask', gateway:'Gateway', dns1:'DNS 1', dns2:'DNS 2', vlan:'VLAN ID' }, d) +
+    netFieldset('Management network', 'networks.management', { netmask:'Netmask (OVC & Host)', gateway:'Gateway (OVC & Host)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', hostPortGroup:'Host port group' }, d, ['mtu', 'portGroup', 'hostPortGroup']) +
+    netFieldset('Storage network', 'networks.storage', { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway', vmkGateway:'VMkernel gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }, d, ['mtu', 'portGroup', 'vmkPortGroup']) +
+    netFieldset('Federation network', 'networks.federation', { netmask:'Netmask', gateway:'Gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' }, d, ['mtu', 'portGroup']) +
+  '</section>' +
+
+  '<section class="card"><h2>Site credentials</h2>' +
+    credRow('ESXi', 'creds.esxi.user', 'creds.esxi.pass', d) +
+    credRow('vCenter (administrator)', 'vcenter.ssoUser', 'vcenter.ssoPass', d, true) +
+    credRow('vCenter root', 'vcenter.rootUser', 'vcenter.rootPass', d, true) +
+    credRow('OVC (svtcli)', 'creds.ovc.user', 'creds.ovc.pass', d) +
+    '<p class="hint">iLO credentials are node-specific — set them on each node (Nodes tab → ✎). These defaults apply wherever a node or field has no override.</p>' +
+  '</section>' +
+  '<div class="row end" style="margin-top:16px">' +
+    '<button data-act="detailsNext" class="primary">Save &amp; next → Nodes</button>' +
+  '</div>' +
+  '</div>';
+}
+function nodeRowHtml(n, idx){
+  const ilo = iloCred(n);
+  const esx = esxiCred(n);
+  const ovc = ovcCred(n);
+  const chips = [];
+  if (n.ilo.ip) chips.push('<a class="chip web" href="' + esc(webUrl(n.ilo.ip)) + '" title="Open iLO web UI (https)">iLO</a>');
+  if (n.esxi.ip) chips.push('<a class="chip ssh" href="' + esc(sshUrl(esx.user, esx.pass, n.esxi.ip)) + '" title="SSH to ESXi host (PuTTY)">ESXi</a>');
+  if (n.ovc.mgmt) chips.push('<a class="chip ssh" href="' + esc(sshUrl(ovc.user, ovc.pass, n.ovc.mgmt)) + '" title="SSH to OVC (PuTTY)">OVC</a>');
+  return '<tr>' +
+    '<td><strong>' + esc(n.name || ('Node ' + (idx + 1))) + '</strong><div class="sub">' + esc(iloHostOf(n)) + '</div></td>' +
+    '<td class="mono">' + esc(n.serial || '—') + '</td>' +
+    '<td>' + (n.ilo.ip
+      ? '<button class="ln mono" data-act="copy" data-val="' + esc(n.ilo.ip) + '" title="Click to copy">' + esc(n.ilo.ip) + '</button>'
+      : '<span class="dim">—</span>') + '</td>' +
+    '<td>' + (n.esxi.ip
+      ? '<button class="ln mono" data-act="copy" data-val="' + esc(n.esxi.ip) + '" title="Click to copy">' + esc(n.esxi.ip) + '</button>'
+      : '<span class="dim">—</span>') + '</td>' +
+    '<td>' + (n.ovc.mgmt
+      ? '<button class="ln mono" data-act="copy" data-val="' + esc(n.ovc.mgmt) + '" title="Click to copy">' + esc(n.ovc.mgmt) + '</button>' +
+        (n.ovc.storage || n.ovc.fed ? '<div class="sub">s:' + esc(n.ovc.storage || '—') + ' · f:' + esc(n.ovc.fed || '—') + '</div>' : '')
+      : '<span class="dim">—</span>') + '</td>' +
+    '<td>' + (n.vmk.ip
+      ? '<button class="ln mono" data-act="copy" data-val="' + esc(n.vmk.ip) + '" title="Click to copy">' + esc(n.vmk.ip) + '</button>'
+      : '<span class="dim">—</span>') + '</td>' +
+    '<td><div class="acts">' + (chips.length ? chips.join('') : '<span class="dim">—</span>') + '</div></td>' +
+    '<td class="tools">' +
+      '<details class="menu"><summary title="Copy…">⧉</summary><div class="menu-body">' +
+        '<button data-act="copy" data-val="' + esc(n.ilo.ip) + '">iLO IP</button>' +
+        '<button data-act="copy" data-val="' + esc(ilo.user) + '">iLO user</button>' +
+        '<button data-act="copy" data-val="' + esc(ilo.pass) + '">iLO password</button>' +
+        '<button data-act="copy" data-val="' + esc(webUrl(n.ilo.ip)) + '">iLO URL</button>' +
+        '<button data-act="copy" data-val="' + esc(puttyCmd(esx.user, esx.pass, n.esxi.ip)) + '">ESXi PuTTY command</button>' +
+        '<button data-act="copy" data-val="' + esc(sshUrl(ovc.user, ovc.pass, n.ovc.mgmt)) + '">OVC SSH URL</button>' +
+        '<button data-act="copy" data-val="' + esc(puttyCmd(ovc.user, ovc.pass, n.ovc.mgmt)) + '">OVC PuTTY command</button>' +
+      '</div></details>' +
+      '<button class="ico" data-act="editNode" data-id="' + n.id + '" title="Edit">✎</button>' +
+      '<button class="ico danger" data-act="delNode" data-id="' + n.id + '" title="Delete">✕</button>' +
+    '</td></tr>';
+}
+function nodesHtml(){
+  const d = cur();
+  return '<div class="pane">' +
+    '<div class="toolbar no-print">' +
+      '<button data-act="addNodes" class="primary">Add nodes…</button>' +
+      '<button data-act="addNode">+ Add node</button>' +
+      '<span class="sep"></span>' +
+      '<label class="inline" style="gap:6px">iLO IP prefix <input id="iloPrefix" placeholder="10.250.221." style="width:130px"></label>' +
+      '<button data-act="fillIlo" title="Set each node\'s iLO IP to prefix + last octet of its ESXi management IP">Fill iLO IPs</button>' +
+      '<span class="flex"></span>' +
+      '<a class="chip dep" href="svtdeploy://launch" title="Launch SimpliVity Deployment Manager">Deployment Manager</a>' +
+      '<a class="chip upg" href="svtupgrade://launch" title="Launch SimpliVity Upgrade Manager">Upgrade Manager</a>' +
+    '</div>' +
+    '<p class="hint">Sections 1–6 repeat for every node — open the edit form for iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation details. Import / export the XML from the Advanced tab.</p>' +
+    (d.nodes.length
+      ? '<div class="wrap"><table><thead><tr><th>Node</th><th>Serial</th><th>iLO</th><th>ESXi</th><th>OVC</th><th>VMkernel</th><th>Shortcuts</th><th></th><th></th></tr></thead><tbody>' +
+        d.nodes.map(nodeRowHtml).join('') + '</tbody></table></div>'
+      : '<div class="empty"><h2>No nodes yet</h2><p>Press <b>Add nodes…</b> and say how many the deployment has — fill in the first node\'s addresses and the rest pre-fill on save. Or use the <b>Advanced</b> tab to import a saved configuration XML exported from Deployment Manager.</p>' +
+        '<div class="row" style="justify-content:center"><button data-act="addNodes" class="primary">Add nodes…</button> <button data-act="addNode">+ Add node</button></div></div>') +
+  '</div>';
+}
+function vcHtml(){
+  const d = cur();
+  const v = d.vcenter;
+  const a = d.arbiter;
+  const c = d.creds;
+  const web = v.hostname || v.ip ? webUrl(v.hostname || v.ip) : '';
+  const vami = v.ip || v.hostname ? webUrl(v.ip || v.hostname, 5480) : '';
+  const ssh = sshUrl(v.ssoUser, v.ssoPass, v.ip);
+  const scp = scpUrl(v.ssoUser, v.ssoPass, v.ip);
+  return '<div class="pane">' +
+    '<section class="card"><h2>vCenter (Section 7)</h2>' +
+      '<p class="hint">One per deployment — a cluster / datacenter is its own deployment (create more with + New). Completed by the end customer; the deployment DNS and NTP servers are entered here too. The VAMI page opens on port 5480. <b>The two passwords are supplied by the customer</b> — read-only here.</p>' +
+      '<div class="grid">' +
+      '<label>vCenter FQDN hostname<input data-bind="vcenter.hostname" value="' + esc(v.hostname) + '" placeholder="hcivc01.hci.local"></label>' +
+      '<label>IP address<input data-bind="vcenter.ip" value="' + esc(v.ip) + '"></label>' +
+      '<label>DataCenter name<input data-bind="vcenter.datacenter" value="' + esc(v.datacenter) + '" placeholder="Datacenter1"></label>' +
+      '<label>Cluster name<input data-bind="vcenter.cluster" value="' + esc(v.cluster) + '"></label>' +
+      '<label>Environment<input data-bind="vcenter.env" value="' + esc(v.env) + '" placeholder="PROD / DR"></label>' +
+      '<label>Version<input data-bind="vcenter.version" value="' + esc(v.version) + '" placeholder="7.0.2"></label>' +
+      '<label>Administrator username<input data-bind="vcenter.ssoUser" value="' + esc(v.ssoUser) + '"></label>' +
+      '<label>Administrator password<span class="pwrow"><input type="password" data-bind="vcenter.ssoPass" value="' + esc(v.ssoPass || 'TBA Onsite') + '" autocomplete="off" readonly title="Supplied by the customer"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
+      '<label>root username<input data-bind="vcenter.rootUser" value="' + esc(v.rootUser) + '"></label>' +
+      '<label>root password<span class="pwrow"><input type="password" data-bind="vcenter.rootPass" value="' + esc(v.rootPass || 'TBA Onsite') + '" autocomplete="off" readonly title="Supplied by the customer"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
+      '<label>DNS 1<input data-bind="dns.primary" value="' + esc(d.dns.primary) + '"></label>' +
+      '<label>DNS 2<input data-bind="dns.secondary" value="' + esc(d.dns.secondary) + '"></label>' +
+      '<label>Domain name<input data-bind="dns.domain" value="' + esc(d.dns.domain) + '"></label>' +
+      '<label>Search domain<input data-bind="dns.search" value="' + esc(d.dns.search) + '"></label>' +
+      '<label class="full">NTP servers (one per line)<textarea rows="3" class="mono" data-bind="ntp">' + esc(d.ntp) + '</textarea></label>' +
+    '</div><div class="row">' +
+      (web ? '<a class="chip web" href="' + esc(web) + '" title="Open vSphere Client (https)">Web</a>' : '') +
+      (vami ? '<a class="chip vami" href="' + esc(vami) + '" title="Open vCenter VAMI (https://ip:5480)">VAMI</a>' : '') +
+      (ssh ? '<a class="chip ssh" href="' + esc(ssh) + '" title="SSH to vCenter (PuTTY)">SSH</a>' : '') +
+      (scp ? '<a class="chip xfer" href="' + esc(scp) + '" title="Open in WinSCP">WinSCP</a>' : '') +
+      '<details class="menu"><summary title="Copy…">⧉</summary><div class="menu-body">' +
+        '<button data-act="copy" data-val="' + esc(web) + '">vCenter URL</button>' +
+        '<button data-act="copy" data-val="' + esc(vami) + '">VAMI URL (https://ip:5480)</button>' +
+        '<button data-act="copy" data-val="' + esc(v.ssoUser) + '">SSO user</button>' +
+        '<button data-act="copy" data-val="' + esc(v.ssoPass) + '">SSO password</button>' +
+        '<button data-act="copy" data-val="' + esc(ssh) + '">SSH launch URL</button>' +
+        '<button data-act="copy" data-val="' + esc(puttyCmd(v.ssoUser, v.ssoPass, v.ip)) + '">PuTTY command</button>' +
+        '<button data-act="copy" data-val="' + esc(winscpDirectUrl(v.ssoUser, v.ssoPass, v.ip)) + '">WinSCP URL</button>' +
+      '</div></details>' +
+    '</div></section>' +
+
+    '<section class="card"><h2>Arbiter / Management Server (Section 8)</h2>' +
+      '<p class="hint">One per deployment.</p>' +
+      '<div class="grid">' +
+      '<label>FQDN hostname<input data-bind="arbiter.hostname" value="' + esc(a.hostname) + '" placeholder="SIMP-ARB"></label>' +
+      '<label>IP address<input data-bind="arbiter.ip" value="' + esc(a.ip) + '"></label>' +
+      '<label>Domain<input data-bind="arbiter.domain" value="' + esc(a.domain) + '" placeholder="hci.local"></label>' +
+      '<label>Contact email<input data-bind="arbiter.email" value="' + esc(a.email) + '"></label>' +
+      '<label>Administrator username<input data-bind="arbiter.user" value="' + esc(a.user) + '"></label>' +
+      '<label>Administrator password<span class="pwrow"><input type="password" data-bind="arbiter.pass" value="' + esc(a.pass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
+    '</div></section>' +
+
+    '<section class="card"><h2>Local tools</h2><div class="row">' +
+      '<a class="chip dep" href="svtdeploy://launch" title="Launch Deployment Manager">Deployment Manager</a>' +
+      '<a class="chip upg" href="svtupgrade://launch" title="Launch Upgrade Manager">Upgrade Manager</a>' +
+      '<span class="hint" style="margin:0">These start the Windows applications — configure their paths in Setup.</span>' +
+    '</div></section>' +
+  '</div>';
+}
+function setupHtml(){
+  const d = cur();
+  return '<div class="pane">' +
+    '<section class="card"><h2>Launcher kit (portable PuTTY / WinSCP + Deploy &amp; Upgrade Manager)</h2>' +
+      '<p class="hint">Everything lives in one folder — <code>' + esc(S().installDir || DEFAULT_SETTINGS.installDir) + '</code> — which is also where the Upgrade Manager runs from. Portable PuTTY and WinSCP sit next to the launcher. The Deployment and Upgrade Manager are <b>found automatically</b> because their name and folder change with each installed version; set a path only to override the search.</p>' +
+      '<div class="grid">' +
+        '<label>PuTTY (portable name or full path)<input id="s_putty" data-bind="settings.putty" value="' + esc(S().putty) + '" placeholder="putty.exe"></label>' +
+        '<label>WinSCP (portable name or full path)<input id="s_winscp" data-bind="settings.winscp" value="' + esc(S().winscp) + '" placeholder="WinSCP.exe"></label>' +
+        '<label>Deployment Manager (optional override)<input id="s_deploy" data-bind="settings.deploy" value="' + esc(S().deploy) + '" placeholder="auto-find current version"></label>' +
+        '<label>Upgrade Manager (optional override)<input id="s_upgrade" data-bind="settings.upgrade" value="' + esc(S().upgrade) + '" placeholder="auto-find current version"></label>' +
+        '<label>Kit folder<input id="s_install" data-bind="settings.installDir" value="' + esc(S().installDir) + '" placeholder="%USERPROFILE%\\Downloads\\svt-tools"></label>' +
+        '<label>wscript.exe<input id="s_wscript" data-bind="settings.wscript" value="' + esc(S().wscript) + '"></label>' +
+        '<label>PuTTY private key (optional)<input id="s_puttykey" data-bind="settings.puttyKey" value="' + esc(S().puttyKey) + '" placeholder="-i key file"></label>' +
+        '<label class="check" style="margin-top:18px"><input type="checkbox" data-bind="settings.puttyPw" ' + (S().puttyPw ? 'checked' : '') + '> Pass password to PuTTY (-pw)</label>' +
+        '<label class="check" style="margin-top:18px"><input type="checkbox" data-bind="settings.winscpPw" ' + (S().winscpPw ? 'checked' : '') + '> Pass password to WinSCP (URL)</label>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button data-act="dlKit" class="primary">Download kit (3 files)</button>' +
+        '<button data-act="dlVbs">launcher.vbs</button>' +
+        '<button data-act="dlIni">launcher.ini</button>' +
+        '<button data-act="dlReg">register-protocols.reg</button>' +
+        '<span class="sep"></span>' +
+        '<a class="chip ssh" href="https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe" target="_blank" rel="noopener" title="Download portable PuTTY — save it into the kit folder">Get putty.exe</a>' +
+        '<a class="chip xfer" href="https://winscp.net/download/" target="_blank" rel="noopener" title="Download the WinSCP portable build — save it into the kit folder">Get WinSCP portable</a>' +
+      '</div>' +
+      '<ol class="steps">' +
+        '<li>Create the kit folder <code>%USERPROFILE%\\Downloads\\svt-tools</code> — that is where the Upgrade Manager will run from.</li>' +
+        '<li>Save <b>svt-launcher.vbs</b>, <b>svt-launcher.ini</b> and <b>register-protocols.reg</b> into it (move them out of Downloads).</li>' +
+        '<li>Drop the portable apps into the same folder: <b>putty.exe</b> and <b>WinSCP.exe</b> (download links above).</li>' +
+        '<li>If Windows flags the files: right-click each → Properties → <b>Unblock</b> → OK.</li>' +
+        '<li>Double-click <b>register-protocols.reg</b> → Yes, then fully restart the browser.</li>' +
+        '<li>Leave the Deployment and Upgrade Manager boxes blank — the launcher locates the currently installed version automatically.</li>' +
+      '</ol>' +
+      '<p class="hint">If a shortcut ever reports the launcher is missing, replace <code>%USERPROFILE%</code> in the Kit folder box with your full user path (for example <code>C:\\Users\\phil</code>) and re-download the .reg.</p>' +
+      '<div class="row">' +
+        '<a class="chip ssh" href="svtputty://tester@127.0.0.1:22">Test SSH</a>' +
+        '<a class="chip xfer" href="svtwinscp://tester@127.0.0.1:22/sftp">Test WinSCP</a>' +
+        '<a class="chip dep" href="svtdeploy://launch">Test Deploy Manager</a>' +
+        '<a class="chip upg" href="svtupgrade://launch">Test Upgrade Manager</a>' +
+      '</div>' +
+    '</section>' +
+
+    '<section class="card"><h2>Branding</h2>' +
+      '<p class="hint">Logo shown on the generated document (including printed and exported copies) — the app header uses the text wordmark. Use a transparent PNG or SVG, ideally 300–600px wide and under 600 KB.</p>' +
+      '<div class="row">' +
+        '<button data-act="pickLogo" class="primary">Choose TD SYNNEX logo…</button>' +
+        '<button data-act="clearLogo"' + (S().logoData ? '' : ' disabled') + '>Remove</button>' +
+        '<span class="hint" style="margin:0">' + (S().logoData ? 'TD SYNNEX logo loaded ✓' : 'No file — showing the text wordmark') + '</span>' +
+      '</div>' +
+      '<div class="row">' +
+        '<button data-act="pickHpeLogo">Choose small HPE logo…</button>' +
+        '<button data-act="clearHpeLogo"' + (S().logoHpe ? '' : ' disabled') + '>Remove</button>' +
+        '<span class="hint" style="margin:0">' + (S().logoHpe ? 'HPE mark loaded ✓' : 'No file — showing the HPE text badge') + '</span>' +
+      '</div>' +
+      '<div class="row">' +
+        '<span class="hint" style="margin:0">Quick HPE marks (built in):</span>' +
+        '<button data-act="hpePreset" data-preset="hpe">HPE logo (2025)</button>' +
+        '<button data-act="hpePreset" data-preset="text">Text badge</button>' +
+      '</div>' +
+      '<p class="hint">The documentation is purely TD SYNNEX branded; a small HPE mark sits beside the delivery credit line to show the HPE service association.</p>' +
+    '</section>' +
+
+    '<section class="card"><h2>Handover</h2>' +
+      '<p class="hint">Bakes the current data into this file so the next engineer can open it from the shared folder and pick up where you left off — the deployment section still asks for its password.</p>' +
+      '<div class="row"><button data-act="saveIntoFile" class="primary">Save into file…</button></div>' +
+      '<p class="hint">Downloads the workbook with its current filename — drop it over the old file in the customer folder and Teams syncs it.</p>' +
+    '</section>' +
+
+    '<section class="card"><h2>Section passwords</h2>' +
+      '<p class="hint" id="vaultStatus"></p>' +
+      '<p class="hint">Every load asks for the section password: the Customer Engineer password opens the customer details; the Deployment Engineer password opens networks, credentials, nodes, vCenter, XML and documents. The deployment data is stored encrypted under its password.</p>' +
+    '</section>' +
+
+    '<section class="card"><h2>Deployment &amp; data</h2><div class="row">' +
+      '<button data-act="renameDep">Rename…</button>' +
+      '<button data-act="exportJson">Export JSON backup</button>' +
+      '<button data-act="importJson">Import JSON</button>' +
+      '<button data-act="demo">Load demo data</button>' +
+      '<button data-act="delDep" class="danger">Delete deployment…</button>' +
+    '</div><p class="hint">JSON exports include credentials in clear text — store them carefully. Current deployment: <b>' + esc(d.name) + '</b> (' + d.nodes.length + ' nodes).</p></section>' +
+  '</div>';
+}
+
+function landingHtml(){
+  const d = store.deployments.find(x => x.id === store.currentId) || store.deployments[0];
+  const hasData = d && (d.project.company || d.nodes.length);
+  const logo = S().logoData
+    ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
+    : '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  return '<div class="pane">' +
+    '<div class="doc landing-card">' +
+      '<div class="dochead"><div class="dochead-logo">' + logo + '</div>' +
+      '<div class="dochead-text"><h1>' + (hasData ? esc(d.name) + ' <span>— ' + esc(d.version || '') + '</span>' : 'SimpliVity deployment workbook') + '</h1>' +
+      '<div class="docmeta">Choose your section — each is protected by its own password on every load.</div></div></div>' +
+      '<div class="gate-grid">' +
+        '<div class="gate-card"><h2>Customer Engineer</h2><p>Company details, site contacts, the pre-flight checklist and the NTP / DNS servers — then email them to TD SYNNEX.</p><button data-act="enterCustomer" class="primary">Continue →</button></div>' +
+        '<div class="gate-card"><h2>Deployment Engineer</h2><p>Network plans, credentials, Sections 1–6 per node, vCenter &amp; Arbiter, XML and the deployment documents.</p><button data-act="enterEngineer" class="primary">Unlock →</button></div>' +
+      '</div>' +
+      '<p class="hint" style="text-align:center;margin-bottom:0">Everything saves as you go — use Setup → Save into file before handing this file to a colleague.</p>' +
+    '</div></div>';
+}
+function customerDetailsHtml(){
+  const d = cur();
+  const p = d.project;
+  const v = d.vcenter;
+  return '<div class="pane">' +
+  '<div class="rolehead"><h2>Customer Engineer</h2><p class="hint">Fill in the details below — everything saves as you go. Use <b>+ New</b> in the header to add another site / cluster, and the dropdown beside it to switch between them. When finished, email them to TD SYNNEX; the deployment engineer takes it from there.</p>' +
+    '<div class="row"><button data-act="renameDep">Rename this site…</button></div></div>' +
+  '<section class="card"><h2>Customer &amp; Project</h2><div class="grid">' +
+    '<label>Company<input data-bind="project.company" value="' + esc(p.company) + '"></label>' +
+    '<label>Project name<input data-bind="version" value="' + esc(d.version) + '"></label>' +
+    '<label>Installation date<input type="date" data-bind="project.installDate" value="' + esc(p.installDate) + '"></label>' +
+    '<label class="full">Installation address<textarea rows="2" data-bind="project.address">' + esc(p.address) + '</textarea></label>' +
+    '<label>Contact name<input data-bind="project.contactName" value="' + esc(p.contactName) + '"></label>' +
+    '<label>Contact title<input data-bind="project.contactTitle" value="' + esc(p.contactTitle) + '"></label>' +
+    '<label>Contact email<input data-bind="project.contactEmail" value="' + esc(p.contactEmail) + '"></label>' +
+    '<label>Contact phone<input data-bind="project.contactPhone" value="' + esc(p.contactPhone) + '"></label>' +
+    '<label>Project stakeholder<input data-bind="project.stakeholder" value="' + esc(p.stakeholder || '') + '"></label>' +
+  '</div></section>' +
+  '<section class="card"><h2>Pre-Flight Checklist</h2><div class="checks">' +
+    CHECKLIST.map(([k, label]) =>
+      '<label class="check"><input type="checkbox" data-bind="checklist.' + k + '" ' + (d.checklist[k] ? 'checked' : '') + '> <span>' + esc(label) + '</span></label>'
+    ).join('') +
+  '</div></section>' +
+  '<section class="card"><h2>NTP &amp; DNS</h2><div class="grid">' +
+    '<label class="full">NTP servers (one per line)<textarea rows="4" class="mono" data-bind="ntp">' + esc(d.ntp) + '</textarea></label>' +
+    '<label>Domain name<input data-bind="dns.domain" value="' + esc(d.dns.domain) + '"></label>' +
+    '<label>Search domain<input data-bind="dns.search" value="' + esc(d.dns.search) + '"></label>' +
+    '<label>Primary DNS<input data-bind="dns.primary" value="' + esc(d.dns.primary) + '"></label>' +
+    '<label>Secondary DNS<input data-bind="dns.secondary" value="' + esc(d.dns.secondary) + '"></label>' +
+  '</div></section>' +
+  '<section class="card"><h2>vCenter passwords</h2>' +
+    '<p class="hint">Section 7 — your two vCenter passwords, supplied by you. The deployment engineer sees them read-only for the SSH / WinSCP / VAMI shortcuts but never chooses them.</p>' +
+    '<div class="grid">' +
+    '<label>Administrator password (' + esc(v.ssoUser || 'administrator@vsphere.local') + ')<span class="pwrow"><input type="password" data-bind="vcenter.ssoPass" value="' + esc(v.ssoPass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
+    '<label>root password (' + esc(v.rootUser || 'root') + ')<span class="pwrow"><input type="password" data-bind="vcenter.rootPass" value="' + esc(v.rootPass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
+    '</div></section>' +
+  '<section class="card"><h2>Send to TD SYNNEX</h2>' +
+    '<div class="grid"><label>TD SYNNEX recipient<input data-bind="settings.tdsynnexEmail" value="' + esc(S().tdsynnexEmail || '') + '" placeholder="simplivity@tdsynnex.com"></label></div>' +
+    '<div class="row"><button data-act="emailCustomer" class="primary">Email details to TD SYNNEX…</button></div>' +
+    '<p class="hint">Attaches your details as a JSON file that the deployment engineer imports into their workbook.</p>' +
+  '</section>' +
+  '</div>';
+}
+
+function advancedHtml(){
+  return '<div class="pane">' +
+    '<section class="card"><h2>Deployment XML</h2>' +
+      '<p class="hint">Import an existing SimpliVity Deployment Manager saved configuration XML file (the file name will differ per site/customer — from a customer or a previous export) to fill every node address plus the network, DNS and NTP fields in one step — existing nodes are matched by serial number, so nothing is duplicated. Export writes the XML file that SimpliVity Deployment Manager imports, flagging anything that deviates from the pre-flight standard first.</p>' +
+      '<div class="row">' +
+        '<button data-act="importXml" class="primary">Import XML…</button>' +
+        '<button data-act="exportXml">Export XML…</button>' +
+      '</div>' +
+    '</section>' +
+    '<section class="card"><h2>Customer details</h2>' +
+      '<p class="hint">Import the JSON attached to the customer\'s email to merge their project details, checklist, NTP and DNS into this deployment — nodes, networks and credentials are never touched.</p>' +
+      '<div class="row">' +
+        '<button data-act="importCustomer">Import customer details…</button>' +
+      '</div>' +
+    '</section>' +
+    '<section class="card"><h2>Pre-flight standard (locked on the forms)</h2>' +
+      '<p class="hint">Management MTU 1500 · storage and federation MTU 9000 · port groups VM Network / Management Network / SVT_StoragePortGroup / SVT_StorPG / SVT_FedPortGroup · identical OVC &amp; Host management netmask and gateway · OVC user svtcli.</p>' +
+    '</section>' +
+  '</div>';
+}
+
+/* ================= render ================= */
+function render(){
+  if (!store) return;
+  const section = ui.section;
+  $('#depSel').hidden = !section;
+  $('#newDep').hidden = !section;
+  $('#counts').hidden = !section;
+  $('#setupBtn').hidden = section !== 'engineer';
+  $('#sectionSel').hidden = !section;
+  $('#lockBtn').hidden = !aesKey;
+  const ss = $('#sectionSel');
+  if (ss && section) ss.value = section;
+  const bl = $('#brandLogo');
+  bl.innerHTML = '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  const sel = $('#depSel');
+  if (section){
+    sel.innerHTML = store.deployments.map(d =>
+      '<option value="' + d.id + '"' + (d.id === store.currentId ? ' selected' : '') + '>' + esc(d.name) + '</option>'
+    ).join('');
+    $('#counts').textContent = cur().version || '';
+  } else {
+    sel.innerHTML = '';
+    $('#counts').textContent = '';
+  }
+  const tabs = $('#tabs');
+  tabs.hidden = section !== 'engineer';
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  const m = $('#main');
+  if (!section) m.innerHTML = landingHtml();
+  else if (section === 'customer') m.innerHTML = customerDetailsHtml();
+  else if (ui.tab === 'intro') m.innerHTML = introHtml();
+  else if (ui.tab === 'details') m.innerHTML = detailsHtml();
+  else if (ui.tab === 'nodes') m.innerHTML = nodesHtml();
+  else if (ui.tab === 'vc') m.innerHTML = vcHtml();
+  else if (ui.tab === 'doc') m.innerHTML = docPaneHtml();
+  else if (ui.tab === 'advanced') m.innerHTML = advancedHtml();
+  else if (ui.tab === 'setup') m.innerHTML = setupHtml();
+  const vs = $('#vaultStatus');
+  if (vs) vs.textContent = aesKey
+    ? 'Deployment Engineer section: unlocked for this session.'
+    : 'Sections locked — a password is required on every load.';
+}
+function gotoTab(t){ ui.tab = t; render(); window.scrollTo({ top:0 }); }
+
+/* ================= node modal ================= */
+function openNodeModal(id){
+  const d = cur();
+  editingNodeId = id || null;
+  const n = id ? d.nodes.find(x => x.id === id) : newNode();
+  if (!n) return;
+  nodeDraft = normalizeNode(JSON.parse(JSON.stringify(n)));
+  const g = (fid, v) => { document.getElementById(fid).value = v || ''; };
+  g('n_name', nodeDraft.name); g('n_serial', nodeDraft.serial);
+  g('n_ilohost', nodeDraft.ilo.host); g('n_iloip', nodeDraft.ilo.ip);
+  g('n_ilouser', nodeDraft.ilo.user); g('n_ilopass', nodeDraft.ilo.pass || 'TBA Onsite');
+  g('n_ilosubnet', nodeDraft.ilo.subnet); g('n_ilogw', nodeDraft.ilo.gateway);
+  g('n_ilodns1', nodeDraft.ilo.dns1); g('n_ilodns2', nodeDraft.ilo.dns2);
+  g('n_iloport', nodeDraft.ilo.portType); g('n_ilovlan', nodeDraft.ilo.vlan);
+  g('n_esxihost', nodeDraft.esxi.host); g('n_esxiip', nodeDraft.esxi.ip); g('n_esxiversion', nodeDraft.esxi.version);
+  g('n_esxipass', nodeDraft.esxi.pass || 'TBA Onsite'); g('n_esximtu', nodeDraft.esxi.mtu);
+  g('n_esxisubnet', nodeDraft.esxi.subnet); g('n_esxigw', nodeDraft.esxi.gateway);
+  g('n_esxidns1', nodeDraft.esxi.dns1); g('n_esxidns2', nodeDraft.esxi.dns2);
+  g('n_esxiport', nodeDraft.esxi.portType); g('n_esxivlan', nodeDraft.esxi.vlan); g('n_esxinics', nodeDraft.esxi.nics);
+  g('n_ovcmgmt', nodeDraft.ovc.mgmt); g('n_ovcstorage', nodeDraft.ovc.storage); g('n_ovcfed', nodeDraft.ovc.fed);
+  g('n_ovcpass', nodeDraft.ovc.pass || 'TBA Onsite'); g('n_ovcstoragepg', nodeDraft.ovc.storagePg);
+  g('n_ovcfedpg', nodeDraft.ovc.fedPg); g('n_ovcfedsubnet', nodeDraft.ovc.fedSubnet);
+  g('n_ovcfedmtu', nodeDraft.ovc.fedMtu); g('n_ovcfedvlan', nodeDraft.ovc.fedVlan);
+  g('n_vmkip', nodeDraft.vmk.ip); g('n_vmksubnet', nodeDraft.vmk.subnet); g('n_vmkvlan', nodeDraft.vmk.vlan);
+  g('n_vmkmtu', nodeDraft.vmk.mtu); g('n_vmkpg', nodeDraft.vmk.portGroup); g('n_vmknics', nodeDraft.vmk.nics);
+  $('#n_ilopass').type = 'password';
+  $('#n_showpw').checked = false;
+  $('#nodeTitle').textContent = id ? 'Edit node' : 'Add node';
+  $('#nodeModal').hidden = false;
+  updateSeqPreview();
+  setTimeout(() => $('#n_name').focus(), 50);
+}
+/* ================= node sequence pre-fill ================= */
+const SEQ_IP = [['ilo','ip'],['esxi','ip'],['ovc','mgmt'],['vmk','ip'],['ovc','storage'],['ovc','fed']];
+const SEQ_COPY = [['ilo','subnet'],['ilo','gateway'],['esxi','subnet'],['esxi','gateway'],['vmk','subnet'],['ovc','fedSubnet']];
+function incLastOct(ip, off){
+  const m = /^(\d{1,3}\.\d{1,3}\.\d{1,3}\.)(\d{1,3})$/.exec(String(ip || '').trim());
+  if (!m) return '';
+  const last = Number(m[4]) + off;
+  if (last < 0 || last > 255) return '';
+  return m[1] + last;
+}
+function prefillSiblings(d, idx){
+  const src = d.nodes[idx];
+  let filled = 0;
+  d.nodes.forEach((t, j) => {
+    if (j === idx) return;
+    const off = j - idx;
+    SEQ_IP.forEach(([sec, key]) => {
+      if (!t[sec][key] && src[sec][key]){
+        const v = incLastOct(src[sec][key], off);
+        if (v){ t[sec][key] = v; filled++; }
+      }
+    });
+    SEQ_COPY.forEach(([sec, key]) => {
+      if (!t[sec][key] && src[sec][key]){ t[sec][key] = src[sec][key]; filled++; }
+    });
+  });
+  return filled;
+}
+function updateSeqPreview(){
+  const box = $('#seqPreview');
+  if (!box) return;
+  try{
+    const d = cur();
+    const curIdx = editingNodeId ? d.nodes.findIndex(x => x.id === editingNodeId) : d.nodes.length;
+    const targets = d.nodes.filter((t, j) => j !== curIdx);
+    const gv = fid => (document.getElementById(fid).value || '').trim();
+    const parts = [];
+    SEQ_IP.forEach(([sec, key]) => {
+      const v = gv('n_' + ({ ilo:'iloip', esxi:'esxiip', ovc:'ovc' + key, vmk:'vmkip' }[sec] || ''));
+      if (!v) return;
+      const vals = [];
+      targets.forEach((t, k) => {
+        if (t[sec][key]) return;
+        const j = d.nodes.indexOf(t);
+        const nv = incLastOct(v, j - curIdx);
+        if (nv && !vals.includes(nv)) vals.push(nv);
+      });
+      if (vals.length) parts.push(({ ilo:'iLO', esxi:'ESXi', ovc:'OVC ' + key, vmk:'VMkernel' }[sec]) + ' IP → ' + vals.join(', '));
+    });
+    const wantCopy = SEQ_COPY.some(([sec, key]) => gv('n_' + ({ ilo:'ilosubnet', esxi:'esxisubnet', vmk:'vmksubnet', ovc:'ovcfedsubnet' }[sec] || '')) &&
+      targets.some(t => !t[sec][key]));
+    if (!parts.length && !wantCopy){ box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<b>On save, the other node(s) get:</b> ' +
+      (parts.length ? esc(parts.join(' · ')) : '') +
+      (parts.length && wantCopy ? ' · ' : '') +
+      (wantCopy ? 'netmask &amp; gateway copied where empty' : '') +
+      ' — only empty fields are filled.';
+  }catch(e){ box.hidden = true; }
+}
+function openCountModal(){
+  $('#countModal').hidden = false;
+  setTimeout(() => { $('#countInput').focus(); $('#countInput').select(); }, 50);
+}
+async function saveCount(){
+  let c = parseInt($('#countInput').value, 10);
+  if (!(c >= 1)) return toast('Enter how many nodes to create', true);
+  c = Math.min(c, 64);
+  const d = cur();
+  const first = d.nodes.length;
+  for (let i = 0; i < c; i++) d.nodes.push(newNode());
+  await save();
+  $('#countModal').hidden = true;
+  render();
+  openNodeModal(d.nodes[first].id);
+  toast(c + ' node' + (c === 1 ? '' : 's') + ' created — fill in the first one; saving it pre-fills the rest');
+}
+async function saveNode(){
+  const gv = fid => document.getElementById(fid).value.trim();
+  const name = gv('n_name');
+  if (!name) return toast('Node name is required', true);
+  const n = nodeDraft;
+  n.name = name;
+  n.serial = gv('n_serial');
+  n.ilo = { host: gv('n_ilohost'), ip: gv('n_iloip'), user: gv('n_ilouser'), pass: document.getElementById('n_ilopass').value,
+    subnet: gv('n_ilosubnet'), gateway: gv('n_ilogw'), dns1: gv('n_ilodns1'), dns2: gv('n_ilodns2'),
+    portType: gv('n_iloport'), vlan: gv('n_ilovlan') };
+  n.esxi = { host: gv('n_esxihost') || name, ip: gv('n_esxiip'), version: gv('n_esxiversion'),
+    pass: document.getElementById('n_esxipass').value, mtu: gv('n_esximtu'),
+    subnet: gv('n_esxisubnet'), gateway: gv('n_esxigw'), dns1: gv('n_esxidns1'), dns2: gv('n_esxidns2'),
+    portType: gv('n_esxiport'), vlan: gv('n_esxivlan'), nics: gv('n_esxinics') };
+  n.ovc = { mgmt: gv('n_ovcmgmt'), storage: gv('n_ovcstorage'), fed: gv('n_ovcfed'),
+    pass: document.getElementById('n_ovcpass').value,
+    storagePg: gv('n_ovcstoragepg') || 'SVT_StoragePortGroup', fedPg: gv('n_ovcfedpg') || 'SVT_FedPortGroup',
+    fedSubnet: gv('n_ovcfedsubnet'), fedMtu: gv('n_ovcfedmtu') || '9000', fedVlan: gv('n_ovcfedvlan') };
+  n.vmk = { ip: gv('n_vmkip'), subnet: gv('n_vmksubnet'), vlan: gv('n_vmkvlan'),
+    mtu: gv('n_vmkmtu') || '9000', portGroup: gv('n_vmkpg') || 'SVT_StorPG', nics: gv('n_vmknics') };
+  if (!n.ilo.ip && !n.esxi.ip && !n.ovc.mgmt) return toast('Enter at least one IP (iLO, ESXi or OVC)', true);
+  const d = cur();
+  let idx = -1;
+  if (editingNodeId){
+    idx = d.nodes.findIndex(x => x.id === editingNodeId);
+    if (idx >= 0) d.nodes[idx] = n;
+  } else { d.nodes.push(n); idx = d.nodes.length - 1; }
+  const preFilled = idx >= 0 && d.nodes.length > 1 ? prefillSiblings(d, idx) : 0;
+  await save();
+  $('#nodeModal').hidden = true;
+  render();
+  toast(preFilled ? 'Node saved · pre-filled ' + preFilled + ' field(s) on the other nodes' : 'Node saved');
+}
+async function delNode(id){
+  const d = cur();
+  const n = d.nodes.find(x => x.id === id);
+  if (!n) return;
+  if (!confirm('Delete node "' + (n.name || id) + '"?')) return;
+  d.nodes = d.nodes.filter(x => x.id !== id);
+  await save(); render(); toast('Node deleted');
+}
+
+/* ================= name modal ================= */
+function openNameModal(mode){
+  nameMode = mode;
+  $('#nameTitle').textContent = mode === 'new' ? 'New deployment' : mode === 'first' ? 'Name this deployment' : 'Rename deployment';
+  $('#nameInput').value = mode === 'rename' ? cur().name : '';
+  $('#nameModal').hidden = false;
+  setTimeout(() => { $('#nameInput').focus(); $('#nameInput').select(); }, 50);
+}
+function isPlaceholderDep(d){
+  return !!d && !d.nodes.length && !d.project.company && (d.name === 'Deployment 1' || d.name === 'Deployment');
+}
+function maybePromptName(){
+  if (store && isPlaceholderDep(cur())) openNameModal('first');
+}
+async function saveName(){
+  const v = $('#nameInput').value.trim();
+  if (!v) return toast('Name is required', true);
+  if (nameMode === 'new'){
+    const d = newDeployment(v);
+    store.deployments.push(d);
+    store.currentId = d.id;
+    ui.tab = 'details';
+  } else cur().name = v;
+  await save();
+  $('#nameModal').hidden = true;
+  render();
+  if (nameMode === 'first') toast('Deployment named "' + v + '"');
+}
+async function delDeployment(){
+  const d = cur();
+  if (!confirm('Delete deployment "' + d.name + '" and all its data?')) return;
+  if (!confirm('This cannot be undone (export a backup first). Really delete?')) return;
+  store.deployments = store.deployments.filter(x => x.id !== d.id);
+  if (!store.deployments.length) store.deployments.push(newDeployment('Deployment 1'));
+  store.currentId = store.deployments[0].id;
+  await save(); ui.tab = 'details'; render(); toast('Deployment deleted');
+}
+
+/* ================= data ================= */
+async function loadDemo(){
+  if (cur().nodes.length || cur().project.company){
+    if (!confirm('Add demo data to the current deployment?')) return;
+  }
+  const d = newDeployment('Demo deployment');
+  d.project = { company:'Example Corp', address:'1 Example Street, Reading', installDate:'', contactName:'Jane Consultant',
+    contactTitle:'Solutions Engineer', contactEmail:'jane@example.com', contactPhone:'01234 567890', stakeholder:'John Director' };
+  d.checklist = { delivered:true, racked:true, access:true, room:true, l2:true, ports:true, infosight:false, vcenter:false };
+  d.ntp = '0.uk.pool.ntp.org\n1.uk.pool.ntp.org\n2.uk.pool.ntp.org\n3.uk.pool.ntp.org';
+  d.dns = { domain:'hci.local', primary:'10.250.225.1', secondary:'10.250.225.2', search:'hci.local', findHostName:true };
+  d.networks.ilo = { netmask:'255.255.255.0', gateway:'10.250.221.254', dns1:'10.250.225.1', dns2:'10.250.225.2', vlan:'2221' };
+  d.networks.management = { netmask:'255.255.255.0', hostNetmask:'255.255.255.0', gateway:'10.250.222.254', hostGateway:'10.250.222.254', vlan:'2222', mtu:'1500', vSwitch:'vSwitch0', portGroup:'VM Network', hostPortGroup:'Management Network' };
+  d.networks.storage = { netmask:'255.255.255.0', vmkNetmask:'255.255.255.0', vcGateway:'10.250.223.254', vmkGateway:'10.250.223.254', vlan:'2223', mtu:'9000', vSwitch:'vSwitch1', portGroup:'SVT_StoragePortGroup', vmkPortGroup:'SVT_StorPG' };
+  d.networks.federation = { netmask:'255.255.255.0', gateway:'10.250.224.254', vlan:'2224', mtu:'9000', vSwitch:'vSwitch1', portGroup:'SVT_FedPortGroup' };
+  d.creds = { ilo:{ user:'administrator', pass:'changeme' }, esxi:{ user:'root', pass:'changeme' },
+    ovc:{ user:'svtcli', pass:'changeme' }, vcenter:{ user:'administrator@vsphere.local', pass:'changeme' } };
+  const mk = (i) => ({
+    id: uid(), name: 'SIMPLIVITY-0' + i, serial: 'CZ2023052Q'.slice(0, 7) + String.fromCharCode(79 + i),
+    ilo: { host:'', ip: '10.250.221.6' + i, user:'', pass: i === 1 ? 'iloPass1' : '' },
+    esxi: { host: 'SIMPLIVITY-0' + i, ip: '10.250.222.6' + i, version: '7.0' },
+    ovc: { mgmt: '10.250.222.6' + (i + 5), storage: '10.250.223.6' + (i + 5), fed: '10.250.224.6' + i },
+    vmk: { ip: '10.250.223.6' + i }
+  });
+  d.nodes = [normalizeNode(mk(1)), normalizeNode(mk(2))];
+  d.vcenter = { hostname:'hcivc01.hci.local', ip:'10.250.222.3', cluster:'SimpliVity', env:'PROD', version:'7.0.2',
+    ssoUser:'administrator@vsphere.local', ssoPass:'changeme' };
+  d.arbiter = { hostname:'SIMP-ARB', ip:'10.250.222.4', domain:'hci.local', email:'you@hci.local' };
+  store.deployments.push(d);
+  store.currentId = d.id;
+  await save(); ui.tab = 'details'; render(); toast('Demo data loaded');
+}
+function exportJson(){
+  if (!confirm('Export ALL deployments including credentials in clear text?')) return;
+  download('simplivity-deploy-kit-' + new Date().toISOString().slice(0, 10) + '.json',
+    JSON.stringify({ app:'svtDeployKit', version:1, exported:new Date().toISOString(), data:store }, null, 2),
+    'application/json');
+}
+async function importJsonFile(file){
+  try{
+    const data = JSON.parse(await file.text());
+    const s = data && data.data ? data.data : data;
+    if (!s || !Array.isArray(s.deployments)) throw new Error('bad format');
+    if (!confirm('Import ' + s.deployments.length + ' deployment(s)? This replaces all current data.')) return;
+    store = normalizeStore(s);
+    await save(); ui.tab = 'details'; render(); toast('Imported');
+  }catch(e){ toast('Import failed — not a Deploy Kit backup', true); }
+}
+async function importXmlFile(file){
+  try{
+    const text = await file.text();
+    const imp = parseSvtXml(text);
+    const msg = 'Import from "' + file.name + '"?\n\n' +
+      '• ' + imp.nodes.length + ' node(s)\n' +
+      '• ' + imp.ntp.length + ' NTP server(s)\n' +
+      '• DNS + Management / Storage / Federation networks\n\n' +
+      'This updates the current deployment — existing nodes are matched by serial number.';
+    if (!confirm(msg)) return;
+    const r = applyImport(cur(), imp);
+    await save(); render();
+    const bits = [];
+    if (r.added || r.updated) bits.push(r.added + ' added / ' + r.updated + ' updated');
+    if (imp.ntp.length) bits.push(imp.ntp.length + ' NTP servers');
+    if (Object.keys(imp.dns).length) bits.push('DNS');
+    const nets = Object.keys(imp.networks).filter(k => Object.values(imp.networks[k] || {}).some(v => v !== ''));
+    if (nets.length) bits.push(nets.length + ' network plan(s)');
+    toast(bits.length ? 'Imported: ' + bits.join(', ') : 'Nothing new found in the XML');
+  }catch(e){ toast('Import failed: ' + e.message, true); }
+}
+
+/* ================= launcher kit ================= */
+function vbsText(){ return $('#vbsSource').textContent; }
+function buildIni(){
+  const g = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
+  let out = '; SimpliVity Deploy Kit - svt-launcher.ini\r\n; Paths must point at the installed programs.\r\n';
+  out += 'putty=' + g('s_putty') + '\r\n';
+  out += 'winscp=' + g('s_winscp') + '\r\n';
+  out += 'deploy=' + g('s_deploy') + '\r\n';
+  out += 'upgrade=' + g('s_upgrade') + '\r\n';
+  out += 'puttypassword=' + (S().puttyPw ? '1' : '0') + '\r\n';
+  const k = g('s_puttykey');
+  if (k) out += 'puttykey=' + k + '\r\n';
+  return out;
+}
+function buildReg(){
+  const g = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
+  const wsh = g('s_wscript') || DEFAULT_SETTINGS.wscript;
+  const dir = (g('s_install') || DEFAULT_SETTINGS.installDir).replace(/\\+$/, '');
+  const vbs = dir + '\\svt-launcher.vbs';
+  const actual = '"' + wsh + '" "' + vbs + '" "%1"';
+  const val = actual.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const schemes = [
+    ['svtputty', 'SVT PuTTY'],
+    ['svtwinscp', 'SVT WinSCP'],
+    ['svtdeploy', 'SVT Deploy Manager'],
+    ['svtupgrade', 'SVT Upgrade Manager']
+  ];
+  let out = 'Windows Registry Editor Version 5.00\r\n';
+  for (const [s, title] of schemes){
+    out += '\r\n[HKEY_CURRENT_USER\\Software\\Classes\\' + s + ']\r\n';
+    out += '@="URL:' + title + ' Protocol"\r\n';
+    out += '"URL Protocol"=""\r\n';
+    out += '\r\n[HKEY_CURRENT_USER\\Software\\Classes\\' + s + '\\shell\\open\\command]\r\n';
+    out += '@="' + val + '"\r\n';
+  }
+  return out;
+}
+function dlKit(){
+  download('svt-launcher.vbs', vbsText());
+  setTimeout(() => download('svt-launcher.ini', buildIni()), 350);
+  setTimeout(() => download('register-protocols.reg', buildReg()), 700);
+  toast('Downloading 3 files — allow multiple downloads if asked');
+}
+
+/* ================= misc ================= */
+function download(name, text, mime){
+  const blob = new Blob([text], { type: mime || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+let toastTimer = null;
+function toast(msg, isErr){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+async function copy(text){
+  if (!text) return toast('Nothing to copy', true);
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('Copied to clipboard');
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand('copy'); toast('Copied to clipboard'); }
+    catch(e2){ toast('Copy failed', true); }
+    ta.remove();
+  }
+}
+function closeMenus(){ document.querySelectorAll('details.menu[open]').forEach(d => { d.open = false; }); }
+
+/* ================= events ================= */
+function wire(){
+  $('#depSel').addEventListener('change', async e => {
+    store.currentId = e.target.value;
+    await save(); render();
+  });
+  $('#newDep').addEventListener('click', () => openNameModal('new'));
+  $('#setupBtn').addEventListener('click', () => gotoTab('setup'));
+  $('#lockBtn').addEventListener('click', lock);
+  document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => gotoTab(b.dataset.tab)));
+
+  $('#main').addEventListener('change', async e => {
+    const t = e.target;
+    if (!store || !t) return;
+    if (t.classList && t.classList.contains('showpw')){
+      const inp = t.previousElementSibling;
+      if (inp) inp.type = t.checked ? 'text' : 'password';
+      return;
+    }
+    if (t.dataset && t.dataset.ui){
+      ui[t.dataset.ui] = t.type === 'checkbox' ? t.checked : t.value;
+      render();
+      return;
+    }
+    if (t.dataset && t.dataset.bind){
+      const path = t.dataset.bind;
+      const target = path.startsWith('settings.') ? store : cur();
+      const val = t.type === 'checkbox' ? t.checked : t.value;
+      setPath(target, path, val);
+      if (path === 'networks.management.netmask') setPath(target, 'networks.management.hostNetmask', val);
+      if (path === 'networks.management.gateway') setPath(target, 'networks.management.hostGateway', val);
+      if (t.classList && t.classList.contains('missing')) t.classList.remove('missing');
+      await save();
+      if (path.startsWith('networks.')) updateNetWarnings();
+    }
+  });
+
+  $('#main').addEventListener('click', async e => {
+    const el = e.target.closest('[data-act]');
+    if (!el || !store) return;
+    const act = el.dataset.act;
+    if (act === 'enterCustomer'){ openGate('customer'); return; }
+    if (act === 'enterEngineer'){ openGate('engineer'); return; }
+    if (act === 'detailsNext'){
+      if (validateDetails()){ gotoTab('nodes'); toast('Details saved — now add the nodes'); }
+      return;
+    }
+    if (act === 'copy'){ await copy(el.dataset.val || ''); closeMenus(); return; }
+    if (act === 'addNode') return openNodeModal(null);
+    if (act === 'addNodes') return openCountModal();
+    if (act === 'editNode') return openNodeModal(el.dataset.id);
+    if (act === 'delNode') return delNode(el.dataset.id);
+    if (act === 'importXml') return $('#xmlFile').click();
+    if (act === 'exportXml') return exportDeploymentXml();
+    if (act === 'fillIlo') return fillIloIps();
+    if (act === 'print') return doPrint();
+    if (act === 'exportHtml') return exportDocHtml();
+    if (act === 'emailDoc') return emailDraft();
+    if (act === 'newDep') return openNameModal('new');
+    if (act === 'renameDep') return openNameModal('rename');
+    if (act === 'delDep') return delDeployment();
+    if (act === 'exportJson') return exportJson();
+    if (act === 'importJson') return $('#jsonFile').click();
+    if (act === 'demo') return loadDemo();
+    if (act === 'emailCustomer') return emailCustomer();
+    if (act === 'importCustomer') return $('#custFile').click();
+    if (act === 'saveIntoFile') return saveIntoFile();
+    if (act === 'pickLogo') return $('#logoFile').click();
+    if (act === 'clearLogo'){ store.settings.logoData = ''; await save(); render(); return toast('Logo removed'); }
+    if (act === 'pickHpeLogo') return $('#hpeLogoFile').click();
+    if (act === 'clearHpeLogo'){ store.settings.logoHpe = ''; await save(); render(); return toast('HPE mark removed'); }
+    if (act === 'hpePreset'){
+      const p = el.dataset.preset;
+      store.settings.logoHpe = p === 'hpe' ? HPE_SVG : '';
+      await save(); render();
+      return toast(p === 'text' ? 'Text badge restored' : 'HPE mark updated');
+    }
+    if (act === 'dlKit') return dlKit();
+    if (act === 'dlVbs') return download('svt-launcher.vbs', vbsText());
+    if (act === 'dlIni') return download('svt-launcher.ini', buildIni());
+    if (act === 'dlReg') return download('register-protocols.reg', buildReg());
+  });
+
+  $('#nodeSave').addEventListener('click', saveNode);
+  $('#nodeCancel').addEventListener('click', () => { $('#nodeModal').hidden = true; });
+  $('#countSave').addEventListener('click', saveCount);
+  $('#countCancel').addEventListener('click', () => { $('#countModal').hidden = true; });
+  $('#countInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveCount(); } if (e.key === 'Escape') $('#countModal').hidden = true; });
+  $('#nodeModal').addEventListener('input', updateSeqPreview);
+  $('#n_showpw').addEventListener('change', e => { $('#n_ilopass').type = e.target.checked ? 'text' : 'password'; });
+  $('#nodeModal').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON'){ e.preventDefault(); saveNode(); }
+    if (e.key === 'Escape') $('#nodeModal').hidden = true;
+  });
+
+  $('#nameSave').addEventListener('click', saveName);
+  $('#nameCancel').addEventListener('click', () => { $('#nameModal').hidden = true; });
+  $('#nameInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveName(); } if (e.key === 'Escape') $('#nameModal').hidden = true; });
+
+  $('#unlockBtn').addEventListener('click', tryPassword);
+  $('#unlockPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryPassword(); });
+  $('#unlockReset').addEventListener('click', () => {
+    if (!confirm('Erase ALL saved data in this workbook (both sections) and start over? This cannot be undone.')) return;
+    try{ localStorage.removeItem(PUB_KEY); localStorage.removeItem(ENG_KEY); localStorage.removeItem(LS_KEY); }catch(e){}
+    store = normalizeStore({}); aesKey = null; vaultSalt = null;
+    pendingEng = null; pendingLegacyEngs = null; pendingSection = null;
+    $('#unlockModal').hidden = true; ui.section = null; render(); toast('Workbook reset');
+  });
+  $('#sectionSel').addEventListener('change', e => {
+    const want = e.target.value;
+    if (want === ui.section) return;
+    if (want === 'customer'){
+      ui.section = 'customer';
+      render();
+      maybePromptName();
+    } else if (aesKey){
+      ui.section = 'engineer';
+      render();
+      maybePromptName();
+    } else openGate('engineer');
+  });
+
+  $('#xmlFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) await importXmlFile(f);
+  });
+  $('#jsonFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) await importJsonFile(f);
+  });
+  $('#custFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) await importCustomerFile(f);
+  });
+  $('#logoFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f || !store) return;
+    if (!f.type || f.type.indexOf('image/') !== 0) return toast('Please choose an image file', true);
+    if (f.size > 600 * 1024 && !confirm('That image is ' + Math.round(f.size / 1024) + ' KB — large logos slow the page down. Continue?')) return;
+    const r = new FileReader();
+    r.onload = async () => {
+      store.settings.logoData = r.result;
+      await save();
+      render();
+      toast('Logo loaded — shown in the header and on the document');
+    };
+    r.onerror = () => toast('Could not read the file', true);
+    r.readAsDataURL(f);
+  });
+  $('#hpeLogoFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f || !store) return;
+    if (!f.type || f.type.indexOf('image/') !== 0) return toast('Please choose an image file', true);
+    if (f.size > 300 * 1024 && !confirm('That image is ' + Math.round(f.size / 1024) + ' KB — continue?')) return;
+    const r = new FileReader();
+    r.onload = async () => {
+      store.settings.logoHpe = r.result;
+      await save();
+      render();
+      toast('HPE mark loaded');
+    };
+    r.onerror = () => toast('Could not read the file', true);
+    r.readAsDataURL(f);
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest || !e.target.closest('details.menu')) closeMenus();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape'){
+      if (!$('#nodeModal').hidden) $('#nodeModal').hidden = true;
+      else if (!$('#nameModal').hidden) $('#nameModal').hidden = true;
+      else if (!$('#countModal').hidden) $('#countModal').hidden = true;
+      else closeMenus();
+    }
+  });
+
+  window.addEventListener('beforeprint', () => {
+    if (!store) return;
+    if (ui.tab !== 'doc'){
+      printRestore = ui.tab;
+      $('#main').innerHTML = '<div class="pane">' + docInner(cur()) + '</div>';
+    }
+  });
+  window.addEventListener('afterprint', () => {
+    if (printRestore !== null){ printRestore = null; render(); }
+  });
+}
+
+/* ================= boot ================= */
+wire();
+init();
+</script>
+</body>
+</html>

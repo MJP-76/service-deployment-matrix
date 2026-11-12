@@ -110,6 +110,10 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0d1216;border
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.err{border-color:#5a2b28;color:#ffb3ae}
 #storageWarn{background:#3a2d10;border-bottom:1px solid #6b541c;color:#f0d78c;padding:8px 16px;font-size:13px}
+#updateBar{background:#10263a;border-bottom:1px solid #27506b;color:#cfe8ff;padding:9px 16px;font-size:13px;display:flex;gap:16px;align-items:center;justify-content:center;text-align:center;flex-wrap:wrap}
+#updateBar[hidden]{display:none}
+#updateBar a{color:#7fd0ff;font-weight:600}
+#updateBar button{background:transparent;border:1px solid #3a6a8a;color:#cfe8ff;border-radius:6px;padding:3px 12px;cursor:pointer;font-size:12px}
 footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;text-align:center}
 .pane{animation:fade .15s ease}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -210,6 +214,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 </nav>
 
 <div id="storageWarn" hidden>Warning: this browser is not saving data (localStorage unavailable) — entries will be lost when you close the page.</div>
+<div id="updateBar" hidden><span id="updateText"></span><button id="updateDismiss">Dismiss</button></div>
 
 <main id="main"></main>
 
@@ -691,6 +696,9 @@ function setPath(o, p, v){
 
 /* ================= constants ================= */
 const LS_KEY = 'svtDeployKit.v1';
+const KIT_VERSION = '1.1.0';
+const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
+const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
 const PUB_KEY = 'svtCustomer.v1';
 const ENG_KEY = 'svtEngineer.v1';
@@ -1705,6 +1713,7 @@ async function saveIntoFile(){
   const ct = clone.querySelector('#counts'); if (ct) ct.textContent = '';
   const tst = clone.querySelector('#toast'); if (tst) tst.textContent = '';
   const sw = clone.querySelector('#storageWarn'); if (sw) sw.setAttribute('hidden','');
+  const ub = clone.querySelector('#updateBar'); if (ub) ub.setAttribute('hidden','');
   const tabs = clone.querySelector('#tabs'); if (tabs) tabs.removeAttribute('hidden');
   clone.querySelectorAll('#tabs button').forEach(b => { if (b.dataset.tab === 'intro') b.classList.add('on'); else b.classList.remove('on'); });
   const vd = clone.querySelector('#vaultData'); if (vd) vd.textContent = payload;
@@ -2704,9 +2713,43 @@ function wire(){
   });
 }
 
+/* ================= version check ================= */
+function verParts(v){ return String(v || '').split('.').map(n => parseInt(n, 10) || 0); }
+function verNewer(a, b){
+  const pa = verParts(a), pb = verParts(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++){
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
+async function checkVersion(){
+  try{
+    const r = await fetch(KIT_VERSION_URL, { cache: 'no-store' });
+    if (!r.ok) return;
+    const meta = await r.json();
+    const latest = meta && meta.version;
+    if (!latest || !verNewer(latest, KIT_VERSION)) return;
+    const dismissed = localStorage.getItem('svtKit.dismissedVer');
+    if (dismissed === latest) return;
+    const bar = $('#updateBar'), txt = $('#updateText');
+    if (!bar || !txt) return;
+    txt.innerHTML = '⚠ A newer version of this workbook is available (v' + esc(latest) +
+      ' — you are running v' + esc(KIT_VERSION) + '). Download the latest file from ' +
+      '<a href="' + esc(KIT_REPO_URL) + '" target="_blank" rel="noopener">GitHub</a> — your saved data stays in this browser either way.';
+    bar.hidden = false;
+    $('#updateDismiss').onclick = () => {
+      try{ localStorage.setItem('svtKit.dismissedVer', latest); }catch(e){}
+      bar.hidden = true;
+    };
+  }catch(e){ /* offline / file:// restrictions — stay silent */ }
+}
+
 /* ================= boot ================= */
 wire();
 init();
+checkVersion();
 </script>
 </body>
 </html>

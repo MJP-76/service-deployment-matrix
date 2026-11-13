@@ -830,7 +830,7 @@ function newDeployment(name, vendor, service){
       vcenter: { user:'administrator@vsphere.local', pass:'TBA Onsite' }
     },
     nodes: [],
-    vcenter: { hostname:'', ip:'', datacenter:'', cluster:'', env:'', version:'', ssoUser:'administrator@vsphere.local', ssoPass:'TBA Onsite', rootUser:'', rootPass:'TBA Onsite' },
+    vcenter: { hostname:'', ip:'', datacenter:'', cluster:'', env:'', version:'', ssoUser:'administrator@vsphere.local', ssoPass:'TBA Onsite', rootUser:'root', rootPass:'TBA Onsite' },
     arbiter: { hostname:'', ip:'', domain:'', email:'', user:'', pass:'TBA Onsite' },
     engineer: { name:'', email:'' }
   };
@@ -897,6 +897,7 @@ function normalizeDep(src){
   dep.vcenter = Object.assign({}, base.vcenter, src.vcenter || {});
   dep.arbiter = Object.assign({}, base.arbiter, src.arbiter || {});
   if (!dep.vcenter.ssoPass) dep.vcenter.ssoPass = 'TBA Onsite';
+  if (!dep.vcenter.rootUser) dep.vcenter.rootUser = 'root';
   if (!dep.vcenter.rootPass) dep.vcenter.rootPass = 'TBA Onsite';
   if (!dep.arbiter.pass) dep.arbiter.pass = 'TBA Onsite';
   dep.engineer = Object.assign({}, base.engineer, src.engineer || {});
@@ -2169,7 +2170,7 @@ function docInner(d){
     secs.push(['Credentials', kvTable([
       ['ESXi', d.creds.esxi.user + ' / ' + d.creds.esxi.pass],
       ['vCenter', d.vcenter.ssoUser + ' / ' + d.vcenter.ssoPass],
-      ['vCenter root', d.vcenter.rootUser + ' / ' + d.vcenter.rootPass],
+      ['vCenter (root)', d.vcenter.rootUser + ' / ' + d.vcenter.rootPass],
       ['OVC (svtcli)', d.creds.ovc.user + ' / ' + d.creds.ovc.pass]
     ])]);
   }
@@ -2513,7 +2514,7 @@ function detailsHtml(){
   '<section class="card"><h2>Site credentials</h2>' +
     credRow('ESXi', 'creds.esxi.user', 'creds.esxi.pass', d) +
     credRow('vCenter (administrator)', 'vcenter.ssoUser', 'vcenter.ssoPass', d, true) +
-    credRow('vCenter root', 'vcenter.rootUser', 'vcenter.rootPass', d, true) +
+    credRow('vCenter (root)', 'vcenter.rootUser', 'vcenter.rootPass', d, true) +
     credRow('OVC (svtcli)', 'creds.ovc.user', 'creds.ovc.pass', d) +
     '<p class="hint">iLO credentials are node-specific — set them on each node (Nodes tab → ✎). These defaults apply wherever a node or field has no override.</p>' +
   '</section>' +

@@ -191,6 +191,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 
 <header>
   
+  <span id="brandLogo"></span>
   <select id="sectionSel" title="Switch section" hidden>
     <option value="customer">Customer Engineer</option>
     <option value="engineer">Deployment Engineer</option>
@@ -2902,7 +2903,7 @@ function render(){
   const ss = $('#sectionSel');
   if (ss && section && !newMode) ss.value = section;
   const bl = $('#brandLogo');
-  bl.innerHTML = '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  if (bl) bl.innerHTML = '';
   const sel = $('#depSel');
   if (section && store){
     sel.innerHTML = store.deployments.map(d =>

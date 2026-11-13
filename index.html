@@ -1193,11 +1193,15 @@ function ensureScopelessStore(){
 }
 
 let ghAuthWarned = false;
-function ghAuthFail(r){
-  if (r && (r.status === 401 || r.status === 403)){
-    if (!ghAuthWarned){ ghAuthWarned = true; try{ toast('GitHub token invalid or expired — saving locally. Paste a new token in Setup → Shared store.', true); }catch(e){} }
-    throw new Error('GitHub auth ' + r.status);
+function ghAuthWarn(r){
+  if (r && (r.status === 401 || r.status === 403) && !ghAuthWarned){
+    ghAuthWarned = true;
+    try{ toast('GitHub token invalid or expired — saving locally. Paste a new token in Setup → Shared store.', true); }catch(e){}
   }
+}
+function ghAuthFail(r){
+  ghAuthWarn(r);
+  if (r && (r.status === 401 || r.status === 403)) throw new Error('GitHub auth ' + r.status);
   throw new Error('GitHub ' + (r ? r.status : 'error'));
 }
 
@@ -1225,7 +1229,13 @@ function ghHeaders(){
   return { Authorization: 'Bearer ' + ghToken(), Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' };
 }
 async function ghGet(path){
-  const r = await fetch(GH_CONTENTS + path, { headers: ghHeaders(), cache: 'no-store' });
+  let r = await fetch(GH_CONTENTS + path, { headers: ghHeaders(), cache: 'no-store' });
+  if (r.status === 401 || r.status === 403){
+    // Dead or expired baked PAT: this repo is public, so fall back to an
+    // unauthenticated read instead of failing the whole call.
+    ghAuthWarn(r);
+    r = await fetch(GH_CONTENTS + path, { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+  }
   if (r.status === 404) return null;
   if (!r.ok) ghAuthFail(r);
   const j = await r.json();
@@ -1491,7 +1501,13 @@ async function customerSignIn(){
   if (!cid || !pw){ errEl.hidden = false; errEl.textContent = 'Enter your customer ID and password'; return; }
   let raw;
   try{ raw = await blobRead(acctPath(cid), true); }
-  catch(e){ errEl.hidden = false; errEl.textContent = 'Cannot reach the shared store — check your connection'; return; }
+  catch(e){
+    errEl.hidden = false;
+    errEl.textContent = /^GitHub auth/.test(String(e && e.message))
+      ? 'Shared store sign-in failed — the GitHub token was rejected. Set a valid token in Setup → Shared store.'
+      : 'Cannot reach the shared store — check your connection';
+    return;
+  }
   if (!raw){ errEl.hidden = false; errEl.textContent = 'No customer account with that ID'; return; }
   let key, acct;
   try{
@@ -1518,7 +1534,9 @@ async function engineerSignIn(pw){
   try{ raw = await blobRead(REG_PATH, true); }
   catch(e){
     errEl.hidden = false;
-    errEl.textContent = 'Cannot reach the shared store — check your connection';
+    errEl.textContent = /^GitHub auth/.test(String(e && e.message))
+      ? 'Shared store sign-in failed — the GitHub token was rejected. Set a valid token in Setup → Shared store.'
+      : 'Cannot reach the shared store — check your connection';
     return;
   }
   let reg;

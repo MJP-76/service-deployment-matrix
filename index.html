@@ -251,7 +251,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
       <label>User<input id="n_ilouser"></label>
       <label>Password<span class="pwrow"><input type="password" id="n_ilopass" autocomplete="off"><input type="checkbox" id="n_showpw" title="Show password"></span></label>
     </div>
-    <h3 class="sec">Section 2 · ESX &amp; Omnistack management</h3>
+    <h3 class="sec">Section 2 · ESX & Omnistack Management (VMK0-vSwitch0)</h3>
     <div class="grid">
       <label>ESXi FQDN hostname<input id="n_esxihost"></label>
       <label>Version<input id="n_esxiversion"></label>
@@ -266,12 +266,12 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
       <label>NIC(s) for management &amp; VMs<input id="n_esxinics"></label>
       <label>Root password<span class="pwrow"><input type="password" id="n_esxipass" autocomplete="off"></span></label>
     </div>
-    <h3 class="sec">Section 3 · OmniStack Virtual Controller (vSwitch0)</h3>
+    <h3 class="sec">Section 3 · OmniStack Virtual Controller (VMK0-vSwitch0)</h3>
     <div class="grid">
       <label>OVC IP address<input id="n_ovcmgmt"></label>
       <label>OVC "svtcli" password<input id="n_ovcpass" type="password" autocomplete="off"></label>
     </div>
-    <h3 class="sec">Section 4 · ESXi storage VMK1 (vSwitch1)</h3>
+    <h3 class="sec">Section 4 · ESXi storage (VMK1-vSwitch1)</h3>
     <div class="grid">
       <label>Port group<input id="n_vmkpg" readonly title="Fixed value (pre-flight standard)"></label>
       <label>MTU size<input id="n_vmkmtu" readonly title="Fixed value (pre-flight standard)"></label>
@@ -280,12 +280,12 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
       <label>VLAN ID<input id="n_vmkvlan"></label>
       <label>NIC(s) for storage network<input id="n_vmknics"></label>
     </div>
-    <h3 class="sec">Section 5 · OmniStack storage network (vSwitch1)</h3>
+    <h3 class="sec">Section 5 · OmniStack storage network (VMK1-vSwitch1)</h3>
     <div class="grid">
       <label>Port group<input id="n_ovcstoragepg" readonly title="Fixed value (pre-flight standard)"></label>
       <label>IP address<input id="n_ovcstorage"></label>
     </div>
-    <h3 class="sec">Section 6 · Federation (vSwitch1)</h3>
+    <h3 class="sec">Section 6 · Federation (VMK1-vSwitch1)</h3>
     <div class="grid">
       <label>Port group<input id="n_ovcfedpg" readonly title="Fixed value (pre-flight standard)"></label>
       <label>MTU size<input id="n_ovcfedmtu" readonly title="Fixed value (pre-flight standard)"></label>
@@ -837,7 +837,7 @@ function newDeployment(name, vendor, service){
 }
 function newNode(){
   return { id: uid(), name:'', serial:'',
-    ilo:{ host:'', ip:'', user:'', pass:'TBA Onsite', subnet:'', gateway:'', dns1:'', dns2:'', portType:'', vlan:'' },
+    ilo:{ host:'', ip:'', user:'administrator', pass:'TBA Onsite', subnet:'', gateway:'', dns1:'', dns2:'', portType:'', vlan:'' },
     esxi:{ host:'', ip:'', version:'', pass:'TBA Onsite', mtu:'1500', subnet:'', gateway:'', dns1:'', dns2:'', portType:'', vlan:'', nics:'' },
     ovc:{ mgmt:'', storage:'', fed:'', pass:'TBA Onsite', storagePg:'SVT_StoragePortGroup', fedPg:'SVT_FedPortGroup', fedSubnet:'', fedMtu:'9000', fedVlan:'' },
     vmk:{ ip:'', subnet:'', vlan:'', mtu:'9000', portGroup:'SVT_StorPG', nics:'' } };
@@ -2590,7 +2590,7 @@ function nodesHtml(){
     '</div>' +
     '<p class="hint">Sections 1–6 repeat for every node — open the edit form for iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation details. Import / export the XML from the Advanced tab.</p>' +
     (d.nodes.length
-      ? '<div class="wrap"><table><thead><tr><th>Node</th><th>Serial</th><th>iLO</th><th>ESXi</th><th>OVC</th><th>VMkernel</th><th>Shortcuts</th><th></th><th></th></tr></thead><tbody>' +
+      ? '<div class="wrap"><table><thead><tr><th>Node</th><th>Serial</th><th>iLO</th><th>ESXi</th><th>OVC</th><th>VMkernel</th><th>Jump Points</th><th></th><th></th></tr></thead><tbody>' +
         d.nodes.map(nodeRowHtml).join('') + '</tbody></table></div>'
       : '<div class="empty"><h2>No nodes yet</h2><p>Press <b>Add nodes…</b> and say how many the deployment has — fill in the first node\'s addresses and the rest pre-fill on save. Or use the <b>Advanced</b> tab to import a saved configuration XML exported from Deployment Manager.</p>' +
         '<div class="row" style="justify-content:center"><button data-act="addNodes" class="primary">Add nodes…</button> <button data-act="addNode">+ Add node</button></div></div>') +

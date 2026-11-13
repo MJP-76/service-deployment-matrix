@@ -2,7 +2,7 @@
 
 A single self-contained HTML workbook for HPE SimpliVity deployments, delivered by TD SYNNEX Advanced Solutions. It is the first vendor implementation of the [service-deployment-matrix](https://github.com/MJP-76/service-deployment-matrix) framework: every deployment is **vendor + one service** — deployment, upgrade or expansion — and the same three services apply to every vendor.
 
-Open `simplivity-deploy-kit.html` in any modern browser — no server, no build, no install.
+Open `index.html` in any modern browser — no server, no build, no install.
 
 ## Signing in
 

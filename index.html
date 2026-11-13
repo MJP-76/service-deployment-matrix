@@ -234,7 +234,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <div class="panel">
     <h2 id="nodeTitle">Add node</h2>
     <div class="grid">
-      <label>Node name *<input id="n_name"></label>
+      <label>Node name<input id="n_name" placeholder="Optional — rows show Node N until set"></label>
     </div>
     <div class="hint" id="seqPreview" hidden></div>
     <h3 class="sec">Section 1 · iLO information</h3>
@@ -819,9 +819,9 @@ function newDeployment(name, vendor, service){
     dns: { domain:'', primary:'', secondary:'', search:'', findHostName:true },
     networks: {
       ilo:        { netmask:'', gateway:'', dns1:'', dns2:'', vlan:'' },
-      management: { netmask:'', hostNetmask:'', gateway:'', hostGateway:'', vlan:'', mtu:'1500', vSwitch:'', portGroup:'VM Network', hostPortGroup:'Management Network' },
-      storage:    { netmask:'', vmkNetmask:'', vcGateway:'', vmkGateway:'', vlan:'', mtu:'9000', vSwitch:'', portGroup:'SVT_StoragePortGroup', vmkPortGroup:'SVT_StorPG' },
-      federation: { netmask:'', gateway:'', vlan:'', mtu:'9000', vSwitch:'', portGroup:'SVT_FedPortGroup' }
+      management: { netmask:'', hostNetmask:'', gateway:'', hostGateway:'', vlan:'', mtu:'1500', vSwitch:'vSwitch0', portGroup:'VM Network', hostPortGroup:'Management Network' },
+      storage:    { netmask:'', vmkNetmask:'', vcGateway:'', vmkGateway:'', vlan:'', mtu:'9000', vSwitch:'vSwitch1', portGroup:'SVT_StoragePortGroup', vmkPortGroup:'SVT_StorPG' },
+      federation: { netmask:'', gateway:'', vlan:'', mtu:'9000', vSwitch:'vSwitch1', portGroup:'SVT_FedPortGroup' }
     },
     creds: {
       ilo:     { user:'administrator', pass:'TBA Onsite' },
@@ -880,10 +880,18 @@ function normalizeDep(src){
   if (!mg.mtu) mg.mtu = '1500';
   if (!st.mtu) st.mtu = '9000';
   if (!fe.mtu) fe.mtu = '9000';
+  if (!mg.vSwitch) mg.vSwitch = 'vSwitch0';
+  if (!st.vSwitch) st.vSwitch = 'vSwitch1';
+  if (!fe.vSwitch) fe.vSwitch = 'vSwitch1';
   if (mg.netmask) mg.hostNetmask = mg.netmask;
   else if (mg.hostNetmask) mg.netmask = mg.hostNetmask;
   if (mg.gateway) mg.hostGateway = mg.gateway;
   else if (mg.hostGateway) mg.gateway = mg.hostGateway;
+  // storage: the OVC and VMkernel netmask (and their optional gateway) are always one value
+  if (st.netmask) st.vmkNetmask = st.netmask;
+  else if (st.vmkNetmask) st.netmask = st.vmkNetmask;
+  if (st.vcGateway) st.vmkGateway = st.vcGateway;
+  else if (st.vmkGateway) st.vcGateway = st.vmkGateway;
   if (!mg.portGroup) mg.portGroup = 'VM Network';
   if (!mg.hostPortGroup) mg.hostPortGroup = 'Management Network';
   if (!st.portGroup) st.portGroup = 'SVT_StoragePortGroup';
@@ -1944,6 +1952,11 @@ function networkWarnings(d){
     w.push('Management: OVC netmask (' + mg.netmask + ') differs from Host netmask (' + mg.hostNetmask + ')');
   if (mg.gateway && mg.hostGateway && mg.gateway !== mg.hostGateway)
     w.push('Management: OVC gateway (' + mg.gateway + ') differs from Host gateway (' + mg.hostGateway + ')');
+  // storage: the OVC and VMkernel netmask (and their optional gateway) are always one value
+  if (st.netmask && st.vmkNetmask && st.netmask !== st.vmkNetmask)
+    w.push('Storage: OVC netmask (' + st.netmask + ') differs from VMkernel netmask (' + st.vmkNetmask + ')');
+  if (st.vcGateway && st.vmkGateway && st.vcGateway !== st.vmkGateway)
+    w.push('Storage: OVC gateway (' + st.vcGateway + ') differs from VMkernel gateway (' + st.vmkGateway + ')');
   if (mg.mtu && mg.mtu !== '1500') w.push('Management MTU is ' + mg.mtu + ' — must be 1500');
   if (st.mtu && st.mtu !== '9000') w.push('Storage MTU is ' + st.mtu + ' — must be 9000');
   if (fe.mtu && fe.mtu !== '9000') w.push('Federation MTU is ' + fe.mtu + ' — must be 9000');
@@ -2085,8 +2098,8 @@ function netDocHtml(d){
   const parts = [
     part('iLO / BMC network', N.ilo, { netmask:'Netmask', gateway:'Gateway', dns1:'DNS 1', dns2:'DNS 2', vlan:'VLAN ID' }),
     part('Management network', N.management, { netmask:'Netmask (OVC & Host)', gateway:'Gateway (OVC & Host)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', hostPortGroup:'Host port group' }),
-    part('Storage network', N.storage, { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway', vmkGateway:'VMkernel gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }),
-    part('Federation network', N.federation, { netmask:'Netmask', gateway:'Gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' })
+    part('Storage network', N.storage, { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway (optional)', vmkGateway:'VMkernel gateway (optional)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }),
+    part('Federation network', N.federation, { netmask:'Netmask', gateway:'Gateway (optional)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' })
   ].filter(Boolean);
   return parts.length ? parts.join('') : '<p class="empty-doc">No network details recorded.</p>';
 }
@@ -2507,8 +2520,8 @@ function detailsHtml(){
     '<div id="netWarnings">' + netWarningsHtml(d) + '</div>' +
     netFieldset('iLO / BMC network', 'networks.ilo', { netmask:'Netmask', gateway:'Gateway', dns1:'DNS 1', dns2:'DNS 2', vlan:'VLAN ID' }, d) +
     netFieldset('Management network', 'networks.management', { netmask:'Netmask (OVC & Host)', gateway:'Gateway (OVC & Host)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', hostPortGroup:'Host port group' }, d, ['mtu', 'portGroup', 'hostPortGroup']) +
-    netFieldset('Storage network', 'networks.storage', { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway', vmkGateway:'VMkernel gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }, d, ['mtu', 'portGroup', 'vmkPortGroup']) +
-    netFieldset('Federation network', 'networks.federation', { netmask:'Netmask', gateway:'Gateway', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' }, d, ['mtu', 'portGroup']) +
+    netFieldset('Storage network', 'networks.storage', { netmask:'OVC netmask', vmkNetmask:'VMkernel netmask', vcGateway:'OVC gateway (optional)', vmkGateway:'VMkernel gateway (optional)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group', vmkPortGroup:'VMkernel port group' }, d, ['mtu', 'portGroup', 'vmkPortGroup']) +
+    netFieldset('Federation network', 'networks.federation', { netmask:'Netmask', gateway:'Gateway (optional)', vlan:'VLAN ID', mtu:'MTU', vSwitch:'vSwitch', portGroup:'Port group' }, d, ['mtu', 'portGroup']) +
   '</section>' +
 
   '<section class="card"><h2>Site credentials</h2>' +
@@ -3092,9 +3105,8 @@ async function saveCount(){
 async function saveNode(){
   const gv = fid => document.getElementById(fid).value.trim();
   const name = gv('n_name');
-  if (!name) return toast('Node name is required', true);
   const n = nodeDraft;
-  n.name = name;
+  n.name = name;   // blank names are allowed — nodes are scaffolding; the row falls back to "Node N"
   n.serial = gv('n_serial');
   n.ilo = { host: gv('n_ilohost'), ip: gv('n_iloip'), user: gv('n_ilouser'), pass: document.getElementById('n_ilopass').value,
     subnet: gv('n_ilosubnet'), gateway: gv('n_ilogw'), dns1: gv('n_ilodns1'), dns2: gv('n_ilodns2'),
@@ -3109,7 +3121,6 @@ async function saveNode(){
     fedSubnet: gv('n_ovcfedsubnet'), fedMtu: gv('n_ovcfedmtu') || '9000', fedVlan: gv('n_ovcfedvlan') };
   n.vmk = { ip: gv('n_vmkip'), subnet: gv('n_vmksubnet'), vlan: gv('n_vmkvlan'),
     mtu: gv('n_vmkmtu') || '9000', portGroup: gv('n_vmkpg') || 'SVT_StorPG', nics: gv('n_vmknics') };
-  if (!n.ilo.ip && !n.esxi.ip && !n.ovc.mgmt) return toast('Enter at least one IP (iLO, ESXi or OVC)', true);
   const d = cur();
   let idx = -1;
   if (editingNodeId){
@@ -3460,6 +3471,10 @@ function wire(){
       setPath(target, path, val);
       if (path === 'networks.management.netmask') setPath(target, 'networks.management.hostNetmask', val);
       if (path === 'networks.management.gateway') setPath(target, 'networks.management.hostGateway', val);
+      if (path === 'networks.storage.netmask') setPath(target, 'networks.storage.vmkNetmask', val);
+      if (path === 'networks.storage.vmkNetmask') setPath(target, 'networks.storage.netmask', val);
+      if (path === 'networks.storage.vcGateway') setPath(target, 'networks.storage.vmkGateway', val);
+      if (path === 'networks.storage.vmkGateway') setPath(target, 'networks.storage.vcGateway', val);
       if (t.classList && t.classList.contains('missing')) t.classList.remove('missing');
       await save();
       if (path.startsWith('networks.')) updateNetWarnings();

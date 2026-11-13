@@ -2903,7 +2903,7 @@ function render(){
   const ss = $('#sectionSel');
   if (ss && section && !newMode) ss.value = section;
   const bl = $('#brandLogo');
-  if (bl) bl.innerHTML = '';
+  if (bl) bl.innerHTML = '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
   const sel = $('#depSel');
   if (section && store){
     sel.innerHTML = store.deployments.map(d =>

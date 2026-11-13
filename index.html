@@ -308,7 +308,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
       <label>Service<select id="nameSvc"></select></label>
     </div>
     <label>Deployment name<input id="nameInput" placeholder="Customer — PROD"></label>
-    <p class="hint" id="nameHint" hidden>Every deployment is one vendor plus one service — the same three services apply to every vendor.</p>
+    
     <div class="row end">
       <button id="nameCancel">Cancel</button>
       <button id="nameSave" class="primary">Save</button>
@@ -2715,7 +2715,7 @@ function legacyLandingHtml(){
   return '<div class="pane">' +
     '<div class="doc landing-card">' +
       '<div class="dochead"><div class="dochead-logo">' + logo + '</div>' +
-      '<div class="dochead-text"><h1>' + (hasData ? esc(d.name) + ' <span>— ' + esc(d.version || '') + '</span>' : 'SimpliVity deployment workbook') + '</h1>' +
+      '<div class="dochead-text"><h1>' + (hasData ? esc(d.name) + ' <span>— ' + esc(d.version || '') + '</span>' : 'Professional Services Deployment Kit') + '</h1>' +
       '<div class="docmeta">Choose your section — each is protected by its own password on every load.</div></div></div>' +
       '<div class="gate-grid">' +
         '<div class="gate-card"><h2>Customer Engineer</h2><p>Company details, site contacts, the pre-flight checklist and the NTP / DNS servers — then email them to TD SYNNEX.</p><button data-act="enterCustomer" class="primary">Continue →</button></div>' +
@@ -2732,7 +2732,7 @@ function landingHtml(){
   return '<div class="pane">' +
     '<div class="doc landing-card">' +
       '<div class="dochead"><div class="dochead-logo">' + logo + '</div>' +
-      '<div class="dochead-text"><h1>SimpliVity deployment workbook</h1>' +
+      '<div class="dochead-text"><h1>Professional Services Deployment Kit</h1>' +
       '<div class="docmeta">Sign in to continue with your Company and Credentials supplied by your deployment engineer</div></div></div>' +
       '<div class="gate-grid">' +
         '<div class="gate-card"><h2>Customer sign in</h2>' +
@@ -2745,7 +2745,6 @@ function landingHtml(){
           '<p>Create customers and their deployments, then work the network plans, credentials, Sections 1–6 per node, vCenter &amp; Arbiter, XML and documents.</p>' +
           '<button data-act="enterEngineer" class="primary">Unlock →</button></div>' +
       '</div>' +
-      '<p class="hint" style="text-align:center;margin-bottom:0">Every deployment is one vendor plus one service — deployment, upgrade or expansion — the same three services for every vendor.' +
         ((hasLegacyData() || hasBaked()) ? ' <a href="#" data-act="legacyMode">Open saved data from the previous version</a>' : '') + '</p>' +
     '</div></div>';
 }

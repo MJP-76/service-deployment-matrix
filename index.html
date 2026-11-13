@@ -811,7 +811,9 @@ function newDeployment(name, vendor, service){
     vendor: vendor || VENDORS[0],
     service: service || 'deployment',
     version: '',
-    project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'' },
+    project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'',
+      partnerCompany:'', partnerName:'', partnerTitle:'', partnerEmail:'', partnerPhone:'' },
+    orders: { vendorOrder:'', excalibur:'' },
     checklist: {},
     ntp: '',
     dns: { domain:'', primary:'', secondary:'', search:'', findHostName:true },
@@ -869,6 +871,7 @@ function normalizeDep(src){
   dep.vendor = src.vendor || VENDORS[0];
   dep.service = SERVICES.includes(src.service) ? src.service : serviceOfName(dep.name);
   dep.project = Object.assign({}, base.project, src.project || {});
+  dep.orders = Object.assign({}, base.orders, src.orders || {});
   dep.checklist = Object.assign({}, src.checklist || {});
   dep.dns = Object.assign({}, base.dns, src.dns || {});
   dep.networks = {};
@@ -920,7 +923,7 @@ function splitStore(){
     id: d.id, name: d.name, vendor: d.vendor, service: d.service, version: d.version, project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter
   }));
   const engs = store.deployments.map(d => ({
-    id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter
+    id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter, orders: d.orders
   }));
   return { pubs, engs };
 }
@@ -947,6 +950,7 @@ function applyEng(engs){
       }
     }
     if (part.arbiter) dep.arbiter = Object.assign({}, newDeployment().arbiter, part.arbiter);
+    if (part.orders) dep.orders = Object.assign({}, newDeployment().orders, part.orders);
   }
 }
 function isDefaultVcenter(v){
@@ -1343,7 +1347,7 @@ function pubHalf(d){
     engineer: d.engineer, updatedAt: Date.now() };
 }
 function engHalf(d){
-  return { id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter };
+  return { id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter, orders: d.orders };
 }
 async function sealDep(pub, eng, keyC, keyE){
   const dekP = rndBytes(32), dekE = rndBytes(32);
@@ -2014,15 +2018,11 @@ function fillIloIps(){
 }
 
 const DETAILS_REQUIRED = [
-  ['Project name', 'version'],
   ['Company', 'project.company'],
+  ['Project name', 'version'],
   ['Contact name', 'project.contactName'],
   ['Contact email', 'project.contactEmail'],
-  ['Management netmask', 'networks.management.netmask'],
-  ['Management gateway', 'networks.management.gateway'],
-  ['Management VLAN', 'networks.management.vlan'],
-  ['Storage VLAN', 'networks.storage.vlan'],
-  ['Federation VLAN', 'networks.federation.vlan']
+  ['Contact phone', 'project.contactPhone']
 ];
 function validateDetails(){
   const d = cur();
@@ -2404,7 +2404,7 @@ function introHtml(){
     '<table><thead><tr><th>Where</th><th>Completed by</th><th>What goes in it</th></tr></thead><tbody>' +
     '<tr><td>Landing</td><td>Both — choose a section</td><td>Customer Engineer and Deployment Engineer sections, each protected by its own password on every load</td></tr>' +
     '<tr><td>Customer Engineer</td><td>End customer engineer</td><td>Company, project name and contacts, the pre-flight checklist and NTP/DNS — then email the details to TD SYNNEX</td></tr>' +
-    '<tr><td>Details (engineer)</td><td>Deployment engineer</td><td>Network plans and site credentials (ESXi, vCenter incl. root, OVC) — required fields validated by Save &amp; next → Nodes</td></tr>' +
+    '<tr><td>Details (engineer)</td><td>Deployment engineer</td><td>Project and partner contact details, the order / Excalibur references, network plans and site credentials (ESXi, vCenter incl. root, OVC) — only company, project name and the contact fields are required by Save &amp; next → Nodes</td></tr>' +
     '<tr><td>Nodes</td><td>Deployment engineer</td><td>Sections 1–6 repeated for every node: iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation</td></tr>' +
     '<tr><td>vCenter &amp; Arbiter</td><td>End customer engineer</td><td>Sections 7 and 8 — one vCenter and one Arbiter per deployment (a cluster / datacenter is its own deployment), including the deployment DNS and NTP servers; the VAMI page opens on port 5480</td></tr>' +
     '<tr><td>Advanced</td><td>Deployment engineer</td><td>Import / export the DeploymentConfiguration XML and import the customer details email</td></tr>' +
@@ -2468,9 +2468,10 @@ function credRow(label, userPath, passPath, d, ro){
 function detailsHtml(){
   const d = cur();
   const p = d.project;
+  const o = d.orders || {};
   return '<div class="pane">' +
   '<div class="rolehead"><h2>Deployment Engineer</h2><p class="hint">Everything saves as you go — complete the required fields, then press Save &amp; next → Nodes.</p></div>' +
-  '<section class="card"><h2>Customer &amp; Project</h2><div class="grid">' +
+  '<section class="card"><h2>Project details</h2><div class="grid">' +
     '<label>Company<input data-bind="project.company" value="' + esc(p.company) + '"></label>' +
     '<label>Project name<input data-bind="version" value="' + esc(d.version) + '"></label>' +
     '<label>Installation date<input type="date" data-bind="project.installDate" value="' + esc(p.installDate) + '"></label>' +
@@ -2480,8 +2481,19 @@ function detailsHtml(){
     '<label>Contact email<input data-bind="project.contactEmail" value="' + esc(p.contactEmail) + '"></label>' +
     '<label>Contact phone<input data-bind="project.contactPhone" value="' + esc(p.contactPhone) + '"></label>' +
     '<label>Project stakeholder<input data-bind="project.stakeholder" value="' + esc(p.stakeholder || '') + '"></label>' +
+    '<h3 class="sec" style="grid-column:1/-1">Partner contact</h3>' +
+    '<label>Partner company<input data-bind="project.partnerCompany" value="' + esc(p.partnerCompany || '') + '"></label>' +
+    '<label>Contact name<input data-bind="project.partnerName" value="' + esc(p.partnerName || '') + '"></label>' +
+    '<label>Contact title<input data-bind="project.partnerTitle" value="' + esc(p.partnerTitle || '') + '"></label>' +
+    '<label>Contact email<input data-bind="project.partnerEmail" value="' + esc(p.partnerEmail || '') + '"></label>' +
+    '<label>Contact phone<input data-bind="project.partnerPhone" value="' + esc(p.partnerPhone || '') + '"></label>' +
     '<label>Assigned engineer<input data-bind="engineer.name" value="' + esc(d.engineer.name) + '" placeholder="Phil Boorman"></label>' +
     '<label>Engineer email<input data-bind="engineer.email" value="' + esc(d.engineer.email) + '" placeholder="phil.boorman@tdsynnex.com"></label>' +
+  '</div></section>' +
+
+  '<section class="card"><h2>Order &amp; ticket</h2><p class="hint">Deployment engineer only — never shown to the customer.</p><div class="grid">' +
+    '<label>Vendor order number<input data-bind="orders.vendorOrder" value="' + esc(o.vendorOrder || '') + '"></label>' +
+    '<label>Excalibur ticket number<input data-bind="orders.excalibur" value="' + esc(o.excalibur || '') + '"></label>' +
   '</div></section>' +
 
   '<section class="card"><h2>Pre-Flight Checklist</h2><div class="checks">' +
@@ -2840,7 +2852,7 @@ function customerDetailsHtml(){
   return '<div class="pane">' +
   '<div class="rolehead"><h2>' + (custMode ? esc(d.name) : 'Customer Engineer') + '</h2><p class="hint">' + hint + '</p>' +
     head + '</div>' +
-  '<section class="card"><h2>Customer &amp; Project</h2><div class="grid">' +
+  '<section class="card"><h2>Project details</h2><div class="grid">' +
     '<label>Company<input data-bind="project.company" value="' + esc(p.company) + '"></label>' +
     '<label>Project name<input data-bind="version" value="' + esc(d.version) + '"></label>' +
     '<label>Installation date<input type="date" data-bind="project.installDate" value="' + esc(p.installDate) + '"></label>' +
@@ -2850,6 +2862,12 @@ function customerDetailsHtml(){
     '<label>Contact email<input data-bind="project.contactEmail" value="' + esc(p.contactEmail) + '"></label>' +
     '<label>Contact phone<input data-bind="project.contactPhone" value="' + esc(p.contactPhone) + '"></label>' +
     '<label>Project stakeholder<input data-bind="project.stakeholder" value="' + esc(p.stakeholder || '') + '"></label>' +
+    '<h3 class="sec" style="grid-column:1/-1">Partner contact</h3>' +
+    '<label>Partner company<input data-bind="project.partnerCompany" value="' + esc(p.partnerCompany || '') + '"></label>' +
+    '<label>Contact name<input data-bind="project.partnerName" value="' + esc(p.partnerName || '') + '"></label>' +
+    '<label>Contact title<input data-bind="project.partnerTitle" value="' + esc(p.partnerTitle || '') + '"></label>' +
+    '<label>Contact email<input data-bind="project.partnerEmail" value="' + esc(p.partnerEmail || '') + '"></label>' +
+    '<label>Contact phone<input data-bind="project.partnerPhone" value="' + esc(p.partnerPhone || '') + '"></label>' +
   '</div></section>' +
   '<section class="card"><h2>Pre-Flight Checklist</h2><div class="checks">' +
     CHECKLIST.map(([k, label]) =>
@@ -3251,8 +3269,8 @@ async function loadDemo(){
     if (!confirm('Add demo data to the current deployment?')) return;
   }
   const d = newDeployment('Demo deployment');
-  d.project = { company:'Example Corp', address:'1 Example Street, Reading', installDate:'', contactName:'Jane Consultant',
-    contactTitle:'Solutions Engineer', contactEmail:'jane@example.com', contactPhone:'01234 567890', stakeholder:'John Director' };
+  d.project = Object.assign({}, d.project, { company:'Example Corp', address:'1 Example Street, Reading', installDate:'', contactName:'Jane Consultant',
+    contactTitle:'Solutions Engineer', contactEmail:'jane@example.com', contactPhone:'01234 567890', stakeholder:'John Director' });
   d.checklist = { delivered:true, racked:true, access:true, room:true, l2:true, ports:true, infosight:false, vcenter:false };
   d.ntp = '0.uk.pool.ntp.org\n1.uk.pool.ntp.org\n2.uk.pool.ntp.org\n3.uk.pool.ntp.org';
   d.dns = { domain:'hci.local', primary:'10.250.225.1', secondary:'10.250.225.2', search:'hci.local', findHostName:true };

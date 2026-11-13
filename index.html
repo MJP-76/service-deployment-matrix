@@ -3126,7 +3126,7 @@ function openNameModal(mode, targetId){
     : mode === 'renameCustomer' ? 'Rename customer' : 'Rename deployment';
   const showSvc = mode === 'new' || mode === 'first';
   $('#nameSvcRow').hidden = !showSvc;
-  $('#nameHint').hidden = !showSvc;
+  const nh = $('#nameHint'); if (nh) nh.hidden = !showSvc;
   const ref = mode === 'renameCustomer' ? null
     : nameTarget && store ? (store.deployments.find(d => d.id === nameTarget) || null)
     : (store ? cur() : null);

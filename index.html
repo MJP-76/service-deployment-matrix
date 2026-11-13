@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Professional Services Deployment Kit</title>
+<title>Deploy Kit</title>
 <style>
 *{box-sizing:border-box}
 :root{--bg:#0e1318;--panel:#151d25;--panel2:#1b242e;--line:#26313d;--txt:#e6edf3;--dim:#93a6b7;--acc:#01a982;--blue:#2f81f7;--purple:#a371f7;--green:#2da44e;--amber:#d4a72c;--orange:#e8703a;--red:#e5534b}
@@ -344,7 +344,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 <div id="unlockModal" class="overlay" hidden>
   <div class="panel" style="max-width:390px;text-align:center">
     <h2 id="gateTitle">Deployment Engineer</h2>
-    <p class="hint" id="gateHint">Enter the Deployment Engineer password to open the deployment sections.</p>
+    <p class="hint" id="gateHint">Sign in to continue with your Company and Credentials supplied by your deployment engineer</p>
     <input type="password" id="unlockPw" style="width:100%" autocomplete="current-password">
     <div class="err" id="unlockErr" hidden></div>
     <div class="row" style="justify-content:center"><button id="unlockBtn" class="primary">Unlock</button></div>
@@ -1080,7 +1080,7 @@ function openGate(section){
   $('#gateTitle').textContent = section === 'customer' ? 'Customer Engineer' : 'Deployment Engineer';
   $('#gateHint').textContent = section === 'customer'
     ? 'Enter the Customer Engineer password to open the customer details.'
-    : 'Enter the Deployment Engineer password to open the deployment sections.';
+    : 'Sign in to continue with your Company and Credentials supplied by your deployment engineer';
   const ss = $('#sectionSel');
   if (ss) ss.value = ui.section || 'customer';
   $('#unlockModal').hidden = false;

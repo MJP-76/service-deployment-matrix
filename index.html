@@ -112,6 +112,7 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#0d1216;border
 #storageWarn{background:#3a2d10;border-bottom:1px solid #6b541c;color:#f0d78c;padding:8px 16px;font-size:13px}
 #updateBar{background:#10263a;border-bottom:1px solid #27506b;color:#cfe8ff;padding:9px 16px;font-size:13px;display:flex;gap:16px;align-items:center;justify-content:center;text-align:center;flex-wrap:wrap}
 #updateBar[hidden]{display:none}
+#syncWarn{background:#3a1414;border-bottom:1px solid #6b1c1c;color:#f3b4b4;padding:8px 16px;font-size:13px}
 #updateBar a{color:#7fd0ff;font-weight:600}
 #updateBar button{background:transparent;border:1px solid #3a6a8a;color:#cfe8ff;border-radius:6px;padding:3px 12px;cursor:pointer;font-size:12px}
 footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;text-align:center}
@@ -218,6 +219,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <button data-tab="advanced">Advanced</button>
 </nav>
 
+<div id="syncWarn" hidden>GitHub rejected the token — changes are being saved in this browser only. Paste a valid token in Setup → Shared store, or use “Push all local data”.</div>
 <div id="storageWarn" hidden>Warning: this browser is not saving data (localStorage unavailable) — entries will be lost when you close the page.</div>
 <div id="updateBar" hidden><span id="updateText"></span><button id="updateDismiss">Dismiss</button></div>
 
@@ -1008,6 +1010,8 @@ async function save(){
   }catch(e){ showStorageWarn(); }
 }
 function showStorageWarn(){ const w = $('#storageWarn'); if (w) w.hidden = false; }
+function showSyncWarn(){ const w = $('#syncWarn'); if (w) w.hidden = false; }
+function hideSyncWarn(){ const w = $('#syncWarn'); if (w) w.hidden = true; }
 function readBaked(){
   try{
     const vd = document.getElementById('vaultData');
@@ -1188,7 +1192,7 @@ function lock(){
      customers/<id>/account.enc       customer-encrypted account + settings
      customers/<id>/deps/<dep>.enc    pub half (customer+engineer) + eng half (engineer only) */
 const GH_CONTENTS = 'https://api.github.com/repos/MJP-76/service-deployment-matrix/contents/';
-const KIT_GH_TOKEN = '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';   // baked fine-grained PAT — Contents read/write on this repo only; rotate before it expires
+const KIT_GH_TOKEN = '';   // never ship a PAT in this public repo - paste one per browser in Setup → Shared store
 const BLOB_PREFIX = LS.blob;
 const REG_PATH = 'registry.enc';
 /* Acts that must work with no workbook open (landing, picker, Customers tab, Setup). */
@@ -1299,18 +1303,21 @@ async function blobRead(path, fresh){
   return cached ? JSON.parse(cached.text) : null;
 }
 /* Write a blob: cache always, GitHub when a token is set (offline → local only). */
+let syncFallback = false;
 async function blobWrite(path, text){
   const cached = cacheGet(path);
   setGone(path, false);
-  if (!ghToken()){ cachePut(path, text, cached ? cached.sha : null); return 'local'; }
+  if (!ghToken()){ syncFallback = false; cachePut(path, text, cached ? cached.sha : null); return 'local'; }
   try{
     let sha = null;
     try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){ sha = cached ? cached.sha : null; }
     const newSha = await ghPut(path, text, sha);
     cachePut(path, text, newSha);
+    if (syncFallback){ syncFallback = false; hideSyncWarn(); }
     return 'github';
   }catch(e){
     cachePut(path, text, cached ? cached.sha : null);
+    syncFallback = true; showSyncWarn();
     return 'local';
   }
 }
@@ -1327,6 +1334,79 @@ async function blobDelete(path){
     return 'local';
   }
 }
+/* Re-upload every encrypted blob cached in this browser (recovery after a bad
+   token left data local-only). Use on the machine with the newest data. */
+async function pushAllLocalBlobs(){
+  if (!ghToken()) return toast('Paste a GitHub token first', true);
+  let paths = [];
+  try{
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (!k || k.indexOf(BLOB_PREFIX) !== 0) continue;
+      const p = k.slice(BLOB_PREFIX.length);
+      if (p && !isGone(p)) paths.push(p);
+    }
+  }catch(e){}
+  if (!paths.length) return toast('Nothing local to push', true);
+  let ok = 0, fail = 0;
+  for (const path of paths){
+    const c = cacheGet(path);
+    if (!c || !c.text) continue;
+    try{
+      let sha = c.sha || null;
+      if (!sha){ try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){} }
+      let newSha;
+      try{
+        newSha = await ghPut(path, c.text, sha);
+      }catch(e){
+        // stale/missing sha → refetch once and retry
+        let sha2 = null;
+        try{ const g = await ghGet(path); sha2 = g ? g.sha : null; }catch(e2){}
+        newSha = await ghPut(path, c.text, sha2);
+      }
+      cachePut(path, c.text, newSha);
+      ok++;
+    }catch(e){ fail++; }
+  }
+  if (fail){ syncFallback = true; showSyncWarn(); }
+  else { syncFallback = false; hideSyncWarn(); }
+  render();
+  toast('Pushed ' + ok + ' file' + (ok === 1 ? '' : 's') + ' to GitHub' + (fail ? ' — ' + fail + ' failed' : ''));
+}
+/* Force a fresh pull from GitHub without signing out. */
+async function reloadStoreFromGitHub(){
+  if (!ghToken()) return toast('Paste a GitHub token first', true);
+  try{
+    if (session.role === 'engineer' && session.engKey){
+      const raw = await blobRead(REG_PATH, true);
+      if (!raw) return toast('No registry found in the shared store', true);
+      session.registry = await openBlob(session.engKey, raw);
+      if (session.cid && regCustomer(session.cid)){ await openCustomer(session.cid); return toast('Reloaded from GitHub'); }
+      render(); return toast('Reloaded the customer registry from GitHub');
+    }
+    if (session.role === 'customer' && session.cid && session.keyC){
+      const raw = await blobRead(acctPath(session.cid), true);
+      if (!raw) return toast('No account found in the shared store', true);
+      const acct = await openBlob(session.keyC, raw);
+      session.account = acct;
+      const deps = [];
+      for (const s of (acct.deployments || [])){
+        try{
+          const r = await blobRead(depPath(session.cid, s.id), true);
+          if (r) deps.push(normalizeDep(await openDepPub(r, session.keyC)));
+        }catch(e){}
+      }
+      store = deps.length ? scopeStore(deps) : null;
+      session.acctSalt = unb64(raw.salt);
+      render(); return toast('Reloaded from GitHub');
+    }
+    toast('Sign in first, then reload', true);
+  }catch(e){
+    syncFallback = true; showSyncWarn();
+    toast('Reload failed — ' + (e && e.message ? e.message : 'check the token'), true);
+  }
+}
+
 
 /* --- AES-GCM envelope helpers --- */
 function rndBytes(n){ return crypto.getRandomValues(new Uint8Array(n)); }
@@ -2394,6 +2474,7 @@ async function saveIntoFile(){
   const tst = clone.querySelector('#toast'); if (tst) tst.textContent = '';
   const sw = clone.querySelector('#storageWarn'); if (sw) sw.setAttribute('hidden','');
   const ub = clone.querySelector('#updateBar'); if (ub) ub.setAttribute('hidden','');
+    const sy = clone.querySelector('#syncWarn'); if (sy) sy.setAttribute('hidden','');
   const tabs = clone.querySelector('#tabs'); if (tabs) tabs.removeAttribute('hidden');
   clone.querySelectorAll('#tabs button').forEach(b => { if (b.dataset.tab === 'intro') b.classList.add('on'); else b.classList.remove('on'); });
   const vd = clone.querySelector('#vaultData'); if (vd) vd.textContent = payload;
@@ -2633,11 +2714,14 @@ function setupHtml(){
   const d = store ? cur() : null;
   return '<div class="pane">' +
     '<section class="card"><h2>Shared store (GitHub)</h2>' +
-      '<p class="hint">A fine-grained personal access token scoped to <b>MJP-76/service-deployment-matrix</b> (Repository permissions: Contents — read and write) syncs the encrypted customer, account and deployment files through GitHub. This copy ships with a baked token; paste one below to override it for this browser, or clear the override to revert to the baked token. With no token at all, data stays in this browser only. Any token entered here is saved in this browser\'s localStorage.</p>' +
+      '<p class="hint">A fine-grained personal access token scoped to <b>MJP-76/service-deployment-matrix</b> (Repository permissions: Contents — read and write) syncs the encrypted customer, account and deployment files through GitHub. Each browser needs the token pasted once here — it is kept in this browser\'s localStorage only and is never shipped in the page. With no token, data stays in this browser only.</p>' +
       '<div class="grid"><label>GitHub token<input id="s_ghToken" type="password" value="" placeholder="' + (ghToken() ? '•••••••• token set' : 'ghp_… or github_pat_…') + '" autocomplete="off"></label></div>' +
       '<div class="row"><button data-act="saveGhToken" class="primary">Save token</button>' +
-      '<button data-act="clearGhToken">Clear override</button>' +
-      '<span class="hint">' + (ghToken() ? ('Connected — files sync with GitHub' + ((KIT_GH_TOKEN && !localStorage.getItem(LS.token)) ? ' (baked token)' : '') + '.') : 'Not connected — data stays in this browser.') + '</span></div>' +
+      '<button data-act="clearGhToken">Clear token</button>' +
+      '<button data-act="pushAll">Push all local data</button>' +
+      '<button data-act="reloadStore">Reload from GitHub</button>' +
+      '<span class="hint">' + (!ghToken() ? 'Not connected — data stays in this browser.' : (syncFallback ? 'Token rejected — saving in this browser only.' : 'Connected — files sync with GitHub.')) + '</span></div>' +
+      '<p class="hint" style="margin-top:8px"><b>Push all local data</b> uploads every encrypted file this browser has cached — use it on the machine holding the newest data after fixing the token. <b>Reload from GitHub</b> pulls the shared store again without signing out.</p>' +
     '</section>' +
     '<section class="card"><h2>Launcher kit (portable PuTTY / WinSCP + Deploy &amp; Upgrade Manager)</h2>' +
       '<p class="hint">Everything lives in one folder — <code>' + esc(S().installDir || DEFAULT_SETTINGS.installDir) + '</code> — which is also where the Upgrade Manager runs from. Portable PuTTY and WinSCP sit next to the launcher. The Deployment and Upgrade Manager are <b>found automatically</b> because their name and folder change with each installed version; set a path only to override the search.</p>' +
@@ -3603,16 +3687,26 @@ function wire(){
       const v = ($('#s_ghToken').value || '').trim();
       if (!v) return toast('Paste a GitHub token first', true);
       ghAuthWarned = false;
+      let okToken = false;
+      try{
+        const r = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+        okToken = r.ok;
+      }catch(e){ okToken = false; }
+      if (!okToken) return toast('GitHub rejected that token — check it is valid and has Contents: read/write', true);
       try{ localStorage.setItem(LS.token, v); }catch(e){ return toast('Could not store the token in this browser', true); }
+      syncFallback = false; hideSyncWarn();
       render();
       toast('Token saved — the shared store is now GitHub-backed');
       return;
     }
+    if (act === 'pushAll'){ await pushAllLocalBlobs(); return; }
+    if (act === 'reloadStore'){ await reloadStoreFromGitHub(); return; }
     if (act === 'clearGhToken'){
       ghAuthWarned = false;
       try{ localStorage.removeItem(LS.token); }catch(e){}
+      syncFallback = false; hideSyncWarn();
       render();
-      toast((typeof KIT_GH_TOKEN === 'string' && KIT_GH_TOKEN) ? 'Token override cleared — using the baked token' : 'Token cleared — data stays in this browser');
+      toast('Token cleared — data stays in this browser');
       return;
     }
     if (act === 'dlVbs') return download('svt-launcher.vbs', vbsText());

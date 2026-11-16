@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.7';
+const KIT_VERSION = '1.7.8';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -780,7 +780,7 @@ const DEFAULT_SETTINGS = {
   winscp:  'WinSCP.exe',
   deploy:  '',
   upgrade: '',
-  installDir: '%USERPROFILE%\\Downloads\\svt-tools',
+  installDir: '~/Downloads',
   wscript: 'C:\\Windows\\System32\\wscript.exe',
   puttyPw: false,
   winscpPw: true,
@@ -3013,13 +3013,13 @@ function setupHtml(){
       '<p class="hint" style="margin-top:8px"><b>Push all local data</b> uploads every encrypted file this browser has cached — use it on the machine holding the newest data after fixing the token. <b>Reload from GitHub</b> pulls the shared store again without signing out.</p>' +
     '</section>' +
     '<section class="card"><h2>Launcher kit (portable PuTTY / WinSCP + Deploy &amp; Upgrade Manager)</h2>' +
-      '<p class="hint">Everything lives in one folder — <code>' + esc(S().installDir || DEFAULT_SETTINGS.installDir) + '</code> — which is also where the Upgrade Manager runs from. Portable PuTTY and WinSCP sit next to the launcher. The Deployment and Upgrade Manager are <b>found automatically</b> because their name and folder change with each installed version; set a path only to override the search.</p>' +
+      '<p class="hint">The three launcher files download to your browser\'s <b>Downloads</b> folder. Portable PuTTY and WinSCP should sit next to them — set <b>Kit folder</b> to that folder\'s full path (for example <code>C:\\Users\\you\\Downloads</code>) so the protocol shortcuts can find the launcher.</p>' +
       '<div class="grid">' +
         '<label>PuTTY (portable name or full path)<input id="s_putty" data-bind="settings.putty" value="' + esc(S().putty) + '" placeholder="putty.exe"></label>' +
         '<label>WinSCP (portable name or full path)<input id="s_winscp" data-bind="settings.winscp" value="' + esc(S().winscp) + '" placeholder="WinSCP.exe"></label>' +
         '<label>Deployment Manager (optional override)<input id="s_deploy" data-bind="settings.deploy" value="' + esc(S().deploy) + '" placeholder="auto-find current version"></label>' +
         '<label>Upgrade Manager (optional override)<input id="s_upgrade" data-bind="settings.upgrade" value="' + esc(S().upgrade) + '" placeholder="auto-find current version"></label>' +
-        '<label>Kit folder<input id="s_install" data-bind="settings.installDir" value="' + esc(S().installDir) + '" placeholder="%USERPROFILE%\\Downloads\\svt-tools"></label>' +
+        '<label>Kit folder<input id="s_install" data-bind="settings.installDir" value="' + esc(S().installDir) + '" placeholder="~/Downloads"></label>' +
         '<label>wscript.exe<input id="s_wscript" data-bind="settings.wscript" value="' + esc(S().wscript) + '"></label>' +
         '<label>PuTTY private key (optional)<input id="s_puttykey" data-bind="settings.puttyKey" value="' + esc(S().puttyKey) + '" placeholder="-i key file"></label>' +
         '<label class="check" style="margin-top:18px"><input type="checkbox" data-bind="settings.puttyPw" ' + (S().puttyPw ? 'checked' : '') + '> Pass password to PuTTY (-pw)</label>' +
@@ -3032,7 +3032,7 @@ function setupHtml(){
         '<button data-act="dlReg">register-protocols.reg</button>' +
         '<span class="sep"></span>' +
         '<a class="chip ssh" href="https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe" target="_blank" rel="noopener" title="Download portable PuTTY — save it into the kit folder">Get putty.exe</a>' +
-        '<a class="chip xfer" href="https://winscp.net/eng/downloads.php" target="_blank" rel="noopener" title="Open the WinSCP downloads page — choose WinSCP Portable, unzip it into the kit folder">Get WinSCP portable</a>' +
+        '<a class="chip xfer" href="https://winscp.net/download/WinSCP-6.7.1-Portable.zip" target="_blank" rel="noopener" title="Download WinSCP 6.7.1 Portable (ZIP) — unzip WinSCP.exe into the kit folder">Get WinSCP portable</a>' +
       '</div>' +
       '<ol class="steps">' +
         '<li>Create the kit folder <code>%USERPROFILE%\\Downloads\\svt-tools</code> — that is where the Upgrade Manager will run from.</li>' +
@@ -4781,7 +4781,12 @@ function buildReg(){
   }
   return out;
 }
+function kitDirIsAbsolute(){
+  const dir = ( (document.getElementById('s_install') && document.getElementById('s_install').value.trim()) || (store && store.settings && store.settings.installDir) || DEFAULT_SETTINGS.installDir ).replace(/\\+$/, '');
+  return /^[A-Za-z]:\\/.test(dir) || /^\\\\/.test(dir);
+}
 function dlKit(){
+  if (!kitDirIsAbsolute()) toast('Set Kit folder to the full Windows path (e.g. C:\\Users\\you\\Downloads) so the .reg can find the launcher', true);
   download('svt-launcher.vbs', vbsText());
   setTimeout(() => download('svt-launcher.ini', buildIni()), 350);
   setTimeout(() => download('register-protocols.reg', buildReg()), 700);
@@ -5086,7 +5091,7 @@ function wire(){
     }
     if (act === 'dlVbs') return download('svt-launcher.vbs', vbsText());
     if (act === 'dlIni') return download('svt-launcher.ini', buildIni());
-    if (act === 'dlReg') return download('register-protocols.reg', buildReg());
+    if (act === 'dlReg'){ if (!kitDirIsAbsolute()) toast('Set Kit folder to the full Windows path before using the .reg', true); return download('register-protocols.reg', buildReg()); }
   });
 
   $('#nodeSave').addEventListener('click', saveNode);

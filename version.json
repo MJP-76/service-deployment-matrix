@@ -1,5 +1,5 @@
 {
-  "version": "1.4.4",
+  "version": "1.4.5",
   "updated": "2026-11-16",
-  "notes": "Nutanix Central tab removed for now (optional; multi-cluster global only). Data retained."
+  "notes": "Advanced tab renamed Import / Export."
 }

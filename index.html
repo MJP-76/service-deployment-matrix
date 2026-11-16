@@ -756,7 +756,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.5.5';
+const KIT_VERSION = '1.5.6';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1179,8 +1179,9 @@ async function init(){
   // Data from the previous single-user version keeps its familiar landing until
   // the multi-customer store has been used once; new/empty browsers get the sign-in.
   // A baked handover file carries its data in the page itself, so it counts as legacy too.
-  ui.legacy = (hasLegacyData() || hasBaked()) && !hasNewBlobs();
-  if (ui.legacy) return legacyInit();
+  // Legacy single-user mode is retired: even if this browser still holds old
+  // keys, always open the multi-customer flow. Old data is left untouched.
+  ui.legacy = false;
   store = normalizeStore({});   // empty working set; sign-in flows replace it with a scope
   ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
   const restored = await restoreSession();
@@ -3362,7 +3363,7 @@ function landingHtml(){
           '<p>Create customers and their deployments, then work the network plans, credentials, Sections 1–6 per node, vCenter &amp; Arbiter, XML and documents.</p>' +
           '<button data-act="enterEngineer" class="primary">Unlock →</button></div>' +
       '</div>' +
-        ((hasLegacyData() || hasBaked()) ? ' <a href="#" data-act="legacyMode">Open saved data from the previous version</a>' : '') + '</p>' +
+        '</p>' +
     '</div></div>';
 }
 function pickerHtml(){

@@ -1,5 +1,5 @@
 {
-  "version": "1.5.5",
+  "version": "1.5.6",
   "updated": "2026-11-16",
-  "notes": "Customer folder names in the public repo are now opaque hashes; legacy folders migrate on engineer sign-in."
+  "notes": "Legacy single-user mode retired: always opens the multi-customer flow."
 }

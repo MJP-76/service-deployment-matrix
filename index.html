@@ -208,7 +208,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 </header>
 
 <nav id="tabs">
-  <button data-tab="customers" hidden>Customers</button>
+  <button data-tab="customers" hidden>Home</button>
   <button data-tab="intro" class="on">Instructions</button>
   <button data-tab="details">Details</button>
   <button data-tab="nodes">Nodes</button>
@@ -742,7 +742,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.5';
+const KIT_VERSION = '1.4.6';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1847,6 +1847,7 @@ async function engineerSignIn(pw){
     return;
   }
   session.role = 'engineer'; session.registry = normalizeRegistry(reg);
+  custNav = { partnerId: null, customerId: null, year: null };
   session.cid = null; session.cname = null; session.account = null;
   session.keyC = null; session.raw = null; session.acctSalt = null; session.missingStubs = null;
   store = null;
@@ -3754,7 +3755,10 @@ function render(){
       ? 'Deployment Engineer section: unlocked for this session.'
       : 'Sections locked — a password is required on every load.');
 }
-function gotoTab(t){ ui.tab = t; render(); window.scrollTo({ top:0 }); }
+function gotoTab(t){
+  if (t === 'customers') custNav = { partnerId: null, customerId: null, year: null };
+  ui.tab = t; render(); window.scrollTo({ top:0 });
+}
 
 /* ================= node modal ================= */
 function openNodeModal(id){

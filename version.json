@@ -1,5 +1,5 @@
 {
-  "version": "1.4.5",
+  "version": "1.4.6",
   "updated": "2026-11-16",
-  "notes": "Advanced tab renamed Import / Export."
+  "notes": "Customers tab becomes Home and always returns to the engineer landing page."
 }

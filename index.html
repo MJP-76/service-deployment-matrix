@@ -312,6 +312,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
     <h2 id="nameTitle">New deployment</h2>
     <div class="grid" id="nameSvcRow" hidden>
       <label>Vendor<select id="nameVendor"></select></label>
+      <label>Product<select id="nameProduct"></select></label>
       <label>Service<select id="nameSvc"></select></label>
     </div>
     <label>Deployment name<input id="nameInput" placeholder="Customer — PROD"></label>
@@ -325,6 +326,8 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 <div id="custModal" class="overlay" hidden>
   <div class="panel" style="max-width:430px">
     <h2 id="custTitle">Add customer</h2>
+    <label>Partner<select id="c_partner"></select></label>
+    <label>New partner name (optional)<input id="c_partner_new" placeholder="Leave blank to use the partner above" autocomplete="off"></label>
     <div id="custIdRow">
       <label>Customer name<input id="c_name" placeholder="Acme Ltd" autocomplete="off"></label>
       <label>Customer ID (they sign in with this)<input id="c_id" class="mono" placeholder="acme" autocomplete="off"></label>
@@ -740,7 +743,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.3.0';
+const KIT_VERSION = '1.4.0';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -777,7 +780,12 @@ const DEFAULT_SETTINGS = {
    The service catalogue is vendor-independent — the same three services
    (deployment / upgrade / expansion) apply to every vendor. Add a vendor
    by appending its name to VENDORS; no service changes are needed. */
-const VENDORS = ['HPE SimpliVity', 'Nutanix'];
+const VENDORS = ['HPE', 'Nutanix'];
+/* Product catalogue per vendor. Add new products here as they are released. */
+const PRODUCTS = {
+  'HPE': ['SimpliVity', 'Hardware'],
+  'Nutanix': ['Nutanix Cloud Infrastructure']
+};
 const SERVICES = ['deployment', 'upgrade', 'expansion'];
 function serviceLabel(s){
   return s === 'upgrade' ? 'Upgrade' : s === 'expansion' ? 'Expansion' : 'Deployment';
@@ -789,10 +797,33 @@ function serviceOfName(name){
   return 'deployment';
 }
 function vendorServiceLabel(d){
-  return (d.vendor || VENDORS[0]) + ' ' + serviceLabel(d.service || 'deployment');
+  const v = canonicalVendor(d.vendor);
+  const parts = [v, d.product || '', serviceLabel(d.service || 'deployment')].filter(Boolean);
+  if (d.product && v && d.product.toLowerCase().indexOf(v.toLowerCase()) === 0) parts.shift();
+  return parts.join(' ');
 }
-function servicesForVendor(v){ return v === 'Nutanix' ? ['deployment'] : SERVICES; }
-function isNutanix(d){ return !!d && d.vendor === 'Nutanix'; }
+function depYearOf(d){
+  const t = d && (d.createdAt || d.updatedAt || (d.project && d.project.installDate));
+  const y = t ? new Date(t).getFullYear() : new Date().getFullYear();
+  return String(isNaN(y) ? new Date().getFullYear() : y);
+}
+function servicesForVendor(v){ return SERVICES; }
+function productsForVendor(v){ return PRODUCTS[canonicalVendor(v)] || []; }
+function canonicalVendor(v){ return v === 'HPE SimpliVity' ? 'HPE' : (v || VENDORS[0]); }
+function defaultProduct(vendor, product){
+  const list = productsForVendor(vendor);
+  if (product && list.indexOf(product) >= 0) return product;
+  return list[0] || '';
+}
+/* 'simplivity' | 'nutanix' | 'hardware' — drives which tabs and document are used. */
+function productKind(d){
+  if (!d) return 'none';
+  if (d.product === 'Hardware') return 'hardware';
+  if (canonicalVendor(d.vendor) === 'Nutanix') return 'nutanix';
+  return 'simplivity';
+}
+function isNutanix(d){ return productKind(d) === 'nutanix'; }
+function isHardware(d){ return productKind(d) === 'hardware'; }
 function pad2(n){ return (n < 10 ? '0' : '') + n; }
 
 /* ================= Nutanix model ================= */
@@ -892,18 +923,22 @@ const session = { role: null, cid: null, cname: null, keyC: null, engKey: null, 
 let nameTarget = null;   // id of the deployment being renamed outside the workbook
 let custMode = 'add';    // customer modal: 'add' | 'reset'
 let custTarget = null;   // customer id when custMode === 'reset'
+let custNav = { partnerId: null, customerId: null, year: null };   // Customers drill-down
 let editingNodeId = null;
 let nodeDraft = null;
 let nameMode = 'new';
 let printRestore = null;
 
 /* ================= model ================= */
-function newDeployment(name, vendor, service){
+function newDeployment(name, vendor, service, product){
+  const cv = canonicalVendor(vendor);
   return {
     id: uid(),
     name: name || 'Deployment 1',
-    vendor: vendor || VENDORS[0],
+    vendor: cv,
+    product: defaultProduct(cv, product),
     service: service || 'deployment',
+    createdAt: Date.now(),
     version: '',
     project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'',
       partnerCompany:'', partnerName:'', partnerTitle:'', partnerEmail:'', partnerPhone:'' },
@@ -963,7 +998,9 @@ function normalizeDep(src){
   const dep = Object.assign({}, base, src);
   dep.id = src.id || uid();
   dep.name = src.name || 'Deployment';
-  dep.vendor = src.vendor || VENDORS[0];
+  dep.vendor = canonicalVendor(src.vendor);
+  dep.product = defaultProduct(dep.vendor, src.product || (src.vendor === 'HPE SimpliVity' ? 'SimpliVity' : ''));
+  dep.createdAt = src.createdAt || src.updatedAt || Date.now();
   dep.service = SERVICES.includes(src.service) ? src.service : serviceOfName(dep.name);
   dep.project = Object.assign({}, base.project, src.project || {});
   dep.orders = Object.assign({}, base.orders, src.orders || {});
@@ -1292,7 +1329,8 @@ const SCOPE_FREE_ACTS = new Set([
   'custSignIn', 'enterCustomer', 'enterEngineer', 'legacyMode', 'leaveLegacy', 'signOut',
   'backToPicker', 'openCustDep', 'openCust', 'newDepFor', 'addCust', 'resetPw',
   'renameCust', 'delCust', 'renameDepTarget', 'delDepTarget', 'saveGhToken', 'clearGhToken',
-  'pushAll', 'reloadStore'
+  'pushAll', 'reloadStore',
+  'openPartner', 'openPartnerCustomer', 'openYear', 'custCrumb'
 ]);
 /* Engineer-side settings when no customer scope is open (Setup edits). */
 function engSettings(){
@@ -1325,6 +1363,16 @@ function acctPath(cid){ return 'customers/' + cid + '/account.enc'; }
 function depPath(cid, did){ return 'customers/' + cid + '/deps/' + did + '.enc'; }
 function slugId(s){ return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
 function regCustomer(cid){ return session.registry && (session.registry.customers || []).find(c => c.id === cid) || null; }
+/* Partners are registry metadata: Partner › Customer › Year › Deployment. */
+function normalizeRegistry(reg){
+  reg = reg || { v: 1, customers: [] };
+  if (!Array.isArray(reg.partners)) reg.partners = [];
+  if (!reg.partners.length) reg.partners.push({ id: uid(), name: 'TD SYNNEX', createdAt: Date.now() });
+  (reg.customers || []).forEach(c => {
+    if (!c.partnerId || !reg.partners.some(p => p.id === c.partnerId)) c.partnerId = reg.partners[0].id;
+  });
+  return reg;
+}
 
 function cacheGet(path){
   try{ const s = localStorage.getItem(BLOB_PREFIX + path); return s ? JSON.parse(s) : null; }catch(e){ return null; }
@@ -1580,9 +1628,9 @@ async function importKeyC(c){ return importKey(c.keyC); }
 
 /* --- deployment halves: pub is wrapped for customer AND engineer, eng for engineer only --- */
 function pubHalf(d){
-  return { id: d.id, name: d.name, vendor: d.vendor, service: d.service, version: d.version,
+  return { id: d.id, name: d.name, vendor: d.vendor, product: d.product, service: d.service, version: d.version,
     project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter,
-    nutanix: d.nutanix, engineer: d.engineer, updatedAt: Date.now() };
+    nutanix: d.nutanix, engineer: d.engineer, createdAt: d.createdAt, updatedAt: Date.now() };
 }
 function engHalf(d){
   return { id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter, orders: d.orders };
@@ -1632,8 +1680,8 @@ function stubsFor(cid){
   if (session.missingStubs) session.missingStubs.forEach(s => { if (!byId[s.id]) byId[s.id] = Object.assign({}, s); });
   if (store && session.cid === cid){
     store.deployments.forEach(d => {
-      byId[d.id] = { id: d.id, name: d.name, vendor: d.vendor, service: d.service,
-        company: (d.project && d.project.company) || '', updatedAt: Date.now() };
+      byId[d.id] = { id: d.id, name: d.name, vendor: d.vendor, product: d.product, service: d.service,
+        company: (d.project && d.project.company) || '', createdAt: d.createdAt, updatedAt: Date.now() };
     });
   }
   return Object.values(byId);
@@ -1798,7 +1846,7 @@ async function engineerSignIn(pw){
     $('#unlockPw').select();
     return;
   }
-  session.role = 'engineer'; session.registry = reg;
+  session.role = 'engineer'; session.registry = normalizeRegistry(reg);
   session.cid = null; session.cname = null; session.account = null;
   session.keyC = null; session.raw = null; session.acctSalt = null; session.missingStubs = null;
   store = null;
@@ -1863,12 +1911,12 @@ async function openCustomerDep(did){
   ui.custTab = 'workbook';
   render();
 }
-async function createDeployment(vendor, service, name){
+async function createDeployment(vendor, service, name, product){
   const cid = session.cid;
   const c = cid && regCustomer(cid);
   if (!c || !session.engKey){ $('#nameModal').hidden = true; return toast('Open a customer first', true); }
   const keyC = await importKeyC(c);
-  const dep = newDeployment(name, vendor, service);
+  const dep = newDeployment(name, vendor, service, product);
   const file = await sealDep(pubHalf(dep), engHalf(dep), keyC, session.engKey);
   await blobWrite(depPath(cid, dep.id), JSON.stringify(file));
   if (!session.raw || !session.raw.set) session.raw = new Map();
@@ -1877,7 +1925,7 @@ async function createDeployment(vendor, service, name){
   else { store.deployments.push(dep); store.currentId = dep.id; }
   dirty.registry = true; dirty.account = true;
   await flushSync();
-  ui.tab = (vendor === 'Nutanix') ? 'clusters' : 'details';
+  ui.tab = productKind(dep) === 'nutanix' ? 'clusters' : productKind(dep) === 'hardware' ? 'intro' : 'details';
   render();
   toast('Deployment created — ' + vendor + ' ' + serviceLabel(service));
 }
@@ -1896,9 +1944,19 @@ async function addCustomer(){
   const rawKey = await crypto.subtle.exportKey('raw', keyC);
   const acct = { v: 1, id: id, name: name, settings: Object.assign({}, DEFAULT_SETTINGS), deployments: [] };
   await blobWrite(acctPath(id), JSON.stringify(await sealBlob(keyC, salt, acct)));
+  session.registry = normalizeRegistry(session.registry);
+  let pid = ($('#c_partner') && $('#c_partner').value) || '';
+  const newPartner = (($('#c_partner_new') && $('#c_partner_new').value) || '').trim();
+  if (newPartner){
+    const np = { id: uid(), name: newPartner, createdAt: Date.now() };
+    session.registry.partners.push(np);
+    pid = np.id;
+  }
+  if (!pid) pid = session.registry.partners[0].id;
   (session.registry.customers = session.registry.customers || []).push(
-    { id: id, name: name, keyC: b64(rawKey), salt: b64(salt), deployments: [] });
+    { id: id, name: name, partnerId: pid, keyC: b64(rawKey), salt: b64(salt), deployments: [] });
   await writeRegistry();
+  custNav = { partnerId: pid, customerId: id, year: null };
   $('#custModal').hidden = true;
   render();
   toast('Customer created — sign-in ID "' + id + '" (share it with the password you chose)');
@@ -2376,6 +2434,7 @@ function docCreditHtml(){
 }
 function docInner(d){
   if (isNutanix(d)) return nutanixDocInner(d);
+  if (isHardware(d)) return hardwareDocInner(d);
   const p = d.project;
   const secs = [];
   secs.push(['Customer & project', kvTable([
@@ -2545,6 +2604,53 @@ function nutanixDocInner(d){
     secs.map((s, i) => '<h2>' + (i + 1) + ' · ' + esc(s[0]) + '</h2>' + s[1]).join('\n') +
     '</div>';
 }
+function hardwareIntroHtml(){
+  return '<div class="doc">' +
+    '<div class="dochead"><div class="dochead-text"><h1>How to complete this workbook</h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project: ' + esc(cur().name) + ' · Version ' + esc(cur().version || '—') + ' · Hardware deployment</div></div></div>' +
+    '<h2>1 · What this is</h2>' +
+    '<p>This workbook records the site, contacts and pre-flight checks for a hardware deployment. Product-specific configuration is not part of this product yet.</p>' +
+    '<h2>2 · Tabs</h2>' +
+    '<ul>' +
+    '<li><b>Project Details</b> — company, site, contacts and partner contact.</li>' +
+    '<li><b>Pre-Flight Checklist</b> — sign-off items before the build.</li>' +
+    '<li><b>Document</b> — printable / exportable reference.</li>' +
+    '</ ul>' +
+    '<p class="sub">Everything saves as you type and syncs through the shared store when a GitHub token is configured.</p>' +
+  '</div>';
+}
+function hardwareDocInner(d){
+  const p = d.project;
+  const secs = [];
+  secs.push(['Customer & project', kvTable([
+    ['Company', p.company], ['Project name', d.version], ['Installation address', p.address], ['Installation date', p.installDate],
+    ['Contact', p.contactName], ['Title', p.contactTitle], ['Email', p.contactEmail], ['Phone', p.contactPhone],
+    ['Project stakeholder', p.stakeholder || ''],
+    ['Partner company', p.partnerCompany || ''],
+    ['Assigned engineer', d.engineer.name ? d.engineer.name + (d.engineer.email ? ' <' + d.engineer.email + '>' : '') : '']
+  ])]);
+  if (ui.includeChecklist){
+    secs.push(['Pre-flight checklist',
+      '<ul>' + CHECKLIST.map(([k, label]) =>
+        '<li class="' + (d.checklist[k] ? 'ok' : 'no') + '">' + (d.checklist[k] ? '☑' : '☐') + ' ' + esc(label) + '</li>'
+      ).join('') + '</ul>']);
+  }
+  secs.push(['Hardware', '<p class="sub">Hardware product — no cluster or hypervisor configuration is recorded for this product.</p>']);
+  const logo = S().logoData
+    ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
+    : '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  return '<div class="doc">' +
+    '<div class="dochead">' +
+    '<div class="dochead-logo">' + logo + '</div>' +
+    '<div class="dochead-text">' +
+    '<h1>' + esc(d.name) + ' <span>— Deployment Reference</span><span class="verbadge">' + esc(d.version || '') + '</span></h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project ' + esc(d.version || '—') + ' · Hardware deployment · Generated ' + esc(new Date().toLocaleString()) + (p.company ? ' · ' + esc(p.company) : '') + '</div></div>' +
+    '</div>' +
+    secs.map((s, i) => '<h2>' + (i + 1) + ' · ' + esc(s[0]) + '</h2>' + s[1]).join('\n') +
+    '</div>';
+}
 function docPaneHtml(){
   const d = cur();
   return '<div class="pane">' +
@@ -2589,7 +2695,7 @@ function b64Fold(s){ return (s.match(/.{1,76}/g) || []).join('\r\n'); }
 function buildEmailEml(d, cust, eng){
   const dateStamp = new Date().toISOString().slice(0, 10);
   const fname = docFname(d);
-  const subject = 'HPE SimpliVity deployment reference — ' + d.name + ' ' + (d.version || '') + ' (' + dateStamp + ')';
+  const subject = vendorServiceLabel(d) + ' reference — ' + d.name + ' ' + (d.version || '') + ' (' + dateStamp + ')';
   const firstName = d.project.contactName ? d.project.contactName.split(/\s+/)[0] : '';
   const bodyLines = [
     firstName ? 'Hi ' + firstName + ',' : 'Hello,',
@@ -3115,7 +3221,7 @@ function pickerHtml(){
     ? stubs.map(s =>
       '<div class="gate-card" data-act="openCustDep" data-id="' + esc(s.id) + '" style="cursor:pointer;text-align:left">' +
         '<h3>' + esc(s.name) + '</h3>' +
-        '<p class="hint">' + esc(s.vendor || VENDORS[0]) + ' · ' + serviceLabel(s.service) + (s.company ? ' · ' + esc(s.company) : '') + '</p>' +
+        '<p class="hint">' + esc(s.vendor || '') + (s.product ? ' · ' + esc(s.product) : '') + ' · ' + serviceLabel(s.service) + (s.company ? ' · ' + esc(s.company) : '') + '</p>' +
         '<p class="hint">' + (s.updatedAt ? 'Updated ' + new Date(s.updatedAt).toLocaleDateString() : '&nbsp;') + '</p>' +
       '</div>').join('')
     : '<p class="hint">No deployments yet — TD SYNNEX is preparing yours. Check back soon.</p>';
@@ -3135,37 +3241,107 @@ function transportHtml(){
     '</p></section>';
 }
 function customersHtml(){
-  const reg = session.registry || { customers: [] };
-  const list = (reg.customers || []).map(c => {
-    const deps = c.deployments || [];
-    const depRows = deps.length
-      ? deps.map(s =>
-        '<div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap">' +
-          '<span>' + esc(s.name) + ' <span class="hint">(' + esc(s.vendor || VENDORS[0]) + ' · ' + serviceLabel(s.service) + ')</span></span>' +
-          '<span class="row">' +
-            '<button data-act="openCust" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Open</button>' +
-            '<button data-act="renameDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Rename…</button>' +
-            '<button data-act="delDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Delete</button>' +
-          '</span></div>').join('')
-      : '<p class="hint">No deployments yet.</p>';
-    return '<section class="card"><h2>' + esc(c.name) + '</h2>' +
-      '<p class="hint">Customer ID: <b class="mono">' + esc(c.id) + '</b> · they sign in with this ID and their password.</p>' +
-      depRows +
+  const reg = normalizeRegistry(session.registry || { customers: [] });
+  if (custNav.partnerId && !reg.partners.some(p => p.id === custNav.partnerId)) custNav = { partnerId: null, customerId: null, year: null };
+  const p = custNav.partnerId ? reg.partners.find(x => x.id === custNav.partnerId) : null;
+  if (!p) return partnerListHtml(reg);
+  const c = custNav.customerId ? (reg.customers || []).find(x => x.id === custNav.customerId) : null;
+  if (custNav.customerId && !c){ custNav.customerId = null; custNav.year = null; }
+  if (!c) return partnerPageHtml(reg, p);
+  if (!custNav.year) return customerPageHtml(reg, p, c);
+  return yearPageHtml(reg, p, c, custNav.year);
+}
+function partnerCustomers(reg, pid){ return (reg.customers || []).filter(c => c.partnerId === pid); }
+function depCount(c){ return (c.deployments || []).length; }
+function yearsForCustomer(c){
+  const map = {};
+  (c.deployments || []).forEach(s => {
+    const y = depYearOf(s);
+    (map[y] = map[y] || []).push(s);
+  });
+  return map;
+}
+function crumb(parts){
+  return '<div class="row" style="gap:6px;flex-wrap:wrap;margin:0 0 10px">' + parts.map((x, i) => {
+    const last = i === parts.length - 1;
+    if (last) return '<b>' + esc(x.label) + '</b>';
+    return '<button data-act="custCrumb" data-level="' + esc(x.level) + '"' + (x.id ? ' data-id="' + esc(x.id) + '"' : '') + '>' + esc(x.label) + '</button><span class="dim">›</span>';
+  }).join('') + '</div>';
+}
+function partnerListHtml(reg){
+  const cards = reg.partners.map(p => {
+    const cs = partnerCustomers(reg, p.id);
+    const dn = cs.reduce((n, c) => n + depCount(c), 0);
+    return '<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div><h2 style="margin:0">' + esc(p.name) + '</h2>' +
+      '<p class="hint" style="margin:4px 0 0">' + cs.length + ' customer' + (cs.length === 1 ? '' : 's') + ' · ' + dn + ' deployment' + (dn === 1 ? '' : 's') + '</p></div>' +
+      '<button data-act="openPartner" data-id="' + esc(p.id) + '" class="primary">Open →</button>' +
+    '</div></section>';
+  }).join('');
+  return '<div class="pane">' +
+    '<div class="rolehead"><h2>Partners</h2>' +
+      '<p class="hint">Every customer sits under a partner. Open a partner to see its customers, then choose a customer and a year to reach the deployments.</p>' +
+      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
+    transportHtml() +
+    (cards || '<section class="card"><p class="hint">No partners yet — add a customer with a new partner name.</p></section>') +
+  '</div>';
+}
+function partnerPageHtml(reg, p){
+  const cs = partnerCustomers(reg, p.id);
+  const rows = cs.length ? cs.map(c =>
+    '<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div><h2 style="margin:0">' + esc(c.name) + '</h2>' +
+      '<p class="hint" style="margin:4px 0 0">Customer ID <b class="mono">' + esc(c.id) + '</b> · ' + depCount(c) + ' deployment' + (depCount(c) === 1 ? '' : 's') + '</p></div>' +
+      '<button data-act="openPartnerCustomer" data-id="' + esc(c.id) + '" class="primary">Open →</button>' +
+    '</div></section>').join('')
+    : '<section class="card"><p class="hint">No customers under this partner yet.</p></section>';
+  return '<div class="pane">' +
+    crumb([{ level: 'root', label: 'Partners' }, { level: 'partner', id: p.id, label: p.name }]) +
+    '<div class="rolehead"><h2>' + esc(p.name) + '</h2>' +
+      '<p class="hint">Customers delivered by this partner.</p>' +
+      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
+    rows + '</div>';
+}
+function customerPageHtml(reg, p, c){
+  const years = yearsForCustomer(c);
+  const keys = Object.keys(years).sort().reverse();
+  const rows = keys.length ? keys.map(y =>
+    '<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div><h2 style="margin:0">' + esc(y) + '</h2>' +
+      '<p class="hint" style="margin:4px 0 0">' + years[y].length + ' deployment' + (years[y].length === 1 ? '' : 's') + '</p></div>' +
+      '<button data-act="openYear" data-year="' + esc(y) + '" class="primary">Open →</button>' +
+    '</div></section>').join('')
+    : '<section class="card"><p class="hint">No deployments yet — use <b>+ New deployment</b>.</p></section>';
+  return '<div class="pane">' +
+    crumb([{ level: 'root', label: 'Partners' }, { level: 'partner', id: p.id, label: p.name }, { level: 'customer', id: c.id, label: c.name }]) +
+    '<div class="rolehead"><h2>' + esc(c.name) + '</h2>' +
+      '<p class="hint">Customer ID <b class="mono">' + esc(c.id) + '</b> · they sign in with this ID and their password.</p>' +
       '<div class="row" style="flex-wrap:wrap">' +
         '<button data-act="newDepFor" data-id="' + esc(c.id) + '" class="primary">+ New deployment</button>' +
-        '<button data-act="openCust" data-id="' + esc(c.id) + '">Open</button>' +
         '<button data-act="renameCust" data-id="' + esc(c.id) + '">Rename…</button>' +
         '<button data-act="resetPw" data-id="' + esc(c.id) + '">Set password…</button>' +
         '<button data-act="delCust" data-id="' + esc(c.id) + '" class="danger">Delete…</button>' +
-      '</div></section>';
-  }).join('');
+      '</div></div>' +
+    rows + '</div>';
+}
+function yearPageHtml(reg, p, c, year){
+  const deps = (c.deployments || []).filter(s => depYearOf(s) === String(year));
+  const rows = deps.length ? deps.map(s =>
+    '<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<div><h2 style="margin:0">' + esc(s.name) + '</h2>' +
+      '<p class="hint" style="margin:4px 0 0">' + esc(vendorServiceLabel(s)) + '</p></div>' +
+      '<span class="row" style="flex-wrap:wrap">' +
+        '<button data-act="openCust" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '" class="primary">Open</button>' +
+        '<button data-act="renameDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '">Rename…</button>' +
+        '<button data-act="delDepTarget" data-id="' + esc(c.id) + '" data-dep="' + esc(s.id) + '" class="danger">Delete</button>' +
+      '</span></div></section>').join('')
+    : '<section class="card"><p class="hint">No deployments in this year.</p></section>';
   return '<div class="pane">' +
-    '<div class="rolehead"><h2>Customers</h2>' +
-      '<p class="hint">Each customer signs in with their own ID and password and sees only the deployments created for them. Every deployment is one vendor plus one of the three services — deployment, upgrade or expansion — the same services for every vendor.</p>' +
-      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
-    transportHtml() +
-    (list || '<section class="card"><p class="hint">No customers yet — add your first with <b>+ Add customer</b>.</p></section>') +
-  '</div>';
+    crumb([{ level: 'root', label: 'Partners' }, { level: 'partner', id: p.id, label: p.name }, { level: 'customer', id: c.id, label: c.name }, { level: 'year', label: String(year) }]) +
+    '<div class="rolehead"><h2>' + esc(c.name) + ' · ' + esc(String(year)) + '</h2>' +
+      '<p class="hint">Deployments created in ' + esc(String(year)) + '.</p>' +
+      '<div class="row"><button data-act="newDepFor" data-id="' + esc(c.id) + '" class="primary">+ New deployment</button></div></div>' +
+    rows + '</div>';
 }
 function customerDetailsHtml(){
   const d = cur();
@@ -3205,28 +3381,28 @@ function customerDetailsHtml(){
 }
 
 function advancedHtml(){
-  const nut = isNutanix(cur());
+  const kind = productKind(cur());
   return '<div class="pane">' +
-    (nut ? '' : '<section class="card"><h2>Deployment XML</h2>' +
+    (kind === 'simplivity' ? '<section class="card"><h2>Deployment XML</h2>' +
       '<p class="hint">Import an existing SimpliVity Deployment Manager saved configuration XML file (the file name will differ per site/customer — from a customer or a previous export) to fill every node address plus the network, DNS and NTP fields in one step — existing nodes are matched by serial number, so nothing is duplicated. Export writes the XML file that SimpliVity Deployment Manager imports, flagging anything that deviates from the pre-flight standard first.</p>' +
       '<div class="row">' +
         '<button data-act="importXml" class="primary">Import XML…</button>' +
         '<button data-act="exportXml">Export XML…</button>' +
       '</div>' +
-    '</section>') +
+    '</section>' : '') +
     '<section class="card"><h2>Customer details</h2>' +
       '<p class="hint">Import the JSON attached to the customer\'s email to merge their project details, checklist, NTP and DNS into this deployment — nodes, networks and credentials are never touched.</p>' +
       '<div class="row">' +
         '<button data-act="importCustomer">Import customer details…</button>' +
       '</div>' +
     '</section>' +
-(nut ? '<section class="card"><h2>Deployment document</h2>' +
-      '<p class="hint">Print, save as PDF or export a standalone HTML reference of every Nutanix cluster, Prism Central, migration and Nutanix Central section.</p>' +
+(kind === 'simplivity'
+    ? '<section class="card"><h2>Pre-flight standard (locked on the forms)</h2>' +
+      '<p class="hint">Management MTU 1500 · storage and federation MTU 9000 · port groups VM Network / Management Network / SVT_StoragePortGroup / SVT_StorPG / SVT_FedPortGroup · identical OVC &amp; Host management netmask and gateway · OVC user svtcli.</p></section>'
+    : '<section class="card"><h2>Deployment document</h2>' +
+      '<p class="hint">Print, save as PDF or export a standalone HTML reference of this deployment.</p>' +
       '<div class="row"><button data-act="exportHtml" class="primary">Export standalone HTML</button>' +
-      '<button data-act="print">Print / Save PDF</button></div></section>'
-    : '<section class="card"><h2>Pre-flight standard (locked on the forms)</h2>' +
-      '<p class="hint">Management MTU 1500 · storage and federation MTU 9000 · port groups VM Network / Management Network / SVT_StoragePortGroup / SVT_StorPG / SVT_FedPortGroup · identical OVC &amp; Host management netmask and gateway · OVC user svtcli.</p>' +
-    '</section>') +
+      '<button data-act="print">Print / Save PDF</button></div></section>') +
   '</div>';
 }
 
@@ -3538,7 +3714,8 @@ function render(){
   // Tabs belong to the deployment workbook only - not the landing page, the
   // Customers registry, or the customer's "My deployments" picker.
   tabs.hidden = !(section && scoped && !picker && ui.tab !== 'customers');
-  const nut = isNutanix(cur());
+  const kind = productKind(cur());
+  const nut = kind === 'nutanix';
   const NUT_TABS = ['clusters', 'migration', 'nutral'];
   const SIMP_TABS = ['details', 'nodes', 'vc'];
   document.querySelectorAll('#tabs button').forEach(b => {
@@ -3546,14 +3723,17 @@ function render(){
     b.hidden = (b.dataset.tab === 'customers' && section !== 'engineer')
             || (b.dataset.tab === 'advanced' && section === 'customer')
             || (!nut && NUT_TABS.indexOf(b.dataset.tab) >= 0)
-            || (nut && SIMP_TABS.indexOf(b.dataset.tab) >= 0 && !(section === 'customer' && b.dataset.tab === 'details'));
+            || ((nut || kind === 'hardware') && SIMP_TABS.indexOf(b.dataset.tab) >= 0 && !(section === 'customer' && b.dataset.tab === 'details'));
     b.disabled = !!(newMode && !scoped && b.dataset.tab !== 'customers');
   });
   const m = $('#main');
   if (!section) m.innerHTML = ui.legacy ? legacyLandingHtml() : landingHtml();
   else if (picker) m.innerHTML = pickerHtml();
   else if (ui.tab === 'customers' && section !== 'customer') m.innerHTML = customersHtml();
-  else if (ui.tab === 'intro') m.innerHTML = isNutanix(cur()) ? nutanixIntroHtml() : introHtml();
+  else if (ui.tab === 'intro') m.innerHTML = (function(){
+    const k = productKind(cur());
+    return k === 'nutanix' ? nutanixIntroHtml() : k === 'hardware' ? hardwareIntroHtml() : introHtml();
+  })();
   else if (ui.tab === 'details') m.innerHTML = (section === 'customer') ? customerDetailsHtml() : detailsHtml();
   else if (ui.tab === 'nodes') m.innerHTML = nodesHtml();
   else if (ui.tab === 'vc') m.innerHTML = vcHtml();
@@ -3728,15 +3908,29 @@ async function delNode(id){
 
 /* ================= name modal ================= */
 function todayStamp(){ return new Date().toISOString().slice(0, 10); }
-function fillNameSelects(vendor, service){
-  const vs = $('#nameVendor'), ss = $('#nameSvc');
-  if (vs){ vs.innerHTML = VENDORS.map(v => '<option value="' + esc(v) + '"' + (v === vendor ? ' selected' : '') + '>' + esc(v) + '</option>').join(''); vs.value = vendor; }
+function fillNameSelects(vendor, service, product){
+  const vs = $('#nameVendor'), ps = $('#nameProduct'), ss = $('#nameSvc');
+  const cv = canonicalVendor(vendor);
+  if (vs){ vs.innerHTML = VENDORS.map(v => '<option value="' + esc(v) + '"' + (v === cv ? ' selected' : '') + '>' + esc(v) + '</option>').join(''); vs.value = cv; }
+  if (ps){
+    const plist = productsForVendor(cv);
+    const pv = defaultProduct(cv, product);
+    ps.innerHTML = plist.map(x => '<option value="' + esc(x) + '"' + (x === pv ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    ps.value = pv;
+  }
   if (ss){
-    const list = servicesForVendor(vendor);
+    const list = servicesForVendor(cv);
     if (list.indexOf(service) < 0) service = list[0];
     ss.innerHTML = list.map(s => '<option value="' + s + '"' + (s === service ? ' selected' : '') + '>' + serviceLabel(s) + '</option>').join('');
     ss.value = service;
   }
+}
+function fillPartnerSelect(selected){
+  const ps = $('#c_partner');
+  if (!ps) return;
+  const reg = normalizeRegistry(session.registry);
+  ps.innerHTML = reg.partners.map(p => '<option value="' + esc(p.id) + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
+  if (selected) ps.value = selected;
 }
 function openNameModal(mode, targetId){
   nameMode = mode;
@@ -3749,21 +3943,22 @@ function openNameModal(mode, targetId){
   const ref = mode === 'renameCustomer' ? null
     : nameTarget && store ? (store.deployments.find(d => d.id === nameTarget) || null)
     : (store ? cur() : null);
-  fillNameSelects(ref ? ref.vendor : VENDORS[0], ref ? ref.service : 'deployment');
+  fillNameSelects(ref ? ref.vendor : VENDORS[0], ref ? ref.service : 'deployment', ref ? ref.product : '');
   const inp = $('#nameInput');
   if (mode === 'rename' || mode === 'renameCustomer') inp.value = ref ? ref.name : '';
   else if (mode === 'new'){
-    const v = $('#nameVendor').value, s = $('#nameSvc').value;
-    inp.value = v + ' ' + serviceLabel(s) + ' - ' + todayStamp();
+    const v = $('#nameVendor').value, pr = $('#nameProduct').value, s = $('#nameSvc').value;
+    inp.value = v + ' ' + pr + ' ' + serviceLabel(s) + ' - ' + todayStamp();
     inp.dataset.auto = 'yes';
   } else { inp.value = ''; delete inp.dataset.auto; }
   if (showSvc){
     const regen = () => {
       if (inp.dataset.auto !== 'yes') return;
-      inp.value = $('#nameVendor').value + ' ' + serviceLabel($('#nameSvc').value) + ' - ' + todayStamp();
+      inp.value = $('#nameVendor').value + ' ' + $('#nameProduct').value + ' ' + serviceLabel($('#nameSvc').value) + ' - ' + todayStamp();
     };
-    const vs = $('#nameVendor'), ss = $('#nameSvc');
-    if (vs) vs.onchange = regen;
+    const vs = $('#nameVendor'), ps = $('#nameProduct'), ss = $('#nameSvc');
+    if (vs) vs.onchange = () => { fillNameSelects(vs.value, ss.value, ps.value); regen(); };
+    if (ps) ps.onchange = regen;
     if (ss) ss.onchange = regen;
     inp.oninput = () => { inp.dataset.auto = 'no'; };
   }
@@ -3779,7 +3974,8 @@ function maybePromptName(){
 async function saveName(){
   const v = $('#nameInput').value.trim();
   if (!v) return toast('Name is required', true);
-  const vend = ($('#nameVendor') && $('#nameVendor').value) || VENDORS[0];
+  const vend = canonicalVendor(($('#nameVendor') && $('#nameVendor').value) || VENDORS[0]);
+  const prod = ($('#nameProduct') && $('#nameProduct').value) || defaultProduct(vend, '');
   const svc = ($('#nameSvc') && $('#nameSvc').value) || 'deployment';
   if (nameMode === 'renameCustomer'){
     const c = session.registry && (session.registry.customers || []).find(x => x.id === nameTarget);
@@ -3803,16 +3999,16 @@ async function saveName(){
   if (nameMode === 'new'){
     if (session.role === 'engineer'){
       $('#nameModal').hidden = true;
-      return createDeployment(vend, svc, v);
+      return createDeployment(vend, svc, v, prod);
     }
-    const d = newDeployment(v, vend, svc);
+    const d = newDeployment(v, vend, svc, prod);
     store.deployments.push(d);
     store.currentId = d.id;
-    ui.tab = 'details';
+    ui.tab = productKind(d) === 'nutanix' ? 'clusters' : productKind(d) === 'hardware' ? 'intro' : 'details';
   } else {
     const d = nameTarget && store ? (store.deployments.find(x => x.id === nameTarget) || cur()) : cur();
     d.name = v;
-    if (!$('#nameSvcRow').hidden){ d.vendor = vend; d.service = svc; }
+    if (!$('#nameSvcRow').hidden){ d.vendor = vend; d.product = defaultProduct(vend, prod); d.service = svc; }
   }
   await save();
   $('#nameModal').hidden = true;
@@ -4103,11 +4299,32 @@ function wire(){
       openNameModal('new');
       return;
     }
+    if (act === 'openPartner'){
+      custNav = { partnerId: el.dataset.id, customerId: null, year: null };
+      render(); return;
+    }
+    if (act === 'openPartnerCustomer'){
+      custNav.customerId = el.dataset.id; custNav.year = null;
+      render(); return;
+    }
+    if (act === 'openYear'){
+      custNav.year = el.dataset.year;
+      render(); return;
+    }
+    if (act === 'custCrumb'){
+      const lvl = el.dataset.level;
+      if (lvl === 'root') custNav = { partnerId: null, customerId: null, year: null };
+      else if (lvl === 'partner'){ custNav.customerId = null; custNav.year = null; }
+      else if (lvl === 'customer'){ custNav.year = null; }
+      render(); return;
+    }
     if (act === 'addCust'){
       custMode = 'add'; custTarget = null;
       $('#custTitle').textContent = 'Add customer';
       $('#custIdRow').hidden = false;
       $('#c_name').value = ''; $('#c_id').value = ''; $('#c_pw').value = '';
+      $('#c_partner_new').value = '';
+      fillPartnerSelect(custNav.partnerId || '');
       $('#c_id').dataset.auto = 'yes';
       $('#c_err').hidden = true;
       $('#c_save').textContent = 'Create customer';

@@ -1020,7 +1020,7 @@ function normalizeStore(s){
   if (!out.deployments.find(d => d.id === out.currentId)) out.currentId = out.deployments[0].id;
   return out;
 }
-function cur(){ return store.deployments.find(d => d.id === store.currentId) || store.deployments[0]; }
+function cur(){ return (store && Array.isArray(store.deployments) && (store.deployments.find(d => d.id === store.currentId) || store.deployments[0])) || null; }
 const S = () => (store && store.settings) || engSettings();
 
 function splitStore(){

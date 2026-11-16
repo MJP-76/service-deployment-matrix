@@ -218,7 +218,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <button data-tab="clusters">Clusters</button>
   <button data-tab="migration">Migration</button>
   <button data-tab="nutral">Nutanix Central</button>
-  <button data-tab="doc">Document</button>
+  <button data-tab="doc">Documentation</button>
   <button data-tab="advanced">Advanced</button>
 </nav>
 
@@ -743,7 +743,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.2';
+const KIT_VERSION = '1.4.3';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -2508,11 +2508,11 @@ function nutanixIntroHtml(){
     '<li><b>Clusters</b> — one card per cluster: Prism Element, hosts &amp; CVMs, containers, VLANs, switch ports, credentials, authentication, DNS/NTP, SSL and its Prism Central. Use <b>+ Add cluster</b> for more.</li>' +
     '<li><b>Migration</b> — Nutanix Move appliance and the vCenter / Hyper-V source.</li>' +
     '<li><b>Nutanix Central</b> — FQDN, subdomains, host-cluster addressing and certificates.</li>' +
-    '<li><b>Document</b> — printable / exportable reference for handover.</li>' +
+    '<li><b>Documentation</b> — printable / exportable reference for handover.</li>' +
     '</ul>' +
     '<h2>3 · Outputs</h2>' +
     '<ul>' +
-    '<li>a branded <b>deployment reference document</b> (Document tab) to print, save as PDF or export as standalone HTML;</li>' +
+    '<li>a branded <b>deployment reference document</b> (Documentation tab) to print, save as PDF or export as standalone HTML;</li>' +
     '<li>a <b>JSON backup</b> from Setup → Backup / restore for moving the workbook between machines.</li>' +
     '</ul>' +
     '<p class="sub">Everything saves as you type. Entries sync through the shared store when a GitHub token is configured.</p>' +
@@ -2617,7 +2617,7 @@ function hardwareIntroHtml(){
     '<ul>' +
     '<li><b>Project Details</b> — company, site, contacts and partner contact.</li>' +
     '<li><b>Pre-Flight Checklist</b> — sign-off items before the build.</li>' +
-    '<li><b>Document</b> — printable / exportable reference.</li>' +
+    '<li><b>Documentation</b> — printable / exportable reference.</li>' +
     '</ ul>' +
     '<p class="sub">Everything saves as you type and syncs through the shared store when a GitHub token is configured.</p>' +
   '</div>';
@@ -2861,7 +2861,7 @@ function introHtml(){
     '<p>This page gathers everything needed for your HPE SimpliVity deployment — site details, network plans, node addresses and credentials — in one place instead of emailed spreadsheets. Entries are saved in this browser on this machine only. Once the data is complete it produces:</p>' +
     '<ul>' +
     '<li>the <b>DeploymentConfiguration XML</b> that SimpliVity Deployment Manager imports to run the deployment;</li>' +
-    '<li>a branded <b>deployment reference document</b> (Document tab) to print or export as a standalone HTML file;</li>' +
+    '<li>a branded <b>deployment reference document</b> (Documentation tab) to print or export as a standalone HTML file;</li>' +
     '<li><b>one-click shortcuts</b> to iLO, ESXi, OVC and vCenter while the build is in progress.</li>' +
     '</ul>' +
 
@@ -2873,7 +2873,7 @@ function introHtml(){
     '<tr><td>Nodes</td><td>Deployment engineer</td><td>Sections 1–6 repeated for every node: iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation</td></tr>' +
     '<tr><td>vCenter &amp; Arbiter</td><td>End customer engineer</td><td>Sections 7 and 8 — one vCenter and one Arbiter per deployment (a cluster / datacenter is its own deployment), including the deployment DNS and NTP servers; the VAMI page opens on port 5480</td></tr>' +
     '<tr><td>Advanced</td><td>Deployment engineer</td><td>Import / export the DeploymentConfiguration XML and import the customer details email</td></tr>' +
-    '<tr><td>Document</td><td>Both — review</td><td>Check the generated reference, then print, export or generate the email draft</td></tr>' +
+    '<tr><td>Documentation</td><td>Both — review</td><td>Check the generated reference, then print, export or generate the email draft</td></tr>' +
     '</tbody></table>' +
 
     '<h2>3 · Step by step</h2>' +
@@ -2883,7 +2883,7 @@ function introHtml(){
     '<li><b>Deployment Engineer → Details</b> — enter the four network plans and the site credentials (ESXi, vCenter including root, OVC). Required fields are marked; press <b>Save &amp; next → Nodes</b> to validate and continue.</li>' +
     '<li><b>Add the nodes</b> — press <b>Add nodes…</b> and say how many the deployment has (e.g. 3). Fill in the first node\'s addresses and save: the other nodes are pre-filled automatically — each IP\'s last octet steps per node (…101 → …102, …103) and netmask &amp; gateway are copied. You can also use <b>Advanced → Import XML…</b> when a saved configuration XML already exists — it fills every address in one step. <b>Fill iLO IPs</b> derives iLO addresses from a prefix.</li>' +
     '<li><b>Enter vCenter and Arbiter</b> on their own tab — one of each per deployment (a cluster / datacenter is its own deployment). The deployment DNS and NTP servers are entered with vCenter, Section 7.</li>' +
-    '<li><b>Review the Document tab</b> — switch on <i>Include credentials</i> if the reference should carry passwords, then Print / Save as PDF, Export standalone HTML, or use <b>Email draft…</b> to send it to the customer contact and the assigned engineer.</li>' +
+    '<li><b>Review the Documentation tab</b> — switch on <i>Include credentials</i> if the reference should carry passwords, then Print / Save as PDF, Export standalone HTML, or use <b>Email draft…</b> to send it to the customer contact and the assigned engineer.</li>' +
     '<li><b>Advanced</b> — export the <code>…-SimpliVity-AllNodes.xml</code> for SimpliVity Deployment Manager, and import the JSON attached to the customer\'s details email.</li>' +
     '<li><b>Handover</b> — the <b>Setup</b> page (next to the version in the header) holds the launcher kit and <b>Save into file</b>, which bakes your data into the file so the next engineer picks up where you left off.</li>' +
     '</ol>' +

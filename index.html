@@ -742,7 +742,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.6';
+const KIT_VERSION = '1.4.7';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3966,13 +3966,13 @@ function openNameModal(mode, targetId){
   else if (mode === 'rename' || mode === 'renameCustomer') inp.value = ref ? ref.name : '';
   else if (mode === 'new'){
     const v = $('#nameVendor').value, pr = $('#nameProduct').value, s = $('#nameSvc').value;
-    inp.value = v + ' ' + pr + ' ' + serviceLabel(s) + ' - ' + todayStamp();
+    inp.value = vendorServiceLabel({ vendor: v, product: pr, service: s }) + ' - ' + todayStamp();
     inp.dataset.auto = 'yes';
   } else { inp.value = ''; delete inp.dataset.auto; }
   if (showSvc){
     const regen = () => {
       if (inp.dataset.auto !== 'yes') return;
-      inp.value = $('#nameVendor').value + ' ' + $('#nameProduct').value + ' ' + serviceLabel($('#nameSvc').value) + ' - ' + todayStamp();
+      inp.value = vendorServiceLabel({ vendor: $('#nameVendor').value, product: $('#nameProduct').value, service: $('#nameSvc').value }) + ' - ' + todayStamp();
     };
     const vs = $('#nameVendor'), ps = $('#nameProduct'), ss = $('#nameSvc');
     if (vs) vs.onchange = () => { fillNameSelects(vs.value, ss.value, ps.value); regen(); };

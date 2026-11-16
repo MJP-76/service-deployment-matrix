@@ -1,5 +1,5 @@
 {
-  "version": "1.4.6",
+  "version": "1.4.7",
   "updated": "2026-11-16",
-  "notes": "Customers tab becomes Home and always returns to the engineer landing page."
+  "notes": "Default deployment name drops the duplicated vendor when the product already begins with it."
 }

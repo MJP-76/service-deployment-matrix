@@ -755,7 +755,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.5.0';
+const KIT_VERSION = '1.5.1';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3880,7 +3880,90 @@ function pfParsePrereqs(models){
   }
   return { pre, checklist };
 }
+function pfRowHas(m, r, re){ const row = m.row(r); return Object.keys(row).some(c => re.test(String(row[c] || ''))); }
+function pfFindRow(m, re, after){
+  for (const r of m.rowNums()){ if (after && r <= after) continue; if (pfRowHas(m, r, re)) return r; }
+  return null;
+}
+function pfRange(a, b){ const out = []; if (a == null) return out; for (let r = a; r <= (b == null ? a + 200 : b); r++) out.push(r); return out; }
+function pfOldVals(m, rows, key, cols){
+  for (const r of rows){
+    const row = m.row(r);
+    if (String(row.A || '').trim() === String(key) || String(row.B || '').trim() === String(key)){
+      return cols.map(c => String(row[c] || '').trim());
+    }
+  }
+  return cols.map(() => '');
+}
+function pfOldNodeCols(m){
+  for (const r of m.rowNums()){
+    const row = m.row(r);
+    if (String(row.A || '').trim() === '42' || String(row.B || '').trim() === '42'){
+      const cols = Object.keys(row).filter(c => ['A', 'B', 'C'].indexOf(c) < 0 && String(row[c] || '').trim() !== '').sort((a, b) => pfColIdx(a) - pfColIdx(b));
+      if (cols.length) return cols;
+    }
+  }
+  return ['D', 'E'];
+}
+function pfParseDeploymentOld(sheet, m){
+  const s1 = pfFindRow(m, /^Section 1 - iLO/i);
+  if (s1 == null) return null;
+  const esxi = pfFindRow(m, /vSwitch0 \(vmk0\)/i, s1);
+  const dist = pfFindRow(m, /Distributed Switch/i, esxi);
+  const storage = pfFindRow(m, /vSwitch0 \(vmk1\)/i, dist);
+  if (!esxi || !storage) return null;
+  const vsRows = m.rowNums().filter(r => r > storage && pfRowHas(m, r, /^vSwitch0$/i));
+  const ovcStorage = vsRows[0] || null;
+  const fed = vsRows[1] || null;
+  const vc = pfFindRow(m, /^(vCenter|vCenter Information)$/i, fed) || pfFindRow(m, /^79$/, fed);
+  const arb = pfFindRow(m, /^Arbiter$/i, vc) || pfFindRow(m, /^96$/, vc);
+  const cols = pfOldNodeCols(m);
+  const blocks = {
+    ilo: pfRange(s1, esxi - 1),
+    esxi: pfRange(esxi, dist),
+    ovc: pfRange(dist + 1, storage - 1),
+    storage: pfRange(storage, ovcStorage ? ovcStorage - 1 : fed),
+    ovcStorage: pfRange(ovcStorage, fed ? fed - 1 : ovcStorage + 5),
+    fed: pfRange(fed, vc ? vc - 1 : fed + 12),
+    vc: pfRange(vc, arb ? arb - 1 : vc + 20),
+    arb: pfRange(arb, null)
+  };
+  const V = (block, key) => pfOldVals(m, blocks[block], key, cols);
+  const first = a => a.find(x => x && x.trim()) || '';
+  const nodes = cols.map((c, i) => ({
+    col: c, serial: '',
+    ilo: { host: V('ilo', 42)[i], ip: V('ilo', 45)[i], subnet: V('ilo', 46)[i], gateway: V('ilo', 48)[i], dns1: V('ilo', 50)[i], dns2: V('ilo', 51)[i], vlan: V('ilo', 54)[i], portType: V('ilo', 52)[i], user: 'administrator', pass: '' },
+    esxi: { host: V('esxi', 57)[i], mtu: String(V('esxi', 59)[i]).split('/')[0].trim(), ip: V('esxi', 60)[i], subnet: V('esxi', 61)[i], gateway: V('esxi', 48)[i], dns1: V('esxi', 50)[i], dns2: V('esxi', 51)[i], vlan: V('esxi', 54)[i], portType: V('esxi', 52)[i], nics: V('esxi', 64)[i] },
+    ovc: { mgmt: V('ovc', 60)[i], storage: V('ovcStorage', 60)[i], fed: V('fed', 60)[i], storagePg: V('ovcStorage', 67)[i], fedPg: V('fed', 67)[i], fedSubnet: V('fed', 61)[i], fedMtu: V('fed', 59)[i], fedVlan: V('fed', 54)[i] },
+    vmk: { ip: V('storage', 60)[i], subnet: V('storage', 61)[i], gateway: V('storage', 70)[i], vlan: V('storage', 72)[i], mtu: V('storage', 59)[i], portGroup: V('storage', 67)[i], nics: V('storage', 73)[i] }
+  }));
+  const vcVals = k => first(pfOldVals(m, blocks.vc, k, cols));
+  const arbVals = k => first(pfOldVals(m, blocks.arb, k, cols));
+  const vcenter = { hostname: vcVals(79), ip: vcVals(60), datacenter: vcVals(80), env: vcVals(82), version: vcVals(83), ssoUser: 'administrator@vsphere.local' };
+  const arbiter = { hostname: arbVals(96), ip: arbVals(60), domain: '', email: '' };
+  const ntp = [vcVals(88), vcVals(90), vcVals(92)].filter(Boolean);
+  const n0 = nodes[0];
+  const networks = {
+    ilo: { netmask: n0.ilo.subnet, gateway: n0.ilo.gateway, dns1: n0.ilo.dns1, dns2: n0.ilo.dns2, vlan: n0.ilo.vlan },
+    management: { netmask: n0.esxi.subnet, gateway: n0.esxi.gateway, vlan: n0.esxi.vlan, mtu: n0.esxi.mtu || '1500', vSwitch: 'vSwitch0', portGroup: 'VM Network', hostPortGroup: 'Management Network' },
+    storage: { netmask: n0.vmk.subnet, vmkNetmask: n0.vmk.subnet, vcGateway: n0.vmk.gateway, vmkGateway: n0.vmk.gateway, vlan: n0.vmk.vlan, mtu: n0.vmk.mtu || '9000', vSwitch: 'vSwitch1', portGroup: n0.vmk.portGroup || 'SVT_StorPG', vmkPortGroup: n0.vmk.portGroup || 'SVT_StorPG' },
+    federation: { netmask: n0.ovc.fedSubnet, gateway: V('fed', 70)[0] || '', vlan: n0.ovc.fedVlan, mtu: n0.ovc.fedMtu || '1500', vSwitch: 'vSwitch1', portGroup: n0.ovc.fedPg || 'SVT_FedPortGroup' }
+  };
+  const suffix = (vcenter.datacenter || sheet.split(' - ').pop() || sheet).trim();
+  const warnings = ['Legacy workbook layout: no serial numbers in this document.'];
+  if (!vcenter.hostname) warnings.push('No vCenter hostname found');
+  if (!vcenter.ip) warnings.push('No vCenter IP found');
+  return {
+    sheet, name: 'HPE SimpliVity Deployment - ' + suffix, suffix,
+    nodes, vcenter, arbiter, ntp,
+    dns: { primary: n0.ilo.dns1, secondary: n0.ilo.dns2 },
+    networks, warnings,
+    matched: nodes.length * 10
+  };
+}
 function pfParseDeployment(sheet, m){
+  const hasSerial = m.rowNums().some(r => Object.values(m.row(r)).some(v => /^Serial Number$/i.test(String(v).trim())));
+  if (!hasSerial) return pfParseDeploymentOld(sheet, m);
   const secs = pfSections(m);
   if (!secs[1]) return null;
   const cols = pfNodeCols(m, secs[1]);

@@ -1,5 +1,5 @@
 {
-  "version": "1.7.2",
+  "version": "1.7.3",
   "updated": "2026-11-16",
-  "notes": "Pre-flight import: positional fallback when field keys are not recognised."
+  "notes": "HTTP/HTTPS jump points open in a new tab."
 }

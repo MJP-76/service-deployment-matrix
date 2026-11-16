@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.2';
+const KIT_VERSION = '1.7.3';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -2891,7 +2891,7 @@ function nodeRowHtml(n, idx){
   const esx = esxiCred(n);
   const ovc = ovcCred(n);
   const chips = [];
-  if (n.ilo.ip) chips.push('<a class="chip web" href="' + esc(webUrl(n.ilo.ip)) + '" title="Open iLO web UI (https)">iLO</a>');
+  if (n.ilo.ip) chips.push('<a class="chip web" href="' + esc(webUrl(n.ilo.ip)) + '" target="_blank" rel="noopener noreferrer" title="Open iLO web UI (https)">iLO</a>');
   if (n.esxi.ip) chips.push('<a class="chip ssh" href="' + esc(sshUrl(esx.user, esx.pass, n.esxi.ip)) + '" title="SSH to ESXi host (PuTTY)">ESXi</a>');
   if (n.ovc.mgmt) chips.push('<a class="chip ssh" href="' + esc(sshUrl(ovc.user, ovc.pass, n.ovc.mgmt)) + '" title="SSH to OVC (PuTTY)">OVC</a>');
   return '<tr>' +
@@ -2975,8 +2975,8 @@ function vcHtml(){
       '<label>Search domain<input data-bind="dns.search" value="' + esc(d.dns.search) + '"></label>' +
       '<label class="full">NTP servers (one per line)<textarea rows="3" class="mono" data-bind="ntp">' + esc(d.ntp) + '</textarea></label>' +
     '</div><div class="row">' +
-      (web ? '<a class="chip web" href="' + esc(web) + '" title="Open vSphere Client (https)">Web</a>' : '') +
-      (vami ? '<a class="chip vami" href="' + esc(vami) + '" title="Open vCenter VAMI (https://ip:5480)">VAMI</a>' : '') +
+      (web ? '<a class="chip web" href="' + esc(web) + '" target="_blank" rel="noopener noreferrer" title="Open vSphere Client (https)">Web</a>' : '') +
+      (vami ? '<a class="chip vami" href="' + esc(vami) + '" target="_blank" rel="noopener noreferrer" title="Open vCenter VAMI (https://ip:5480)">VAMI</a>' : '') +
       (ssh ? '<a class="chip ssh" href="' + esc(ssh) + '" title="SSH to vCenter (PuTTY)">SSH</a>' : '') +
       (scp ? '<a class="chip xfer" href="' + esc(scp) + '" title="Open in WinSCP">WinSCP</a>' : '') +
       '<details class="menu"><summary title="Copy…">⧉</summary><div class="menu-body">' +

@@ -755,7 +755,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.5.1';
+const KIT_VERSION = '1.5.3';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3798,20 +3798,27 @@ async function pfReadWorkbook(file){
     if (!xmlBytes) continue;
     const ws = pfXml(xmlBytes);
     const cells = {};
+    let formulaOnly = 0;
     for (const c of ws.getElementsByTagName('c')){
       const ref = c.getAttribute('r');
       if (!ref) continue;
+      if (c.getElementsByTagName('f').length && !c.getElementsByTagName('v').length) formulaOnly++;
       cells[ref.toUpperCase()] = pfCellValue(c, shared);
     }
     sheets[name] = pfSheetModel(cells);
+    sheets[name].formulaOnly = formulaOnly;
   }
   return sheets;
 }
 function pfSections(m){
   const starts = [];
   for (const r of m.rowNums()){
-    const a = String(m.row(r).A || '').trim();
-    const mm = /^Section\s+(\d+)/i.exec(a);
+    const row = m.row(r);
+    let mm = null;
+    for (const c of ['A', 'B', 'C']){
+      mm = /^Section\s+(\d+)/i.exec(String(row[c] || '').trim());
+      if (mm) break;
+    }
     if (mm) starts.push({ n: Number(mm[1]), r });
   }
   starts.sort((a, b) => a.r - b.r);
@@ -3824,7 +3831,9 @@ function pfVal(m, sec, key, col){
   if (!sec) return '';
   for (let r = sec.start; r <= sec.end; r++){
     const row = m.row(r);
-    if (String(row.A || '').trim() === String(key)) return String(row[col] || '').trim();
+    if (String(row.A || '').trim() === String(key) || String(row.B || '').trim() === String(key)){
+      return String(row[col] || '').trim();
+    }
   }
   return '';
 }
@@ -3832,8 +3841,19 @@ function pfNodeCols(m, sec){
   const row = m.row(sec.start + 1);
   const cols = Object.keys(row).sort((a, b) => pfColIdx(a) - pfColIdx(b));
   const i = cols.findIndex(c => /serial/i.test(String(row[c] || '')));
-  if (i < 0) return [];
-  return cols.slice(i + 1).filter(c => String(row[c] || '').trim() !== '');
+  if (i >= 0){
+    const out = cols.slice(i + 1).filter(c => String(row[c] || '').trim() !== '');
+    if (out.length) return out;
+  }
+  // no serial header: use the first keyed row below and its value columns
+  for (let r = sec.start + 1; r <= sec.start + 6; r++){
+    const rr = m.row(r);
+    const keyCol = ['A', 'B'].find(c => /^\d+$/.test(String(rr[c] || '').trim()));
+    if (!keyCol) continue;
+    const out = Object.keys(rr).filter(c => pfColIdx(c) > pfColIdx(keyCol) && String(rr[c] || '').trim() !== '').sort((a, b) => pfColIdx(a) - pfColIdx(b));
+    if (out.length) return out;
+  }
+  return [];
 }
 const PF_LABELS = [
   ['company', /^Company Name$/i], ['address', /^Installation Address$/i], ['installDate', /^Installation Date$/i],
@@ -3951,6 +3971,7 @@ function pfParseDeploymentOld(sheet, m){
   };
   const suffix = (vcenter.datacenter || sheet.split(' - ').pop() || sheet).trim();
   const warnings = ['Legacy workbook layout: no serial numbers in this document.'];
+  if (m.formulaOnly > 5) warnings.push('This workbook contains formulae without saved results — open it in Excel, let it calculate, save, then import again.');
   if (!vcenter.hostname) warnings.push('No vCenter hostname found');
   if (!vcenter.ip) warnings.push('No vCenter IP found');
   return {
@@ -3990,16 +4011,24 @@ function pfParseDeployment(sheet, m){
     federation: { netmask: n0.ovc.fedSubnet, gateway: g(6, 67, c0), vlan: n0.ovc.fedVlan, mtu: n0.ovc.fedMtu || '1500', vSwitch: 'vSwitch1', portGroup: n0.ovc.fedPg || 'SVT_FedPortGroup' }
   };
   const suffix = sheet.replace(/^.*?SimpliVity[\s_-]*/i, '').trim() || vcenter.env || sheet;
-  const warnings = [];
+  const warningExtra = (m.formulaOnly > 5) ? ['This workbook contains formulae without saved results — open it in Excel, let it calculate, save, then import again.'] : [];
+  const warnings = warningExtra.slice();
+  let matched = 0;
+  nodes.forEach(n => {
+    ['host', 'ip', 'subnet', 'gateway', 'vlan'].forEach(k => { if (n.ilo[k]) matched++; });
+    ['host', 'ip', 'subnet', 'gateway', 'vlan'].forEach(k => { if (n.esxi[k]) matched++; });
+    ['mgmt', 'storage', 'fed'].forEach(k => { if (n.ovc[k]) matched++; });
+    ['ip', 'subnet', 'gateway', 'vlan'].forEach(k => { if (n.vmk[k]) matched++; });
+  });
   if (!vcenter.hostname) warnings.push('No vCenter hostname found');
   if (!vcenter.ip) warnings.push('No vCenter IP found');
+  if (matched < 8) warnings.push('Only ' + matched + ' address field(s) matched — the workbook may use a different column layout.');
   nodes.forEach((n, i) => { if (!n.esxi.host) warnings.push('Node ' + (i + 1) + ': no ESXi host name'); });
   return {
     sheet, name: 'HPE SimpliVity Deployment - ' + suffix, suffix,
     nodes, vcenter, arbiter, ntp,
     dns: { primary: n0.ilo.dns1, secondary: n0.ilo.dns2 },
-    networks, warnings,
-    matched: nodes.length * 10 + (vcenter.hostname ? 1 : 0) + (arbiter.hostname ? 1 : 0)
+    networks, warnings, matched
   };
 }
 function pfParseWorkbook(models){
@@ -4104,7 +4133,12 @@ function pfShowPreview(res){
     '<option value="__new__">+ New partner…</option>';
   const depRows = deps.map((x, i) =>
     '<label class="check" style="display:block;margin:4px 0"><input type="checkbox" class="pfDep" data-i="' + i + '" checked> <b>' + esc(x.name) + '</b>' +
-    ' <span class="hint">' + x.nodes.length + ' node(s) · ' + esc(x.vcenter.hostname || 'no vCenter') + ' · ' + esc(x.vcenter.env || '') + '</span></label>'
+    (function(){
+      const n0 = x.nodes[0] || {};
+      const sample = [n0.ilo && n0.ilo.ip ? 'iLO ' + n0.ilo.ip : '', n0.esxi && n0.esxi.ip ? 'ESXi ' + n0.esxi.ip : ''].filter(Boolean).join(' · ');
+      return ' <span class="hint">' + x.nodes.length + ' node(s) · ' + (x.matched || 0) + ' field(s) matched' +
+        (sample ? ' · ' + esc(sample) : '') + ' · ' + esc(x.vcenter.hostname || 'no vCenter') + ' · ' + esc(x.vcenter.env || '') + '</span>';
+    })() + '</label>'
   ).join('');
   const warn = deps.reduce((a, x) => a.concat(x.warnings || []), []);
   $('#pfPreview').innerHTML =

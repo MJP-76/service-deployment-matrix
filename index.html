@@ -1304,6 +1304,51 @@ async function blobRead(path, fresh){
 }
 /* Write a blob: cache always, GitHub when a token is set (offline → local only). */
 let syncFallback = false;
+let syncDiagText = '';
+function localBlobPaths(){
+  const out = [];
+  try{
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (!k || k.indexOf(BLOB_PREFIX) !== 0) continue;
+      const p = k.slice(BLOB_PREFIX.length);
+      if (p && !isGone(p)) out.push(p);
+    }
+  }catch(e){}
+  return out;
+}
+const KIT_REPO_API = 'https://api.github.com/repos/MJP-76/service-deployment-matrix';
+/* Verify a pasted token really can write to this repo. Returns {ok,msg}. */
+async function probeToken(v){
+  try{
+    const r = await fetch(KIT_REPO_API, { headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
+    if (r.status === 401) return { ok:false, msg:'GitHub rejected the token (401) — it is invalid or expired.' };
+    if (r.status === 404) return { ok:false, msg:'Token cannot see MJP-76/service-deployment-matrix (404) — check Repository access.' };
+    if (!r.ok) return { ok:false, msg:'GitHub returned ' + r.status + ' while checking the repo.' };
+    const j = await r.json();
+    if (j && j.permissions && typeof j.permissions.push === 'boolean'){
+      if (!j.permissions.push) return { ok:false, msg:'Token can read the repo but not write — set Contents: Read and write.' };
+      return { ok:true, msg:'Token OK — can write to the repo.' };
+    }
+    const path = '.svtkit/write-check.txt';
+    const body = new TextEncoder().encode('ok ' + new Date().toISOString());
+    let bin = ''; for (let i = 0; i < body.length; i++) bin += String.fromCharCode(body[i]);
+    let sha = null;
+    try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){}
+    const put = await fetch(GH_CONTENTS + path, { method:'PUT', headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
+      body: JSON.stringify(Object.assign({ message:'svtkit: token check', content: btoa(bin) }, sha ? { sha } : {})) });
+    if (put.status === 401) return { ok:false, msg:'GitHub rejected the token (401) — it is invalid or expired.' };
+    if (put.status === 403 || put.status === 404) return { ok:false, msg:'Token cannot write to the repo (' + put.status + ') — set Contents: Read and write.' };
+    if (!put.ok) return { ok:false, msg:'GitHub returned ' + put.status + ' while testing a write.' };
+    try{
+      await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: remove token check'), { method:'DELETE',
+        headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json' } });
+    }catch(e){}
+    return { ok:true, msg:'Token OK — can write to the repo.' };
+  }catch(e){
+    return { ok:false, msg:'Could not reach GitHub — check the connection.' };
+  }
+}
 async function blobWrite(path, text){
   const cached = cacheGet(path);
   setGone(path, false);
@@ -1337,18 +1382,10 @@ async function blobDelete(path){
 /* Re-upload every encrypted blob cached in this browser (recovery after a bad
    token left data local-only). Use on the machine with the newest data. */
 async function pushAllLocalBlobs(){
-  if (!ghToken()) return toast('Paste a GitHub token first', true);
-  let paths = [];
-  try{
-    for (let i = 0; i < localStorage.length; i++){
-      const k = localStorage.key(i);
-      if (!k || k.indexOf(BLOB_PREFIX) !== 0) continue;
-      const p = k.slice(BLOB_PREFIX.length);
-      if (p && !isGone(p)) paths.push(p);
-    }
-  }catch(e){}
-  if (!paths.length) return toast('Nothing local to push', true);
-  let ok = 0, fail = 0;
+  if (!ghToken()){ syncDiagText = 'No token saved — paste one above and press Save token first.'; render(); return toast('Paste a GitHub token first', true); }
+  const paths = localBlobPaths();
+  if (!paths.length){ syncDiagText = 'Nothing cached in this browser to push.'; render(); return toast('Nothing local to push', true); }
+  let ok = 0; const errs = [];
   for (const path of paths){
     const c = cacheGet(path);
     if (!c || !c.text) continue;
@@ -1356,22 +1393,20 @@ async function pushAllLocalBlobs(){
       let sha = c.sha || null;
       if (!sha){ try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){} }
       let newSha;
-      try{
-        newSha = await ghPut(path, c.text, sha);
-      }catch(e){
-        // stale/missing sha → refetch once and retry
+      try{ newSha = await ghPut(path, c.text, sha); }
+      catch(e){
         let sha2 = null;
         try{ const g = await ghGet(path); sha2 = g ? g.sha : null; }catch(e2){}
         newSha = await ghPut(path, c.text, sha2);
       }
-      cachePut(path, c.text, newSha);
-      ok++;
-    }catch(e){ fail++; }
+      cachePut(path, c.text, newSha); ok++;
+    }catch(e){ if (errs.length < 2) errs.push(path + ': ' + (e && e.message ? e.message : String(e))); }
   }
-  if (fail){ syncFallback = true; showSyncWarn(); }
-  else { syncFallback = false; hideSyncWarn(); }
+  syncDiagText = 'Pushed ' + ok + ' of ' + paths.length + ' file(s).' + (errs.length ? ' Errors: ' + errs.join('; ') : '');
+  if (ok && !errs.length){ syncFallback = false; hideSyncWarn(); }
+  else if (!ok){ syncFallback = true; showSyncWarn(); }
   render();
-  toast('Pushed ' + ok + ' file' + (ok === 1 ? '' : 's') + ' to GitHub' + (fail ? ' — ' + fail + ' failed' : ''));
+  toast(errs.length ? ('Push failed — ' + errs[0]) : ('Pushed ' + ok + ' file' + (ok === 1 ? '' : 's') + ' to GitHub'), !!errs.length);
 }
 /* Force a fresh pull from GitHub without signing out. */
 async function reloadStoreFromGitHub(){
@@ -2720,6 +2755,7 @@ function setupHtml(){
       '<button data-act="clearGhToken">Clear token</button>' +
       '<button data-act="pushAll">Push all local data</button>' +
       '<button data-act="reloadStore">Reload from GitHub</button>' +
+      '<p class="hint" style="margin-top:8px">' + esc(syncDiagText || ('Local files cached in this browser: ' + localBlobPaths().length + '.')) + '</p>' +
       '<span class="hint">' + (!ghToken() ? 'Not connected — data stays in this browser.' : (syncFallback ? 'Token rejected — saving in this browser only.' : 'Connected — files sync with GitHub.')) + '</span></div>' +
       '<p class="hint" style="margin-top:8px"><b>Push all local data</b> uploads every encrypted file this browser has cached — use it on the machine holding the newest data after fixing the token. <b>Reload from GitHub</b> pulls the shared store again without signing out.</p>' +
     '</section>' +
@@ -3687,12 +3723,9 @@ function wire(){
       const v = ($('#s_ghToken').value || '').trim();
       if (!v) return toast('Paste a GitHub token first', true);
       ghAuthWarned = false;
-      let okToken = false;
-      try{
-        const r = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + v, Accept: 'application/vnd.github+json' }, cache: 'no-store' });
-        okToken = r.ok;
-      }catch(e){ okToken = false; }
-      if (!okToken) return toast('GitHub rejected that token — check it is valid and has Contents: read/write', true);
+      const probe = await probeToken(v);
+      syncDiagText = probe.msg;
+      if (!probe.ok){ render(); return toast(probe.msg, true); }
       try{ localStorage.setItem(LS.token, v); }catch(e){ return toast('Could not store the token in this browser', true); }
       syncFallback = false; hideSyncWarn();
       render();
@@ -3704,7 +3737,7 @@ function wire(){
     if (act === 'clearGhToken'){
       ghAuthWarned = false;
       try{ localStorage.removeItem(LS.token); }catch(e){}
-      syncFallback = false; hideSyncWarn();
+      syncFallback = false; syncDiagText = ''; hideSyncWarn();
       render();
       toast('Token cleared — data stays in this browser');
       return;

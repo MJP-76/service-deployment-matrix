@@ -746,7 +746,7 @@ const LS = {
   blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
-const KIT_VERSION = '1.6.3';
+const KIT_VERSION = '1.6.4';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1620,6 +1620,7 @@ async function signOut(){
   pendingSection = null;
   dirty.registry = false; dirty.account = false; dirty.deps = new Set();
   ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
+  document.querySelectorAll('.overlay').forEach(o => { o.hidden = true; });
   $('#main').innerHTML = '';
   $('#depSel').innerHTML = '';
   $('#counts').textContent = '';

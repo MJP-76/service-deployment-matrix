@@ -1,5 +1,5 @@
 {
-  "version": "1.6.3",
+  "version": "1.6.4",
   "updated": "2026-11-16",
-  "notes": "Pre-flight diagnostics mask values (layout markers only)."
+  "notes": "Auto-lock/sign-out closes any open dialog."
 }

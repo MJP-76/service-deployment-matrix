@@ -20,17 +20,13 @@ Open `index.html` in any modern browser — no server, no build, no install.
 
 ## Data
 
-Each customer account and deployment is encrypted (AES-GCM; keys derived from passwords with PBKDF2) and stored per path in this browser's localStorage, which doubles as the offline cache. A fine-grained personal access token (**Contents: read and write**, this repository only) ships baked into the file, so encrypted files sync through GitHub out of the box and customers on other machines see updates. If the token is missing or expired, the kit warns and keeps everything in this browser instead; a replacement can be pasted in **Setup → Shared store** (saved in this browser's localStorage as an override) and the baked token can be restored with **Clear override**. Nothing readable leaves the browser either way.
+Each customer account and deployment is encrypted (AES-GCM; keys derived from passwords with PBKDF2) and stored per path in this browser's localStorage, which doubles as the offline cache. A fine-grained personal access token (**Contents: read and write**, this repository only) is pasted once per browser in **Setup → Shared store**, so encrypted files sync through GitHub and customers on other machines see updates. No token ships in the page. If the token is missing or expired, the kit says so and keeps everything in this browser instead. Nothing readable leaves the browser either way.
+
+Customer folders in the repository are opaque hashes (`customers/c-…`), never customer names; `registry.enc` is the encrypted index. Sign-in lasts 60 minutes of inactivity and survives a refresh; **Sign out** clears it.
 
 Storage keys are namespaced by the product ID (`KIT_NS = 'svt'`) at the top of the script, so future kits from the framework can share a machine without colliding — **never change that constant for a shipped kit, or its users' saved data is orphaned.**
 
-**Rotating the baked token:** create a new fine-grained PAT (repository `MJP-76/service-deployment-matrix`, Contents: read and write, ~90 days), replace `KIT_GH_TOKEN` in the script, bump `KIT_VERSION` and `version.json` together, then redistribute the file so copies pick up the new token (and the update banner prompts older copies).
-
-Use **Setup → Save into file…** to bake the current deployment into the file itself for offline handover — the recipient opens it with the team password.
-
-### Previous version
-
-Data saved by earlier single-user copies stays available: the sign-in page offers **Open saved data from the previous version**, which keeps the familiar Customer Engineer / Deployment Engineer sections and their passwords.
+**Rotating the token:** create a new fine-grained PAT (repository `MJP-76/service-deployment-matrix`, Contents: read and write, ~90 days) and paste it in **Setup → Shared store** on each machine. Bump `KIT_VERSION` and `version.json` together when shipping other changes so the update banner prompts older copies.
 
 ## Sharing with a customer
 

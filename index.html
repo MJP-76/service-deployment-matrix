@@ -1412,35 +1412,49 @@ async function pushAllLocalBlobs(){
 /* Force a fresh pull from GitHub without signing out. */
 async function reloadStoreFromGitHub(){
   if (!ghToken()) return toast('Paste a GitHub token first', true);
-  try{
-    if (session.role === 'engineer' && session.engKey){
-      const raw = await blobRead(REG_PATH, true);
-      if (!raw) return toast('No registry found in the shared store', true);
-      session.registry = await openBlob(session.engKey, raw);
-      if (session.cid && regCustomer(session.cid)){ await openCustomer(session.cid); return toast('Reloaded from GitHub'); }
-      render(); return toast('Reloaded the customer registry from GitHub');
+  if (session.role === 'engineer'){
+    if (!session.engKey){ openGate('engineer'); return toast('Re-enter the engineer password to unlock the shared registry', true); }
+    let raw = null;
+    try{ raw = await blobRead(REG_PATH, true); }
+    catch(e){ return toast('Could not reach the shared store — check the connection', true); }
+    if (!raw) return toast('No registry found in the shared store', true);
+    let reg = null;
+    try{ reg = await openBlob(session.engKey, raw); }
+    catch(e){
+      // This browser built its own registry (different salt) before the token
+      // existed, so its in-memory key cannot open the shared one. Re-enter
+      // the password and sign in again against the shared blob.
+      openGate('engineer');
+      return toast('Shared registry found — re-enter the engineer password to unlock it', true);
     }
-    if (session.role === 'customer' && session.cid && session.keyC){
-      const raw = await blobRead(acctPath(session.cid), true);
-      if (!raw) return toast('No account found in the shared store', true);
-      const acct = await openBlob(session.keyC, raw);
-      session.account = acct;
-      const deps = [];
-      for (const s of (acct.deployments || [])){
-        try{
-          const r = await blobRead(depPath(session.cid, s.id), true);
-          if (r) deps.push(normalizeDep(await openDepPub(r, session.keyC)));
-        }catch(e){}
-      }
-      store = deps.length ? scopeStore(deps) : null;
-      session.acctSalt = unb64(raw.salt);
-      render(); return toast('Reloaded from GitHub');
+    session.registry = reg;
+    if (session.cid && regCustomer(session.cid)){
+      try{ await openCustomer(session.cid); return toast('Reloaded from GitHub'); }
+      catch(e){ render(); return toast('Registry reloaded — open the customer again', true); }
     }
-    toast('Sign in first, then reload', true);
-  }catch(e){
-    syncFallback = true; showSyncWarn();
-    toast('Reload failed — ' + (e && e.message ? e.message : 'check the token'), true);
+    render(); return toast('Reloaded the customer registry from GitHub');
   }
+  if (session.role === 'customer' && session.cid && session.keyC){
+    let raw = null;
+    try{ raw = await blobRead(acctPath(session.cid), true); }
+    catch(e){ return toast('Could not reach the shared store — check the connection', true); }
+    if (!raw) return toast('No account found in the shared store', true);
+    let acct = null;
+    try{ acct = await openBlob(session.keyC, raw); }
+    catch(e){ return toast('Could not open this account — check the customer password', true); }
+    session.account = acct;
+    const deps = [];
+    for (const s of (acct.deployments || [])){
+      try{
+        const r = await blobRead(depPath(session.cid, s.id), true);
+        if (r) deps.push(normalizeDep(await openDepPub(r, session.keyC)));
+      }catch(e){}
+    }
+    store = deps.length ? scopeStore(deps) : null;
+    session.acctSalt = unb64(raw.salt);
+    render(); return toast('Reloaded from GitHub');
+  }
+  toast('Sign in first, then reload', true);
 }
 
 

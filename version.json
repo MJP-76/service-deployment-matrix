@@ -1,5 +1,5 @@
 {
-  "version": "1.7.3",
+  "version": "1.7.4",
   "updated": "2026-11-16",
-  "notes": "HTTP/HTTPS jump points open in a new tab."
+  "notes": "Removed Deployment/Upgrade Manager launch links (paths vary by version)."
 }

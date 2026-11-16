@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.3';
+const KIT_VERSION = '1.7.4';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -2396,9 +2396,6 @@ function linksText(d){
     }
     L.push('');
   }
-  L.push('Local tools (need the launcher kit from Setup):');
-  L.push('  Deployment Manager   svtdeploy://launch');
-  L.push('  Upgrade Manager      svtupgrade://launch');
   return L.join('\n');
 }
 function hpeMark(){
@@ -2934,9 +2931,6 @@ function nodesHtml(){
       '<span class="sep"></span>' +
       '<label class="inline" style="gap:6px">iLO IP prefix <input id="iloPrefix" placeholder="10.250.221." style="width:130px"></label>' +
       '<button data-act="fillIlo" title="Set each node\'s iLO IP to prefix + last octet of its ESXi management IP">Fill iLO IPs</button>' +
-      '<span class="flex"></span>' +
-      '<a class="chip dep" href="svtdeploy://launch" title="Launch SimpliVity Deployment Manager">Deployment Manager</a>' +
-      '<a class="chip upg" href="svtupgrade://launch" title="Launch SimpliVity Upgrade Manager">Upgrade Manager</a>' +
     '</div>' +
     '<p class="hint">Sections 1–6 repeat for every node — open the edit form for iLO, ESX &amp; management, OVC, storage VMK, OVC storage and federation details. Import / export the XML from the Import / Export tab.</p>' +
     (d.nodes.length
@@ -3001,11 +2995,6 @@ function vcHtml(){
       '<label>Administrator password<span class="pwrow"><input type="password" data-bind="arbiter.pass" value="' + esc(a.pass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
     '</div></section>' +
 
-    '<section class="card"><h2>Local tools</h2><div class="row">' +
-      '<a class="chip dep" href="svtdeploy://launch" title="Launch Deployment Manager">Deployment Manager</a>' +
-      '<a class="chip upg" href="svtupgrade://launch" title="Launch Upgrade Manager">Upgrade Manager</a>' +
-      '<span class="hint" style="margin:0">These start the Windows applications — configure their paths in Setup.</span>' +
-    '</div></section>' +
   '</div>';
 }
 function setupHtml(){
@@ -3056,8 +3045,6 @@ function setupHtml(){
       '<div class="row">' +
         '<a class="chip ssh" href="svtputty://tester@127.0.0.1:22">Test SSH</a>' +
         '<a class="chip xfer" href="svtwinscp://tester@127.0.0.1:22/sftp">Test WinSCP</a>' +
-        '<a class="chip dep" href="svtdeploy://launch">Test Deploy Manager</a>' +
-        '<a class="chip upg" href="svtupgrade://launch">Test Upgrade Manager</a>' +
       '</div>' +
     '</section>' +
 

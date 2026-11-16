@@ -1,5 +1,5 @@
 {
-  "version": "1.7.1",
+  "version": "1.7.2",
   "updated": "2026-11-16",
-  "notes": "Pre-flight import: handles 55.0-style numeric keys and the newer vCenter/NTP/arbiter key layout."
+  "notes": "Pre-flight import: positional fallback when field keys are not recognised."
 }

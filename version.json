@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
+  "version": "1.8.1",
   "updated": "2026-11-16",
-  "notes": "Label-driven SimpliVity import (all template generations) and the new Nutanix installation workbook importer."
+  "notes": "Nutanix Central tab is visible again (read-only value for now)."
 }

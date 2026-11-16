@@ -212,6 +212,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <button data-tab="checklist">Pre-Flight Checklist</button>
   <button data-tab="clusters">Clusters</button>
   <button data-tab="migration">Migration</button>
+  <button data-tab="central">Nutanix Central</button>
   <button data-tab="doc">Documentation</button>
   <button data-tab="advanced">Import / Export</button>
 </nav>
@@ -759,7 +760,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.8.0';
+const KIT_VERSION = '1.8.1';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -4883,7 +4884,7 @@ function render(){
   tabs.hidden = !(section && ((scoped && !picker && ui.tab !== 'customers') || ui.tab === 'setup'));
   const kind = productKind(cur());
   const nut = kind === 'nutanix';
-  const NUT_TABS = ['clusters', 'migration'];
+  const NUT_TABS = ['clusters', 'migration', 'central'];
   const SIMP_TABS = ['details', 'nodes', 'vc'];
   document.querySelectorAll('#tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === ui.tab);
@@ -4909,6 +4910,7 @@ function render(){
   else if (ui.tab === 'checklist') m.innerHTML = preFlightHtml();
   else if (ui.tab === 'clusters') m.innerHTML = nutanixClustersHtml();
   else if (ui.tab === 'migration') m.innerHTML = nutanixMigrationHtml();
+  else if (ui.tab === 'central') m.innerHTML = nutanixCentralHtml();
   else if (ui.tab === 'doc') m.innerHTML = docPaneHtml();
   else if (ui.tab === 'advanced') m.innerHTML = advancedHtml();
   else if (ui.tab === 'setup') m.innerHTML = setupHtml();

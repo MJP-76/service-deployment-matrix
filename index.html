@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.6';
+const KIT_VERSION = '1.7.7';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3032,7 +3032,7 @@ function setupHtml(){
         '<button data-act="dlReg">register-protocols.reg</button>' +
         '<span class="sep"></span>' +
         '<a class="chip ssh" href="https://the.earth.li/~sgtatham/putty/latest/w64/putty.exe" target="_blank" rel="noopener" title="Download portable PuTTY — save it into the kit folder">Get putty.exe</a>' +
-        '<a class="chip xfer" href="https://winscp.net/download/" target="_blank" rel="noopener" title="Download the WinSCP portable build — save it into the kit folder">Get WinSCP portable</a>' +
+        '<a class="chip xfer" href="https://winscp.net/eng/downloads.php" target="_blank" rel="noopener" title="Open the WinSCP downloads page — choose WinSCP Portable, unzip it into the kit folder">Get WinSCP portable</a>' +
       '</div>' +
       '<ol class="steps">' +
         '<li>Create the kit folder <code>%USERPROFILE%\\Downloads\\svt-tools</code> — that is where the Upgrade Manager will run from.</li>' +

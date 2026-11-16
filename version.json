@@ -1,5 +1,5 @@
 {
-  "version": "1.7.6",
+  "version": "1.7.7",
   "updated": "2026-11-16",
-  "notes": "Setup works with no deployment open (downloads and settings)."
+  "notes": "Get WinSCP points at the WinSCP downloads page (the old /download/ URL returns 403)."
 }

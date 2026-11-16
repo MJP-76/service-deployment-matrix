@@ -1,5 +1,5 @@
 {
-  "version": "1.6.2",
+  "version": "1.6.3",
   "updated": "2026-11-16",
-  "notes": "Pre-flight import: keys in any left column; Copy diagnostics button."
+  "notes": "Pre-flight diagnostics mask values (layout markers only)."
 }

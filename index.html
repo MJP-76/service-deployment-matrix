@@ -746,7 +746,7 @@ const LS = {
   blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
-const KIT_VERSION = '1.6.2';
+const KIT_VERSION = '1.6.3';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3983,9 +3983,22 @@ function pfBuildDep(p, pre, includeCreds){
 }
 let pfState = null;
 let pfModels = null;
+function pfMask(v, col){
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (/^Section\s+\d+/i.test(s)) return s.slice(0, 40);
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(s)) return /^255\./.test(s) ? '[mask]' : '[ip]';
+  if (/^\d+$/.test(s)) return (pfColIdx(col) <= 3 && Number(s) < 1000) ? s : '[num]';
+  return '[text]';
+}
 function pfDiagnostics(){
   if (!pfModels) return '{}';
-  const out = { sheets: Object.keys(pfModels), layouts: {} };
+  const parsed = pfParseWorkbook(pfModels);
+  const out = {
+    sheets: Object.keys(pfModels),
+    deployments: (parsed.deployments || []).map(d => ({ sheet: d.sheet, nodeCols: d.nodes.map(n => n.col), matched: d.matched, nodes: d.nodes.length })),
+    layouts: {}
+  };
   for (const name of Object.keys(pfModels)){
     const m = pfModels[name];
     const rows = [];
@@ -3995,7 +4008,7 @@ function pfDiagnostics(){
       let any = false;
       for (const c of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']){
         const v = row[c];
-        if (v != null && String(v).trim() !== ''){ o[c] = String(v).slice(0, 60); any = true; }
+        if (v != null && String(v).trim() !== ''){ o[c] = pfMask(v, c); any = true; }
       }
       if (any) rows.push(o);
     }

@@ -217,7 +217,6 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <button data-tab="checklist">Pre-Flight Checklist</button>
   <button data-tab="clusters">Clusters</button>
   <button data-tab="migration">Migration</button>
-  <button data-tab="nutral">Nutanix Central</button>
   <button data-tab="doc">Documentation</button>
   <button data-tab="advanced">Advanced</button>
 </nav>
@@ -743,7 +742,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.3';
+const KIT_VERSION = '1.4.4';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -2500,14 +2499,13 @@ function nutanixIntroHtml(){
     docCreditHtml() +
     '<div class="docmeta">Project: ' + esc(cur().name) + ' · Version ' + esc(cur().version || '—') + ' · Nutanix deployment</div></div></div>' +
     '<h2>1 · What this is</h2>' +
-    '<p>This page collects everything needed for a Nutanix deployment — site and contacts, each cluster with its hosts, containers and networking, the matching Prism Central, the Move migration project and Nutanix Central — in one place instead of a spreadsheet.</p>' +
+    '<p>This page collects everything needed for a Nutanix deployment — site and contacts, each cluster with its hosts, containers and networking, the matching Prism Central and the Move migration project — in one place instead of a spreadsheet.</p>' +
     '<h2>2 · Tabs</h2>' +
     '<ul>' +
     '<li><b>Project Details</b> — company, site, contacts and the partner contact.</li>' +
     '<li><b>Pre-Flight Checklist</b> — sign-off items before the build.</li>' +
     '<li><b>Clusters</b> — one card per cluster: Prism Element, hosts &amp; CVMs, containers, VLANs, switch ports, credentials, authentication, DNS/NTP, SSL and its Prism Central. Use <b>+ Add cluster</b> for more.</li>' +
     '<li><b>Migration</b> — Nutanix Move appliance and the vCenter / Hyper-V source.</li>' +
-    '<li><b>Nutanix Central</b> — FQDN, subdomains, host-cluster addressing and certificates.</li>' +
     '<li><b>Documentation</b> — printable / exportable reference for handover.</li>' +
     '</ul>' +
     '<h2>3 · Outputs</h2>' +
@@ -2584,12 +2582,6 @@ function nutanixDocInner(d){
   secs.push(['Migration — Nutanix Move', kvTable([
     ['VM name', m.vmName], ['FQDN', m.fqdn], ['IP address', m.ip], ['Subnet', m.subnet], ['Gateway', m.gateway],
     ['Source type', m.srcType], ['Source IP', m.srcIp], ['Source username', m.srcUser], ['Source password', m.srcPass]
-  ])]);
-  const c = nz.central;
-  secs.push(['Nutanix Central', kvTable([
-    ['FQDN', c.fqdn], ['Subdomains', c.subdomains], ['Host cluster VLAN', c.vlan], ['IP range (14 IPs)', c.ipRange],
-    ['Subnet mask', c.subnet], ['Gateway', c.gateway], ['Internal IPs (x2)', c.internalIps], ['External IPs (x2) to FQDN', c.externalIps],
-    ['SSL certificate', c.sslCert], ['SSL key', c.sslKey]
   ])]);
   const logo = S().logoData
     ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
@@ -3724,7 +3716,7 @@ function render(){
   tabs.hidden = !(section && scoped && !picker && ui.tab !== 'customers');
   const kind = productKind(cur());
   const nut = kind === 'nutanix';
-  const NUT_TABS = ['clusters', 'migration', 'nutral'];
+  const NUT_TABS = ['clusters', 'migration'];
   const SIMP_TABS = ['details', 'nodes', 'vc'];
   document.querySelectorAll('#tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === ui.tab);
@@ -3749,7 +3741,6 @@ function render(){
   else if (ui.tab === 'checklist') m.innerHTML = preFlightHtml();
   else if (ui.tab === 'clusters') m.innerHTML = nutanixClustersHtml();
   else if (ui.tab === 'migration') m.innerHTML = nutanixMigrationHtml();
-  else if (ui.tab === 'nutral') m.innerHTML = nutanixCentralHtml();
   else if (ui.tab === 'doc') m.innerHTML = docPaneHtml();
   else if (ui.tab === 'advanced') m.innerHTML = advancedHtml();
   else if (ui.tab === 'setup') m.innerHTML = setupHtml();

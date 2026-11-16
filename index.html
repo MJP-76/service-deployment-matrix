@@ -749,13 +749,14 @@ const LS = {
   customer:  KIT_NS + 'Customer.v1',      // customer-scoped store
   engineer:  KIT_NS + 'Engineer.v1',      // engineer-scoped store
   engSv:     KIT_NS + 'Kit.engSettings',  // Setup settings while no scope is open
+  session:   KIT_NS + 'Kit.session',      // 60-minute idle sign-in ticket
   token:     KIT_NS + 'Kit.ghToken',      // GitHub PAT pasted in Setup (overrides the baked one)
   dismissed: KIT_NS + 'Kit.dismissedVer', // dismissed update-banner version
   blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.5.3';
+const KIT_VERSION = '1.5.4';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1182,7 +1183,16 @@ async function init(){
   if (ui.legacy) return legacyInit();
   store = normalizeStore({});   // empty working set; sign-in flows replace it with a scope
   ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
-  render();
+  const restored = await restoreSession();
+  if (!restored) render();
+  ['click', 'keydown', 'change'].forEach(ev => document.addEventListener(ev, maybeTouchSession, true));
+  setInterval(() => {
+    const t = sessionTicket();
+    if (t && (!t.exp || Date.now() > t.exp)){
+      clearSessionTicket();
+      if (session.role) signOut();
+    }
+  }, 30000);
 }
 async function enterLegacy(){ ui.legacy = true; await legacyInit(); }
 function leaveLegacy(){ ui.legacy = false; ui.section = null; render(); }
@@ -1780,6 +1790,7 @@ async function flushSync(){
 }
 async function saveNow(){ markDirty(); await flushSync(); }
 async function signOut(){
+  clearSessionTicket();
   try{ await flushSync(); }catch(e){}
   if (syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
   session.role = null; session.cid = null; session.cname = null;
@@ -1794,6 +1805,88 @@ async function signOut(){
   $('#depSel').innerHTML = '';
   $('#counts').textContent = '';
   render();
+}
+
+/* --- 60-minute idle session ticket --- */
+const SESSION_TTL = 60 * 60 * 1000;
+function sessionTicket(){
+  try{ const s = localStorage.getItem(LS.session); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function clearSessionTicket(){ try{ localStorage.removeItem(LS.session); }catch(e){} }
+async function rememberSession(){
+  try{
+    let t = null;
+    if (session.role === 'engineer' && session.engKey && session.engSalt){
+      const raw = await crypto.subtle.exportKey('raw', session.engKey);
+      t = { v: 1, role: 'engineer', key: b64(new Uint8Array(raw)), salt: b64(session.engSalt), exp: Date.now() + SESSION_TTL };
+    } else if (session.role === 'customer' && session.keyC && session.acctSalt && session.cid){
+      const raw = await crypto.subtle.exportKey('raw', session.keyC);
+      t = { v: 1, role: 'customer', cid: session.cid, cname: session.cname || '', key: b64(new Uint8Array(raw)), salt: b64(session.acctSalt), exp: Date.now() + SESSION_TTL };
+    }
+    if (t) localStorage.setItem(LS.session, JSON.stringify(t));
+  }catch(e){ /* non-extractable key or storage blocked — sign-in still works */ }
+}
+function touchSession(){
+  const t = sessionTicket();
+  if (!t) return;
+  if (!t.exp || Date.now() > t.exp){ clearSessionTicket(); return; }
+  t.exp = Date.now() + SESSION_TTL;
+  try{ localStorage.setItem(LS.session, JSON.stringify(t)); }catch(e){}
+}
+let lastSessionTouch = 0;
+function maybeTouchSession(){
+  const now = Date.now();
+  if (now - lastSessionTouch < 30000) return;
+  lastSessionTouch = now;
+  touchSession();
+}
+async function restoreSession(){
+  const t = sessionTicket();
+  if (!t) return false;
+  if (!t.exp || Date.now() > t.exp){ clearSessionTicket(); return false; }
+  try{
+    if (t.role === 'engineer'){
+      const engKey = await importKey(t.key);
+      const engSalt = unb64(t.salt);
+      const raw = await blobRead(REG_PATH, true);
+      if (!raw) return false;
+      const reg = await openBlob(engKey, raw);
+      session.role = 'engineer'; session.engKey = engKey; session.engSalt = engSalt;
+      session.registry = normalizeRegistry(reg);
+      session.cid = null; session.cname = null; session.account = null;
+      session.keyC = null; session.raw = null; session.acctSalt = null; session.missingStubs = null;
+      custNav = { partnerId: null, customerId: null, year: null };
+      store = null;
+      ui.section = 'engineer'; ui.tab = 'customers'; ui.custTab = 'picker';
+      touchSession();
+      render();
+      return true;
+    }
+    if (t.role === 'customer' && t.cid){
+      const keyC = await importKey(t.key);
+      const acctSalt = unb64(t.salt);
+      const raw = await blobRead(acctPath(t.cid), true);
+      if (!raw) return false;
+      const acct = await openBlob(keyC, raw);
+      session.role = 'customer'; session.cid = t.cid; session.cname = acct.name || t.cname || t.cid;
+      session.keyC = keyC; session.account = acct; session.acctSalt = acctSalt;
+      session.engKey = null; session.engSalt = null; session.registry = null;
+      session.raw = null; session.missingStubs = null;
+      const deps = [];
+      for (const s of (acct.deployments || [])){
+        try{
+          const r = await blobRead(depPath(t.cid, s.id), true);
+          if (r) deps.push(normalizeDep(await openDepPub(r, keyC)));
+        }catch(e){}
+      }
+      store = deps.length ? scopeStore(deps) : null;
+      ui.section = 'customer'; ui.custTab = 'picker'; ui.tab = 'intro';
+      touchSession();
+      render();
+      return true;
+    }
+  }catch(e){ clearSessionTicket(); }
+  return false;
 }
 
 /* --- sign-in flows --- */
@@ -1815,7 +1908,7 @@ async function customerSignIn(){
   if (!raw){ errEl.hidden = false; errEl.textContent = 'No customer account with that ID'; return; }
   let key, acct;
   try{
-    key = await deriveKey(pw, unb64(raw.salt));
+    key = await deriveKey(pw, unb64(raw.salt), true);
     acct = await openBlob(key, raw);
   }catch(e){
     errEl.hidden = false; errEl.textContent = 'Wrong password for that customer ID';
@@ -1829,6 +1922,7 @@ async function customerSignIn(){
   store = null;
   ui.section = 'customer'; ui.custTab = 'picker'; ui.tab = 'intro';
   $('#custPwIn').value = '';
+  rememberSession();
   render();
   toast('Welcome, ' + (acct.name || cid));
 }
@@ -1847,11 +1941,11 @@ async function engineerSignIn(pw){
   try{
     if (!raw){
       session.engSalt = rndBytes(16);
-      session.engKey = await deriveKey(pw, session.engSalt);
+      session.engKey = await deriveKey(pw, session.engSalt, true);
       reg = { v: 1, customers: [] };
     } else {
       session.engSalt = unb64(raw.salt);
-      session.engKey = await deriveKey(pw, session.engSalt);
+      session.engKey = await deriveKey(pw, session.engSalt, true);
       reg = await openBlob(session.engKey, raw);
     }
   }catch(e){
@@ -1868,6 +1962,7 @@ async function engineerSignIn(pw){
   ui.section = 'engineer'; ui.tab = 'customers'; ui.custTab = 'picker';
   $('#unlockModal').hidden = true;
   if (!raw) await writeRegistry();
+  rememberSession();
   render();
   toast('Signed in — create and manage customers on the Customers tab');
 }

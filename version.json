@@ -1,5 +1,5 @@
 {
-  "version": "1.5.3",
+  "version": "1.5.4",
   "updated": "2026-11-16",
-  "notes": "Pre-flight import: detect formula-only cells; clearer warnings."
+  "notes": "60-minute idle session so a refresh does not require the password; auto-locks and clears on sign-out."
 }

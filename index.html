@@ -1327,25 +1327,28 @@ async function probeToken(v){
     if (r.status === 404) return { ok:false, msg:'Token cannot see MJP-76/service-deployment-matrix (404) — check Repository access.' };
     if (!r.ok) return { ok:false, msg:'GitHub returned ' + r.status + ' while checking the repo.' };
     const j = await r.json();
-    if (j && j.permissions && typeof j.permissions.push === 'boolean'){
-      if (!j.permissions.push) return { ok:false, msg:'Token can read the repo but not write — set Contents: Read and write.' };
-      return { ok:true, msg:'Token OK — can write to the repo.' };
+    if (j && j.permissions && j.permissions.push === false){
+      return { ok:false, msg:'Token can read the repo but not write — set Contents: Read and write.' };
     }
+    // permissions.push can reflect the *account*, not the token, so prove a
+    // real write with a tiny throwaway file and delete it again.
     const path = '.svtkit/write-check.txt';
     const body = new TextEncoder().encode('ok ' + new Date().toISOString());
     let bin = ''; for (let i = 0; i < body.length; i++) bin += String.fromCharCode(body[i]);
     let sha = null;
     try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){}
-    const put = await fetch(GH_CONTENTS + path, { method:'PUT', headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
+    const put = await fetch(GH_CONTENTS + path, { method:'PUT',
+      headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
       body: JSON.stringify(Object.assign({ message:'svtkit: token check', content: btoa(bin) }, sha ? { sha } : {})) });
     if (put.status === 401) return { ok:false, msg:'GitHub rejected the token (401) — it is invalid or expired.' };
-    if (put.status === 403 || put.status === 404) return { ok:false, msg:'Token cannot write to the repo (' + put.status + ') — set Contents: Read and write.' };
+    if (put.status === 403) return { ok:false, msg:'Token cannot write to this repo (403) — set Contents: Read and write, then update the token.' };
+    if (put.status === 404) return { ok:false, msg:'Token cannot write to this repo (404) — check Repository access and Contents: Read and write.' };
     if (!put.ok) return { ok:false, msg:'GitHub returned ' + put.status + ' while testing a write.' };
     try{
       await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: remove token check'), { method:'DELETE',
         headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json' } });
     }catch(e){}
-    return { ok:true, msg:'Token OK — can write to the repo.' };
+    return { ok:true, msg:'Token OK — write to the repo confirmed.' };
   }catch(e){
     return { ok:false, msg:'Could not reach GitHub — check the connection.' };
   }
@@ -1363,7 +1366,9 @@ async function blobWrite(path, text){
     return 'github';
   }catch(e){
     cachePut(path, text, cached ? cached.sha : null);
-    syncFallback = true; showSyncWarn();
+    syncFallback = true;
+    syncDiagText = 'GitHub write failed for ' + path + ': ' + (e && e.message ? e.message : String(e));
+    showSyncWarn();
     return 'local';
   }
 }

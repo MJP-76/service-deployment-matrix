@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "updated": "2026-11-16",
-  "notes": "Partner / Customer / Year / Deployment drill-down; vendor product catalogue (HPE SimpliVity, HPE Hardware, Nutanix Cloud Infrastructure)."
+  "notes": "Partner is chosen explicitly (no default); partner rename/delete and customer move; Unassigned bucket."
 }

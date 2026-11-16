@@ -327,7 +327,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <div class="panel" style="max-width:430px">
     <h2 id="custTitle">Add customer</h2>
     <label>Partner<select id="c_partner"></select></label>
-    <label>New partner name (optional)<input id="c_partner_new" placeholder="Leave blank to use the partner above" autocomplete="off"></label>
+    <label id="c_partner_new_row" hidden>New partner name<input id="c_partner_new" placeholder="Partner name" autocomplete="off"></label>
     <div id="custIdRow">
       <label>Customer name<input id="c_name" placeholder="Acme Ltd" autocomplete="off"></label>
       <label>Customer ID (they sign in with this)<input id="c_id" class="mono" placeholder="acme" autocomplete="off"></label>
@@ -743,7 +743,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.0';
+const KIT_VERSION = '1.4.1';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1330,7 +1330,8 @@ const SCOPE_FREE_ACTS = new Set([
   'backToPicker', 'openCustDep', 'openCust', 'newDepFor', 'addCust', 'resetPw',
   'renameCust', 'delCust', 'renameDepTarget', 'delDepTarget', 'saveGhToken', 'clearGhToken',
   'pushAll', 'reloadStore',
-  'openPartner', 'openPartnerCustomer', 'openYear', 'custCrumb'
+  'openPartner', 'openPartnerCustomer', 'openYear', 'custCrumb',
+  'renamePartner', 'delPartner', 'moveCustPartner'
 ]);
 /* Engineer-side settings when no customer scope is open (Setup edits). */
 function engSettings(){
@@ -1367,9 +1368,9 @@ function regCustomer(cid){ return session.registry && (session.registry.customer
 function normalizeRegistry(reg){
   reg = reg || { v: 1, customers: [] };
   if (!Array.isArray(reg.partners)) reg.partners = [];
-  if (!reg.partners.length) reg.partners.push({ id: uid(), name: 'TD SYNNEX', createdAt: Date.now() });
   (reg.customers || []).forEach(c => {
-    if (!c.partnerId || !reg.partners.some(p => p.id === c.partnerId)) c.partnerId = reg.partners[0].id;
+    if (c.partnerId && !reg.partners.some(p => p.id === c.partnerId)) c.partnerId = '';
+    if (c.partnerId == null) c.partnerId = '';
   });
   return reg;
 }
@@ -1947,12 +1948,13 @@ async function addCustomer(){
   session.registry = normalizeRegistry(session.registry);
   let pid = ($('#c_partner') && $('#c_partner').value) || '';
   const newPartner = (($('#c_partner_new') && $('#c_partner_new').value) || '').trim();
-  if (newPartner){
+  if (pid === '__new__'){
+    if (!newPartner){ errEl.hidden = false; errEl.textContent = 'Enter the new partner name'; return; }
     const np = { id: uid(), name: newPartner, createdAt: Date.now() };
     session.registry.partners.push(np);
     pid = np.id;
   }
-  if (!pid) pid = session.registry.partners[0].id;
+  if (!pid){ errEl.hidden = false; errEl.textContent = 'Choose a partner, or select “+ New partner…” to add one'; return; }
   (session.registry.customers = session.registry.customers || []).push(
     { id: id, name: name, partnerId: pid, keyC: b64(rawKey), salt: b64(salt), deployments: [] });
   await writeRegistry();
@@ -3243,7 +3245,8 @@ function transportHtml(){
 function customersHtml(){
   const reg = normalizeRegistry(session.registry || { customers: [] });
   if (custNav.partnerId && !reg.partners.some(p => p.id === custNav.partnerId)) custNav = { partnerId: null, customerId: null, year: null };
-  const p = custNav.partnerId ? reg.partners.find(x => x.id === custNav.partnerId) : null;
+  const p = custNav.partnerId === '' ? { id: '', name: 'Unassigned' }
+          : custNav.partnerId ? reg.partners.find(x => x.id === custNav.partnerId) : null;
   if (!p) return partnerListHtml(reg);
   const c = custNav.customerId ? (reg.customers || []).find(x => x.id === custNav.customerId) : null;
   if (custNav.customerId && !c){ custNav.customerId = null; custNav.year = null; }
@@ -3251,7 +3254,7 @@ function customersHtml(){
   if (!custNav.year) return customerPageHtml(reg, p, c);
   return yearPageHtml(reg, p, c, custNav.year);
 }
-function partnerCustomers(reg, pid){ return (reg.customers || []).filter(c => c.partnerId === pid); }
+function partnerCustomers(reg, pid){ return (reg.customers || []).filter(c => (c.partnerId || '') === pid); }
 function depCount(c){ return (c.deployments || []).length; }
 function yearsForCustomer(c){
   const map = {};
@@ -3269,7 +3272,9 @@ function crumb(parts){
   }).join('') + '</div>';
 }
 function partnerListHtml(reg){
-  const cards = reg.partners.map(p => {
+  const list = reg.partners.slice();
+  if ((reg.customers || []).some(c => !c.partnerId)) list.push({ id: '', name: 'Unassigned' });
+  const cards = list.map(p => {
     const cs = partnerCustomers(reg, p.id);
     const dn = cs.reduce((n, c) => n + depCount(c), 0);
     return '<section class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
@@ -3298,8 +3303,11 @@ function partnerPageHtml(reg, p){
   return '<div class="pane">' +
     crumb([{ level: 'root', label: 'Partners' }, { level: 'partner', id: p.id, label: p.name }]) +
     '<div class="rolehead"><h2>' + esc(p.name) + '</h2>' +
-      '<p class="hint">Customers delivered by this partner.</p>' +
-      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
+      '<p class="hint">' + (p.id ? 'Customers delivered by this partner.' : 'Customers with no partner yet — use Move on a customer to assign one.') + '</p>' +
+      '<div class="row" style="flex-wrap:wrap"><button data-act="addCust" class="primary">+ Add customer</button>' +
+      (p.id ? '<button data-act="renamePartner" data-id="' + esc(p.id) + '">Rename partner…</button>' +
+              '<button data-act="delPartner" data-id="' + esc(p.id) + '" class="danger">Delete partner…</button>' : '') +
+      '</div></div>' +
     rows + '</div>';
 }
 function customerPageHtml(reg, p, c){
@@ -3321,6 +3329,12 @@ function customerPageHtml(reg, p, c){
         '<button data-act="renameCust" data-id="' + esc(c.id) + '">Rename…</button>' +
         '<button data-act="resetPw" data-id="' + esc(c.id) + '">Set password…</button>' +
         '<button data-act="delCust" data-id="' + esc(c.id) + '" class="danger">Delete…</button>' +
+      '</div>' +
+      '<div class="row" style="flex-wrap:wrap;margin-top:8px">' +
+        '<label style="min-width:260px">Move to partner<select id="movePartner">' +
+          reg.partners.map(x => '<option value="' + esc(x.id) + '"' + (x.id === c.partnerId ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('') +
+        '</select></label>' +
+        '<button data-act="moveCustPartner" data-id="' + esc(c.id) + '">Move</button>' +
       '</div></div>' +
     rows + '</div>';
 }
@@ -3929,14 +3943,25 @@ function fillPartnerSelect(selected){
   const ps = $('#c_partner');
   if (!ps) return;
   const reg = normalizeRegistry(session.registry);
-  ps.innerHTML = reg.partners.map(p => '<option value="' + esc(p.id) + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('');
-  if (selected) ps.value = selected;
+  ps.innerHTML = '<option value="">— Select partner —</option>' +
+    reg.partners.map(p => '<option value="' + esc(p.id) + '"' + (p.id === selected ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
+    '<option value="__new__">+ New partner…</option>';
+  ps.value = selected && reg.partners.some(p => p.id === selected) ? selected : '';
+  ps.onchange = toggleNewPartnerRow;
+  toggleNewPartnerRow();
+}
+function toggleNewPartnerRow(){
+  const ps = $('#c_partner'), row = $('#c_partner_new_row'), inp = $('#c_partner_new');
+  if (!ps || !row) return;
+  const isNew = ps.value === '__new__';
+  row.hidden = !isNew;
+  if (!isNew && inp) inp.value = '';
 }
 function openNameModal(mode, targetId){
   nameMode = mode;
   nameTarget = targetId || null;
   $('#nameTitle').textContent = mode === 'new' ? 'New deployment' : mode === 'first' ? 'Name this deployment'
-    : mode === 'renameCustomer' ? 'Rename customer' : 'Rename deployment';
+    : mode === 'renameCustomer' ? 'Rename customer' : mode === 'renamePartner' ? 'Rename partner' : 'Rename deployment';
   const showSvc = mode === 'new' || mode === 'first';
   $('#nameSvcRow').hidden = !showSvc;
   const nh = $('#nameHint'); if (nh) nh.hidden = !showSvc;
@@ -3945,7 +3970,11 @@ function openNameModal(mode, targetId){
     : (store ? cur() : null);
   fillNameSelects(ref ? ref.vendor : VENDORS[0], ref ? ref.service : 'deployment', ref ? ref.product : '');
   const inp = $('#nameInput');
-  if (mode === 'rename' || mode === 'renameCustomer') inp.value = ref ? ref.name : '';
+  if (mode === 'renamePartner'){
+    const pr = (session.registry && (session.registry.partners || [])).find(x => x.id === nameTarget);
+    inp.value = pr ? pr.name : '';
+  }
+  else if (mode === 'rename' || mode === 'renameCustomer') inp.value = ref ? ref.name : '';
   else if (mode === 'new'){
     const v = $('#nameVendor').value, pr = $('#nameProduct').value, s = $('#nameSvc').value;
     inp.value = v + ' ' + pr + ' ' + serviceLabel(s) + ' - ' + todayStamp();
@@ -3977,6 +4006,15 @@ async function saveName(){
   const vend = canonicalVendor(($('#nameVendor') && $('#nameVendor').value) || VENDORS[0]);
   const prod = ($('#nameProduct') && $('#nameProduct').value) || defaultProduct(vend, '');
   const svc = ($('#nameSvc') && $('#nameSvc').value) || 'deployment';
+  if (nameMode === 'renamePartner'){
+    const pr = (session.registry && (session.registry.partners || [])).find(x => x.id === nameTarget);
+    if (!pr){ $('#nameModal').hidden = true; return toast('Partner not found', true); }
+    pr.name = v;
+    await writeRegistry();
+    $('#nameModal').hidden = true;
+    render();
+    return toast('Partner renamed');
+  }
   if (nameMode === 'renameCustomer'){
     const c = session.registry && (session.registry.customers || []).find(x => x.id === nameTarget);
     if (!c){ $('#nameModal').hidden = true; return toast('Customer not found', true); }
@@ -4299,6 +4337,31 @@ function wire(){
       openNameModal('new');
       return;
     }
+    if (act === 'renamePartner'){
+      openNameModal('renamePartner', el.dataset.id);
+      return;
+    }
+    if (act === 'delPartner'){
+      const reg = normalizeRegistry(session.registry);
+      const pr = reg.partners.find(x => x.id === el.dataset.id);
+      if (!pr) return;
+      const used = (reg.customers || []).filter(c => c.partnerId === pr.id).length;
+      if (used) return toast('Move its ' + used + ' customer(s) to another partner first', true);
+      if (!confirm('Delete partner "' + pr.name + '"?')) return;
+      reg.partners = reg.partners.filter(x => x.id !== pr.id);
+      if (custNav.partnerId === pr.id) custNav = { partnerId: null, customerId: null, year: null };
+      await writeRegistry();
+      render(); return toast('Partner deleted');
+    }
+    if (act === 'moveCustPartner'){
+      const c = regCustomer(el.dataset.id);
+      const pid = ($('#movePartner') && $('#movePartner').value) || '';
+      if (!c || !pid) return toast('Choose a partner', true);
+      c.partnerId = pid;
+      await writeRegistry();
+      if (custNav.customerId === c.id) custNav = { partnerId: pid, customerId: c.id, year: null };
+      render(); return toast('Customer moved');
+    }
     if (act === 'openPartner'){
       custNav = { partnerId: el.dataset.id, customerId: null, year: null };
       render(); return;
@@ -4323,7 +4386,6 @@ function wire(){
       $('#custTitle').textContent = 'Add customer';
       $('#custIdRow').hidden = false;
       $('#c_name').value = ''; $('#c_id').value = ''; $('#c_pw').value = '';
-      $('#c_partner_new').value = '';
       fillPartnerSelect(custNav.partnerId || '');
       $('#c_id').dataset.auto = 'yes';
       $('#c_err').hidden = true;

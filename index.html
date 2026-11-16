@@ -215,6 +215,9 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
   <button data-tab="vc">vCenter &amp; Arbiter</button>
   <button data-tab="project">Project Details</button>
   <button data-tab="checklist">Pre-Flight Checklist</button>
+  <button data-tab="clusters">Clusters</button>
+  <button data-tab="migration">Migration</button>
+  <button data-tab="nutral">Nutanix Central</button>
   <button data-tab="doc">Document</button>
   <button data-tab="advanced">Advanced</button>
 </nav>
@@ -737,7 +740,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.2.1';
+const KIT_VERSION = '1.3.0';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -774,7 +777,7 @@ const DEFAULT_SETTINGS = {
    The service catalogue is vendor-independent — the same three services
    (deployment / upgrade / expansion) apply to every vendor. Add a vendor
    by appending its name to VENDORS; no service changes are needed. */
-const VENDORS = ['HPE SimpliVity'];
+const VENDORS = ['HPE SimpliVity', 'Nutanix'];
 const SERVICES = ['deployment', 'upgrade', 'expansion'];
 function serviceLabel(s){
   return s === 'upgrade' ? 'Upgrade' : s === 'expansion' ? 'Expansion' : 'Deployment';
@@ -787,6 +790,93 @@ function serviceOfName(name){
 }
 function vendorServiceLabel(d){
   return (d.vendor || VENDORS[0]) + ' ' + serviceLabel(d.service || 'deployment');
+}
+function servicesForVendor(v){ return v === 'Nutanix' ? ['deployment'] : SERVICES; }
+function isNutanix(d){ return !!d && d.vendor === 'Nutanix'; }
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+
+/* ================= Nutanix model ================= */
+function newNutanixHost(){ return { serial:'', hostName:'', ipmiPass:'TBA', hostIp:'', cvmIp:'' }; }
+function newNutanixContainer(name){ return { name:name || '', compression:'', delay:'15', dedup:'', rf:'RF2' }; }
+function newNutanixVlan(type){ return { type:type || 'Optional Customer VLAN', name:'', vlanId:'', range:'', gateway:'' }; }
+function newNutanixSwitch(){ return { node:'', nodePort:'', patchPanel:'', switchPort:'' }; }
+const NUT_CRED_ROWS = [
+  ['pcGui',       'Prism Central - GUI',        'admin'],
+  ['pcSsh',       'Prism Central - SSH',        'nutanix'],
+  ['peGui',       'Prism Element - GUI',        'admin'],
+  ['peSsh',       'Prism Element - SSH',        'nutanix'],
+  ['hypRoot',     'Hypervisor Management - SSH','root'],
+  ['hypNutanix',  'Hypervisor Management - SSH','nutanix'],
+  ['hypAdmin',    'Hypervisor Management - SSH','admin'],
+  ['move',        'Nutanix Move - GUI',         'admin'],
+  ['ipmi',        'IPMI',                       'As per OEM']
+];
+function newNutanixCreds(){
+  const c = {};
+  NUT_CRED_ROWS.forEach(([k, , u]) => { c[k] = { user: u, pass: 'TBA' }; });
+  return c;
+}
+function newNutanixCluster(idx){
+  const n = idx || 1;
+  return {
+    id: uid(),
+    name: 'Cluster - ' + pad2(n),
+    pe: { fqdn:'', clusterIp:'', dataserviceIp:'', rf:'RF2' },
+    pc: { name:'Prism Central - ' + pad2(n), fqdn:'', ip:'', subnet:'', gateway:'', sslSupplied:false,
+          directoryType:'AD', displayName:'', domainName:'', directoryUrl:'',
+          admins:'', viewers:'',
+          dns:'8.8.8.8\n8.8.4.4',
+          ntp:'0.uk.pool.ntp.org\n1.uk.pool.ntp.org\n2.uk.pool.ntp.org\n3.uk.pool.ntp.org\ntime.google.com',
+          domain:'', suffix:'',
+          smtp:{ type:'local', server:'', port:'', user:'', pass:'TBA', from:'', to:'' } },
+    hosts: [newNutanixHost(), newNutanixHost(), newNutanixHost(), newNutanixHost()],
+    containers: [newNutanixContainer('datastore-01'), newNutanixContainer('datastore-02')],
+    vlans: [newNutanixVlan('Hosts & CVMs'), newNutanixVlan('IPMI_Mgmt'),
+            newNutanixVlan('Optional Customer VLAN'), newNutanixVlan('Optional Customer VLAN'), newNutanixVlan('Optional Customer VLAN')],
+    switches: [newNutanixSwitch(), newNutanixSwitch(), newNutanixSwitch(), newNutanixSwitch()],
+    creds: newNutanixCreds(),
+    auth: { displayName:'', domainName:'', directoryUrl:'', directoryType:'Local',
+            peAdminGroup:'', peViewerGroup:'', switchAIp:'', switchBIp:'' },
+    time: { dns:'8.8.8.8\n8.8.4.4',
+            ntp:'0.uk.pool.ntp.org\n1.uk.pool.ntp.org\n2.uk.pool.ntp.org\n3.uk.pool.ntp.org\ntime.google.com',
+            domain:'', suffix:'' },
+    ssl: { fqdn:'', password:'TBA', type:'' }
+  };
+}
+function newNutanix(){
+  return {
+    clusters: [newNutanixCluster(1)],
+    migration: { vmName:'', fqdn:'', ip:'', subnet:'', gateway:'', srcType:'vSphere', srcIp:'', srcUser:'', srcPass:'TBA' },
+    central: { fqdn:'prism.domain.local',
+               subdomains:'*.prism.domain.local\n*.services.prism.domain.local\n*.transport.prism.domain.local\niam.prism.domain.local',
+               vlan:'', ipRange:'', subnet:'', gateway:'', internalIps:'', externalIps:'', sslCert:'', sslKey:'' }
+  };
+}
+function nzDefaults(o, def){
+  o = (o && typeof o === 'object') ? o : {};
+  for (const k of Object.keys(def)){
+    if (Array.isArray(def[k])){ if (!Array.isArray(o[k])) o[k] = def[k]; }
+    else if (def[k] && typeof def[k] === 'object'){ o[k] = nzDefaults(o[k], def[k]); }
+    else if (o[k] === undefined) o[k] = def[k];
+  }
+  return o;
+}
+function normalizeNutanix(src){
+  const out = nzDefaults(src, newNutanix());
+  if (!Array.isArray(out.clusters) || !out.clusters.length) out.clusters = [newNutanixCluster(1)];
+  out.clusters = out.clusters.map((c, i) => {
+    const def = newNutanixCluster(i + 1);
+    const cc = nzDefaults(c, def);
+    if (!cc.name) cc.name = def.name;
+    if (!cc.id) cc.id = uid();
+    cc.hosts = (Array.isArray(cc.hosts) && cc.hosts.length ? cc.hosts : def.hosts).map(h => nzDefaults(h, newNutanixHost()));
+    cc.containers = (Array.isArray(cc.containers) && cc.containers.length ? cc.containers : def.containers).map(x => nzDefaults(x, newNutanixContainer()));
+    cc.vlans = (Array.isArray(cc.vlans) && cc.vlans.length ? cc.vlans : def.vlans).map(x => nzDefaults(x, newNutanixVlan()));
+    cc.switches = (Array.isArray(cc.switches) && cc.switches.length ? cc.switches : def.switches).map(x => nzDefaults(x, newNutanixSwitch()));
+    cc.creds = nzDefaults(cc.creds, newNutanixCreds());
+    return cc;
+  });
+  return out;
 }
 
 /* ================= state ================= */
@@ -821,6 +911,7 @@ function newDeployment(name, vendor, service){
     checklist: {},
     ntp: '',
     dns: { domain:'', primary:'', secondary:'', search:'', findHostName:true },
+    nutanix: newNutanix(),
     networks: {
       ilo:        { netmask:'', gateway:'', dns1:'', dns2:'', vlan:'' },
       management: { netmask:'', hostNetmask:'', gateway:'', hostGateway:'', vlan:'', mtu:'1500', vSwitch:'vSwitch0', portGroup:'VM Network', hostPortGroup:'Management Network' },
@@ -914,6 +1005,7 @@ function normalizeDep(src){
   if (!dep.arbiter.pass) dep.arbiter.pass = 'TBA Onsite';
   dep.engineer = Object.assign({}, base.engineer, src.engineer || {});
   dep.ntp = typeof src.ntp === 'string' ? src.ntp : (Array.isArray(src.ntp) ? src.ntp.join('\n') : '');
+  dep.nutanix = normalizeNutanix(src.nutanix);
   return dep;
 }
 function normalizeStore(s){
@@ -1490,7 +1582,7 @@ async function importKeyC(c){ return importKey(c.keyC); }
 function pubHalf(d){
   return { id: d.id, name: d.name, vendor: d.vendor, service: d.service, version: d.version,
     project: d.project, checklist: d.checklist, ntp: d.ntp, dns: d.dns, vcenter: d.vcenter,
-    engineer: d.engineer, updatedAt: Date.now() };
+    nutanix: d.nutanix, engineer: d.engineer, updatedAt: Date.now() };
 }
 function engHalf(d){
   return { id: d.id, networks: d.networks, creds: d.creds, nodes: d.nodes, arbiter: d.arbiter, orders: d.orders };
@@ -1785,7 +1877,7 @@ async function createDeployment(vendor, service, name){
   else { store.deployments.push(dep); store.currentId = dep.id; }
   dirty.registry = true; dirty.account = true;
   await flushSync();
-  ui.tab = 'details';
+  ui.tab = (vendor === 'Nutanix') ? 'clusters' : 'details';
   render();
   toast('Deployment created — ' + vendor + ' ' + serviceLabel(service));
 }
@@ -2283,6 +2375,7 @@ function docCreditHtml(){
   return ''; /* credit line + HPE mark removed at customer's request */
 }
 function docInner(d){
+  if (isNutanix(d)) return nutanixDocInner(d);
   const p = d.project;
   const secs = [];
   secs.push(['Customer & project', kvTable([
@@ -2340,6 +2433,118 @@ function docInner(d){
     secs.map((s, i) => '<h2>' + (i + 1) + ' · ' + esc(s[0]) + '</h2>' + s[1]).join('\n') +
     '</div>';
 }
+function nutanixIntroHtml(){
+  return '<div class="doc">' +
+    '<div class="dochead"><div class="dochead-text"><h1>How to complete this workbook</h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project: ' + esc(cur().name) + ' · Version ' + esc(cur().version || '—') + ' · Nutanix deployment</div></div></div>' +
+    '<h2>1 · What this is</h2>' +
+    '<p>This page collects everything needed for a Nutanix deployment — site and contacts, each cluster with its hosts, containers and networking, the matching Prism Central, the Move migration project and Nutanix Central — in one place instead of a spreadsheet.</p>' +
+    '<h2>2 · Tabs</h2>' +
+    '<ul>' +
+    '<li><b>Project Details</b> — company, site, contacts and the partner contact.</li>' +
+    '<li><b>Pre-Flight Checklist</b> — sign-off items before the build.</li>' +
+    '<li><b>Clusters</b> — one card per cluster: Prism Element, hosts &amp; CVMs, containers, VLANs, switch ports, credentials, authentication, DNS/NTP, SSL and its Prism Central. Use <b>+ Add cluster</b> for more.</li>' +
+    '<li><b>Migration</b> — Nutanix Move appliance and the vCenter / Hyper-V source.</li>' +
+    '<li><b>Nutanix Central</b> — FQDN, subdomains, host-cluster addressing and certificates.</li>' +
+    '<li><b>Document</b> — printable / exportable reference for handover.</li>' +
+    '</ul>' +
+    '<h2>3 · Outputs</h2>' +
+    '<ul>' +
+    '<li>a branded <b>deployment reference document</b> (Document tab) to print, save as PDF or export as standalone HTML;</li>' +
+    '<li>a <b>JSON backup</b> from Setup → Backup / restore for moving the workbook between machines.</li>' +
+    '</ul>' +
+    '<p class="sub">Everything saves as you type. Entries sync through the shared store when a GitHub token is configured.</p>' +
+  '</div>';
+}
+function docRowsTable(head, rows){
+  if (!rows.length) return '<p class="sub">Not recorded.</p>';
+  return '<table><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
+    rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c == null ? '' : c) + '</td>').join('') + '</tr>').join('') +
+    '</tbody></table>';
+}
+function nutanixDocInner(d){
+  const p = d.project;
+  const nz = d.nutanix = normalizeNutanix(d.nutanix);
+  const secs = [];
+  secs.push(['Customer & project', kvTable([
+    ['Company', p.company], ['Project name', d.version], ['Installation address', p.address], ['Installation date', p.installDate],
+    ['Contact', p.contactName], ['Title', p.contactTitle], ['Email', p.contactEmail], ['Phone', p.contactPhone],
+    ['Project stakeholder', p.stakeholder || ''],
+    ['Partner company', p.partnerCompany || ''],
+    ['Assigned engineer', d.engineer.name ? d.engineer.name + (d.engineer.email ? ' <' + d.engineer.email + '>' : '') : '']
+  ])]);
+  if (ui.includeChecklist){
+    secs.push(['Pre-flight checklist',
+      '<ul>' + CHECKLIST.map(([k, label]) =>
+        '<li class="' + (d.checklist[k] ? 'ok' : 'no') + '">' + (d.checklist[k] ? '☑' : '☐') + ' ' + esc(label) + '</li>'
+      ).join('') + '</ul>']);
+  }
+  nz.clusters.forEach(c => {
+    const t = c.name || 'Cluster';
+    secs.push([t + ' — Prism Element', kvTable([
+      ['Cluster FQDN', c.pe.fqdn], ['Nutanix Cluster IP', c.pe.clusterIp],
+      ['Dataservice IP', c.pe.dataserviceIp], ['Redundancy Factor', c.pe.rf]
+    ])]);
+    secs.push([t + ' — Hosts & CVMs', docRowsTable(['Node Serial', 'Host Name', 'IPMI Password', 'Host IP', 'CVM IP'],
+      c.hosts.map(h => [h.serial, h.hostName, h.ipmiPass, h.hostIp, h.cvmIp]))]);
+    secs.push([t + ' — Containers', docRowsTable(['Name', 'Compression', 'Compression Delay (min)', 'Capacity Tier Dedup', 'Replication Factor'],
+      c.containers.map(x => [x.name, x.compression, x.delay, x.dedup, x.rf]))]);
+    secs.push([t + ' — Networking', docRowsTable(['Role', 'VLAN Name', 'VLAN ID', 'IP Range / Subnet', 'Gateway'],
+      c.vlans.map(x => [x.type, x.name, x.vlanId, x.range, x.gateway]))]);
+    secs.push([t + ' — Switch configuration', docRowsTable(['Nutanix Node', 'Node Network Port', 'Patch Panel Port', 'Switch Name & Port'],
+      c.switches.map(x => [x.node, x.nodePort, x.patchPanel, x.switchPort]))]);
+    secs.push([t + ' — Credentials', docRowsTable(['Role', 'Username', 'Password'],
+      NUT_CRED_ROWS.map(([k, label]) => [label, (c.creds[k] || {}).user, (c.creds[k] || {}).pass]))]);
+    secs.push([t + ' — Authentication', kvTable([
+      ['Display name', c.auth.displayName], ['Domain name', c.auth.domainName], ['Directory URL', c.auth.directoryUrl],
+      ['Directory type', c.auth.directoryType], ['Prism Element admin group', c.auth.peAdminGroup],
+      ['Prism Element viewer group', c.auth.peViewerGroup], ['Switch A mgmt IP', c.auth.switchAIp], ['Switch B mgmt IP', c.auth.switchBIp]
+    ])]);
+    secs.push([t + ' — Time and name resolution', kvTable([
+      ['DNS servers', c.time.dns], ['NTP servers', c.time.ntp], ['DNS domain name', c.time.domain], ['DNS suffix search list', c.time.suffix]
+    ])]);
+    secs.push([t + ' — Prism Element SSL', kvTable([
+      ['FQDN', c.ssl.fqdn], ['Password', c.ssl.password], ['Type', c.ssl.type]
+    ])]);
+    secs.push([t + ' — Prism Central', kvTable([
+      ['Name', c.pc.name], ['FQDN', c.pc.fqdn], ['IP address', c.pc.ip], ['Subnet', c.pc.subnet], ['Gateway', c.pc.gateway],
+      ['SSL certificate supplied', c.pc.sslSupplied ? 'Yes' : 'No'],
+      ['Authentication display name', c.pc.displayName], ['Domain name', c.pc.domainName],
+      ['Directory URL', c.pc.directoryUrl], ['Directory type', c.pc.directoryType],
+      ['Prism Central admins', c.pc.admins], ['Prism Central viewer', c.pc.viewers],
+      ['DNS servers', c.pc.dns], ['NTP servers', c.pc.ntp], ['DNS domain name', c.pc.domain], ['DNS suffix search list', c.pc.suffix]
+    ]) + '<h3>SMTP alert notification</h3>' + kvTable([
+      ['SMTP type', c.pc.smtp.type], ['SMTP server', c.pc.smtp.server], ['Port', c.pc.smtp.port],
+      ['Username', c.pc.smtp.user], ['Password', c.pc.smtp.pass], ['From address', c.pc.smtp.from], ['To address(es)', c.pc.smtp.to]
+    ])]);
+  });
+  const m = nz.migration;
+  secs.push(['Migration — Nutanix Move', kvTable([
+    ['VM name', m.vmName], ['FQDN', m.fqdn], ['IP address', m.ip], ['Subnet', m.subnet], ['Gateway', m.gateway],
+    ['Source type', m.srcType], ['Source IP', m.srcIp], ['Source username', m.srcUser], ['Source password', m.srcPass]
+  ])]);
+  const c = nz.central;
+  secs.push(['Nutanix Central', kvTable([
+    ['FQDN', c.fqdn], ['Subdomains', c.subdomains], ['Host cluster VLAN', c.vlan], ['IP range (14 IPs)', c.ipRange],
+    ['Subnet mask', c.subnet], ['Gateway', c.gateway], ['Internal IPs (x2)', c.internalIps], ['External IPs (x2) to FQDN', c.externalIps],
+    ['SSL certificate', c.sslCert], ['SSL key', c.sslKey]
+  ])]);
+  const logo = S().logoData
+    ? '<img class="doc-logo" src="' + esc(S().logoData) + '" alt="TD SYNNEX">'
+    : '<span class="tsx-mark"><b>TD SYNNEX</b><i>|</i><em>Advanced Solutions</em></span>';
+  return '<div class="doc">' +
+    '<div class="dochead">' +
+    '<div class="dochead-logo">' + logo + '</div>' +
+    '<div class="dochead-text">' +
+    '<h1>' + esc(d.name) + ' <span>— Deployment Reference</span><span class="verbadge">' + esc(d.version || '') + '</span></h1>' +
+    docCreditHtml() +
+    '<div class="docmeta">Project ' + esc(d.version || '—') + ' · Nutanix deployment · Generated ' + esc(new Date().toLocaleString()) + ' · ' + nz.clusters.length + ' cluster(s)' +
+    (p.company ? ' · ' + esc(p.company) : '') + '</div></div>' +
+    '</div>' +
+    secs.map((s, i) => '<h2>' + (i + 1) + ' · ' + esc(s[0]) + '</h2>' + s[1]).join('\n') +
+    '</div>';
+}
 function docPaneHtml(){
   const d = cur();
   return '<div class="pane">' +
@@ -2365,7 +2570,7 @@ function buildDocHtml(d){
     '<style>\nbody{margin:0;background:#eceff1;padding:24px}\n' + css + '\n</style>\n</head>\n<body>\n' +
     docInner(d) +
     '\n<div style="max-width:1000px;margin:14px auto 0;font:12px Arial,Helvetica,sans-serif;color:#777;text-align:left">' +
-    'Generated by SimpliVity Deploy Kit · ' + esc(new Date().toLocaleString()) +
+    'Generated by Professional Services Deployment Kit · ' + esc(new Date().toLocaleString()) +
     ' · shortcut links need the launcher kit on this machine.</div>\n</body>\n</html>';
 }
 function exportDocHtml(){
@@ -2984,12 +3189,13 @@ function customerDetailsHtml(){
     '<label>Primary DNS<input data-bind="dns.primary" value="' + esc(d.dns.primary) + '"></label>' +
     '<label>Secondary DNS<input data-bind="dns.secondary" value="' + esc(d.dns.secondary) + '"></label>' +
   '</div></section>' +
+  (isNutanix(d) ? '' :
   '<section class="card"><h2>vCenter passwords</h2>' +
     '<p class="hint">Section 7 — your two vCenter passwords, supplied by you. The deployment engineer sees them read-only for the SSH / WinSCP / VAMI shortcuts but never chooses them.</p>' +
     '<div class="grid">' +
     '<label>Administrator password (' + esc(v.ssoUser || 'administrator@vsphere.local') + ')<span class="pwrow"><input type="password" data-bind="vcenter.ssoPass" value="' + esc(v.ssoPass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
     '<label>root password (' + esc(v.rootUser || 'root') + ')<span class="pwrow"><input type="password" data-bind="vcenter.rootPass" value="' + esc(v.rootPass || 'TBA Onsite') + '" autocomplete="off"><input type="checkbox" class="showpw" title="Show password"></span></label>' +
-    '</div></section>' +
+    '</div></section>') +
   '<section class="card"><h2>Send to TD SYNNEX</h2>' +
     '<div class="grid"><label>TD SYNNEX recipient<input data-bind="settings.tdsynnexEmail" value="' + esc(S().tdsynnexEmail || '') + '" placeholder="simplivity@tdsynnex.com"></label></div>' +
     '<div class="row"><button data-act="emailCustomer" class="primary">Email details to TD SYNNEX…</button></div>' +
@@ -2999,23 +3205,28 @@ function customerDetailsHtml(){
 }
 
 function advancedHtml(){
+  const nut = isNutanix(cur());
   return '<div class="pane">' +
-    '<section class="card"><h2>Deployment XML</h2>' +
+    (nut ? '' : '<section class="card"><h2>Deployment XML</h2>' +
       '<p class="hint">Import an existing SimpliVity Deployment Manager saved configuration XML file (the file name will differ per site/customer — from a customer or a previous export) to fill every node address plus the network, DNS and NTP fields in one step — existing nodes are matched by serial number, so nothing is duplicated. Export writes the XML file that SimpliVity Deployment Manager imports, flagging anything that deviates from the pre-flight standard first.</p>' +
       '<div class="row">' +
         '<button data-act="importXml" class="primary">Import XML…</button>' +
         '<button data-act="exportXml">Export XML…</button>' +
       '</div>' +
-    '</section>' +
+    '</section>') +
     '<section class="card"><h2>Customer details</h2>' +
       '<p class="hint">Import the JSON attached to the customer\'s email to merge their project details, checklist, NTP and DNS into this deployment — nodes, networks and credentials are never touched.</p>' +
       '<div class="row">' +
         '<button data-act="importCustomer">Import customer details…</button>' +
       '</div>' +
     '</section>' +
-    '<section class="card"><h2>Pre-flight standard (locked on the forms)</h2>' +
+(nut ? '<section class="card"><h2>Deployment document</h2>' +
+      '<p class="hint">Print, save as PDF or export a standalone HTML reference of every Nutanix cluster, Prism Central, migration and Nutanix Central section.</p>' +
+      '<div class="row"><button data-act="exportHtml" class="primary">Export standalone HTML</button>' +
+      '<button data-act="print">Print / Save PDF</button></div></section>'
+    : '<section class="card"><h2>Pre-flight standard (locked on the forms)</h2>' +
       '<p class="hint">Management MTU 1500 · storage and federation MTU 9000 · port groups VM Network / Management Network / SVT_StoragePortGroup / SVT_StorPG / SVT_FedPortGroup · identical OVC &amp; Host management netmask and gateway · OVC user svtcli.</p>' +
-    '</section>' +
+    '</section>') +
   '</div>';
 }
 
@@ -3070,6 +3281,224 @@ function preFlightHtml(){
     '</div>';
 }
 
+/* ================= Nutanix screens ================= */
+function nzF(path, label, val, type){
+  return '<label>' + esc(label) + '<input' + (type ? ' type="' + type + '"' : '') + ' data-bind="' + path + '" value="' + esc(val || '') + '"></label>';
+}
+function nzT(path, label, val, rows){
+  return '<label class="full">' + esc(label) + '<textarea rows="' + (rows || 3) + '" class="mono" data-bind="' + path + '">' + esc(val || '') + '</textarea></label>';
+}
+function nzSel(path, label, val, opts){
+  return '<label>' + esc(label) + '<select data-bind="' + path + '">' +
+    opts.map(o => '<option value="' + esc(o) + '"' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+    '</select></label>';
+}
+function nzCell(path, val, type){
+  return '<input' + (type ? ' type="' + type + '"' : '') + ' data-bind="' + path + '" value="' + esc(val || '') + '">';
+}
+function nzSelCell(path, val, opts){
+  return '<select data-bind="' + path + '">' +
+    opts.map(o => '<option value="' + esc(o) + '"' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+    '</select>';
+}
+function nzTable(head, rows){
+  return '<div class="wrap"><table><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+function nzCab(head, rows){
+  return '<section class="card"><h2>' + esc(head) + '</h2>' + rows + '</section>';
+}
+function nutanixClustersHtml(){
+  const d = cur();
+  if (!d) return '';
+  d.nutanix = normalizeNutanix(d.nutanix);
+  const cards = d.nutanix.clusters.map((c, ci) => nutanixClusterCard(c, ci, d.nutanix.clusters.length)).join('');
+  return '<div class="pane">' +
+    '<div class="toolbar no-print">' +
+      '<button data-act="nutAddCluster" class="primary">+ Add cluster</button>' +
+      '<span class="hint" style="margin:0">Each cluster carries its own Prism Element, hosts, containers, networking, credentials and one Prism Central.</span>' +
+    '</div>' + cards + '</div>';
+}
+function nutanixClusterCard(c, ci, total){
+  const b = 'nutanix.clusters.' + ci;
+  const hostRows = c.hosts.map((h, ri) => '<tr>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.serial', h.serial) + '</td>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.hostName', h.hostName) + '</td>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.ipmiPass', h.ipmiPass) + '</td>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.hostIp', h.hostIp) + '</td>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.cvmIp', h.cvmIp) + '</td>' +
+    '<td class="tools"><button data-act="nutDelHost" data-ci="' + ci + '" data-ri="' + ri + '" title="Remove host">✕</button></td>' +
+  '</tr>').join('');
+  const contRows = c.containers.map((x, ri) => '<tr>' +
+    '<td>' + nzCell(b + '.containers.' + ri + '.name', x.name) + '</td>' +
+    '<td>' + nzSelCell(b + '.containers.' + ri + '.compression', x.compression, ['Yes', 'No']) + '</td>' +
+    '<td>' + nzCell(b + '.containers.' + ri + '.delay', x.delay) + '</td>' +
+    '<td>' + nzCell(b + '.containers.' + ri + '.dedup', x.dedup) + '</td>' +
+    '<td>' + nzSelCell(b + '.containers.' + ri + '.rf', x.rf, ['RF2', 'RF3']) + '</td>' +
+    '<td class="tools"><button data-act="nutDelContainer" data-ci="' + ci + '" data-ri="' + ri + '" title="Remove container">✕</button></td>' +
+  '</tr>').join('');
+  const vlanRows = c.vlans.map((x, ri) => '<tr>' +
+    '<td>' + nzSelCell(b + '.vlans.' + ri + '.type', x.type, ['Hosts & CVMs', 'IPMI_Mgmt', 'Optional Customer VLAN']) + '</td>' +
+    '<td>' + nzCell(b + '.vlans.' + ri + '.name', x.name) + '</td>' +
+    '<td>' + nzCell(b + '.vlans.' + ri + '.vlanId', x.vlanId) + '</td>' +
+    '<td>' + nzCell(b + '.vlans.' + ri + '.range', x.range) + '</td>' +
+    '<td>' + nzCell(b + '.vlans.' + ri + '.gateway', x.gateway) + '</td>' +
+    '<td class="tools"><button data-act="nutDelVlan" data-ci="' + ci + '" data-ri="' + ri + '" title="Remove VLAN">✕</button></td>' +
+  '</tr>').join('');
+  const swRows = c.switches.map((x, ri) => '<tr>' +
+    '<td>' + nzCell(b + '.switches.' + ri + '.node', x.node) + '</td>' +
+    '<td>' + nzCell(b + '.switches.' + ri + '.nodePort', x.nodePort) + '</td>' +
+    '<td>' + nzCell(b + '.switches.' + ri + '.patchPanel', x.patchPanel) + '</td>' +
+    '<td>' + nzCell(b + '.switches.' + ri + '.switchPort', x.switchPort) + '</td>' +
+    '<td class="tools"><button data-act="nutDelSwitch" data-ci="' + ci + '" data-ri="' + ri + '" title="Remove row">✕</button></td>' +
+  '</tr>').join('');
+  const credRows = NUT_CRED_ROWS.map(([k, label]) => '<tr>' +
+    '<td>' + esc(label) + '</td>' +
+    '<td>' + nzCell(b + '.creds.' + k + '.user', (c.creds[k] || {}).user) + '</td>' +
+    '<td>' + nzCell(b + '.creds.' + k + '.pass', (c.creds[k] || {}).pass) + '</td>' +
+  '</tr>').join('');
+  return '<section class="card" style="margin-bottom:20px">' +
+    '<div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
+      '<h2 style="margin:0">' + esc(c.name || ('Cluster - ' + pad2(ci + 1))) + '</h2>' +
+      (total > 1 ? '<button data-act="nutDelCluster" data-ci="' + ci + '" title="Remove this cluster">Remove cluster</button>' : '') +
+    '</div>' +
+    '<div class="grid" style="margin-top:12px">' + nzF(b + '.name', 'Cluster name', c.name) + '</div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Prism Element</h3>' +
+    '<div class="grid">' +
+      nzF(b + '.pe.fqdn', 'Cluster FQDN', c.pe.fqdn) +
+      nzF(b + '.pe.clusterIp', 'Nutanix Cluster IP', c.pe.clusterIp) +
+      nzF(b + '.pe.dataserviceIp', 'Dataservice IP', c.pe.dataserviceIp) +
+      nzSel(b + '.pe.rf', 'Redundancy Factor', c.pe.rf, ['RF2', 'RF3']) +
+    '</div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Hosts &amp; CVMs</h3>' +
+    nzTable(['Node Serial', 'Host Name', 'IPMI Password', 'Host IP', 'CVM IP', ''], hostRows) +
+    '<div class="row" style="margin-top:8px"><button data-act="nutAddHost" data-ci="' + ci + '">+ Add host</button></div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Containers</h3>' +
+    nzTable(['Name', 'Compression', 'Compression Delay (min)', 'Capacity Tier Dedup', 'Replication Factor', ''], contRows) +
+    '<div class="row" style="margin-top:8px"><button data-act="nutAddContainer" data-ci="' + ci + '">+ Add container</button></div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Networking</h3>' +
+    nzTable(['Role', 'VLAN Name', 'VLAN ID', 'IP Range / Subnet', 'Gateway', ''], vlanRows) +
+    '<div class="row" style="margin-top:8px"><button data-act="nutAddVlan" data-ci="' + ci + '">+ Add VLAN</button></div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Switch Configuration</h3>' +
+    nzTable(['Nutanix Node', 'Node Network Port', 'Patch Panel Port', 'Switch Name &amp; Port', ''], swRows) +
+    '<div class="row" style="margin-top:8px"><button data-act="nutAddSwitch" data-ci="' + ci + '">+ Add row</button></div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Credentials</h3>' +
+    nzTable(['Role', 'Username', 'Password', ''], credRows) +
+
+    '<h3 class="sec" style="margin-top:18px">Authentication</h3>' +
+    '<div class="grid">' +
+      nzF(b + '.auth.displayName', 'Display Name', c.auth.displayName) +
+      nzF(b + '.auth.domainName', 'Domain Name', c.auth.domainName) +
+      nzF(b + '.auth.directoryUrl', 'Directory URL', c.auth.directoryUrl) +
+      nzSel(b + '.auth.directoryType', 'Directory Type', c.auth.directoryType, ['Local', 'AD']) +
+      nzF(b + '.auth.peAdminGroup', 'Prism Element Admin Group', c.auth.peAdminGroup) +
+      nzF(b + '.auth.peViewerGroup', 'Prism Element Viewer Group', c.auth.peViewerGroup) +
+      nzF(b + '.auth.switchAIp', 'Switch A Mgmt IP', c.auth.switchAIp) +
+      nzF(b + '.auth.switchBIp', 'Switch B Mgmt IP', c.auth.switchBIp) +
+    '</div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Time and Name Resolution</h3>' +
+    '<div class="grid">' +
+      nzT(b + '.time.dns', 'DNS Servers (one per line)', c.time.dns, 3) +
+      nzT(b + '.time.ntp', 'NTP Servers (one per line)', c.time.ntp, 4) +
+      nzF(b + '.time.domain', 'DNS domain name', c.time.domain) +
+      nzF(b + '.time.suffix', 'DNS suffix search list', c.time.suffix) +
+    '</div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Prism Element SSL Certificate</h3>' +
+    '<div class="grid">' +
+      nzF(b + '.ssl.fqdn', 'FQDN', c.ssl.fqdn) +
+      nzF(b + '.ssl.password', 'Password', c.ssl.password) +
+      nzF(b + '.ssl.type', 'Type', c.ssl.type) +
+    '</div>' +
+
+    '<h3 class="sec" style="margin-top:18px">Prism Central</h3>' +
+    '<div class="grid">' +
+      nzF(b + '.pc.name', 'Name', c.pc.name) +
+      nzF(b + '.pc.fqdn', 'FQDN', c.pc.fqdn) +
+      nzF(b + '.pc.ip', 'IP Address', c.pc.ip) +
+      nzF(b + '.pc.subnet', 'Subnet', c.pc.subnet) +
+      nzF(b + '.pc.gateway', 'Gateway', c.pc.gateway) +
+      '<label class="check inline" style="margin-top:18px"><input type="checkbox" data-bind="' + b + '.pc.sslSupplied" ' + (c.pc.sslSupplied ? 'checked' : '') + '> SSL Certificate Supplied</label>' +
+    '</div>' +
+    '<div class="grid">' +
+      nzF(b + '.pc.displayName', 'Authentication Display Name', c.pc.displayName) +
+      nzF(b + '.pc.domainName', 'Domain Name', c.pc.domainName) +
+      nzF(b + '.pc.directoryUrl', 'Directory URL', c.pc.directoryUrl) +
+      nzSel(b + '.pc.directoryType', 'Directory Type', c.pc.directoryType, ['AD', 'Entra']) +
+      nzF(b + '.pc.admins', 'Prism Central Admins', c.pc.admins) +
+      nzF(b + '.pc.viewers', 'Prism Central Viewer', c.pc.viewers) +
+    '</div>' +
+    '<div class="grid">' +
+      nzT(b + '.pc.dns', 'DNS Servers (one per line)', c.pc.dns, 3) +
+      nzT(b + '.pc.ntp', 'NTP Servers (one per line)', c.pc.ntp, 4) +
+      nzF(b + '.pc.domain', 'DNS domain name', c.pc.domain) +
+      nzF(b + '.pc.suffix', 'DNS suffix search list', c.pc.suffix) +
+    '</div>' +
+    '<h3 class="sec" style="margin-top:18px">SMTP Alert Notification</h3>' +
+    '<div class="grid">' +
+      nzSel(b + '.pc.smtp.type', 'SMTP Type', c.pc.smtp.type, ['local', 'tunnel']) +
+      nzF(b + '.pc.smtp.server', 'SMTP Server IP', c.pc.smtp.server) +
+      nzF(b + '.pc.smtp.port', 'Port', c.pc.smtp.port) +
+      nzF(b + '.pc.smtp.user', 'Username', c.pc.smtp.user) +
+      nzF(b + '.pc.smtp.pass', 'Password', c.pc.smtp.pass) +
+      nzF(b + '.pc.smtp.from', 'Alert “From” address', c.pc.smtp.from) +
+      nzF(b + '.pc.smtp.to', 'Alerts “To” address(es)', c.pc.smtp.to) +
+    '</div>' +
+  '</section>';
+}
+function nutanixMigrationHtml(){
+  const d = cur();
+  if (!d) return '';
+  d.nutanix = normalizeNutanix(d.nutanix);
+  const m = d.nutanix.migration;
+  return '<div class="pane">' +
+    '<div class="rolehead"><h2>Migration — Nutanix Move</h2><p class="hint">Source platform and the Move appliance. Everything saves as you go.</p></div>' +
+    '<section class="card"><h2>Nutanix Move</h2><div class="grid">' +
+      nzF('nutanix.migration.vmName', 'VM name', m.vmName) +
+      nzF('nutanix.migration.fqdn', 'FQDN', m.fqdn) +
+      nzF('nutanix.migration.ip', 'IP address', m.ip) +
+      nzF('nutanix.migration.subnet', 'Subnet', m.subnet) +
+      nzF('nutanix.migration.gateway', 'Gateway', m.gateway) +
+    '</div></section>' +
+    '<section class="card"><h2>vCenter / Hyper-V source</h2><div class="grid">' +
+      nzSel('nutanix.migration.srcType', 'Type', m.srcType, ['vSphere', 'Hyper-V']) +
+      nzF('nutanix.migration.srcIp', 'IP address', m.srcIp) +
+      nzF('nutanix.migration.srcUser', 'Username', m.srcUser) +
+      nzF('nutanix.migration.srcPass', 'Password', m.srcPass) +
+    '</div></section>' +
+  '</div>';
+}
+function nutanixCentralHtml(){
+  const d = cur();
+  if (!d) return '';
+  d.nutanix = normalizeNutanix(d.nutanix);
+  const c = d.nutanix.central;
+  return '<div class="pane">' +
+    '<div class="rolehead"><h2>Nutanix Central</h2><p class="hint">Multi-cluster management endpoints, DNS names and certificates.</p></div>' +
+    '<section class="card"><h2>Nutanix Central</h2><div class="grid">' +
+      nzF('nutanix.central.fqdn', 'FQDN', c.fqdn) +
+      nzT('nutanix.central.subdomains', 'Subdomains (one per line)', c.subdomains, 4) +
+    '</div></section>' +
+    '<section class="card"><h2>Host Cluster</h2><div class="grid">' +
+      nzF('nutanix.central.vlan', 'VLAN', c.vlan) +
+      nzF('nutanix.central.ipRange', 'IP Range (14 IPs)', c.ipRange) +
+      nzF('nutanix.central.subnet', 'Subnet mask', c.subnet) +
+      nzF('nutanix.central.gateway', 'Gateway', c.gateway) +
+      nzF('nutanix.central.internalIps', 'Internal IPs (x2)', c.internalIps) +
+      nzF('nutanix.central.externalIps', 'External IPs (x2) to FQDN', c.externalIps) +
+      nzT('nutanix.central.sslCert', 'SSL Certificate', c.sslCert, 4) +
+      nzT('nutanix.central.sslKey', 'SSL Key', c.sslKey, 4) +
+    '</div></section>' +
+  '</div>';
+}
+
 /* ================= render ================= */
 function render(){
   const section = ui.section;
@@ -3109,22 +3538,30 @@ function render(){
   // Tabs belong to the deployment workbook only - not the landing page, the
   // Customers registry, or the customer's "My deployments" picker.
   tabs.hidden = !(section && scoped && !picker && ui.tab !== 'customers');
+  const nut = isNutanix(cur());
+  const NUT_TABS = ['clusters', 'migration', 'nutral'];
+  const SIMP_TABS = ['details', 'nodes', 'vc'];
   document.querySelectorAll('#tabs button').forEach(b => {
     b.classList.toggle('on', b.dataset.tab === ui.tab);
     b.hidden = (b.dataset.tab === 'customers' && section !== 'engineer')
-            || (b.dataset.tab === 'advanced' && section === 'customer');
+            || (b.dataset.tab === 'advanced' && section === 'customer')
+            || (!nut && NUT_TABS.indexOf(b.dataset.tab) >= 0)
+            || (nut && SIMP_TABS.indexOf(b.dataset.tab) >= 0 && !(section === 'customer' && b.dataset.tab === 'details'));
     b.disabled = !!(newMode && !scoped && b.dataset.tab !== 'customers');
   });
   const m = $('#main');
   if (!section) m.innerHTML = ui.legacy ? legacyLandingHtml() : landingHtml();
   else if (picker) m.innerHTML = pickerHtml();
   else if (ui.tab === 'customers' && section !== 'customer') m.innerHTML = customersHtml();
-  else if (ui.tab === 'intro') m.innerHTML = introHtml();
+  else if (ui.tab === 'intro') m.innerHTML = isNutanix(cur()) ? nutanixIntroHtml() : introHtml();
   else if (ui.tab === 'details') m.innerHTML = (section === 'customer') ? customerDetailsHtml() : detailsHtml();
   else if (ui.tab === 'nodes') m.innerHTML = nodesHtml();
   else if (ui.tab === 'vc') m.innerHTML = vcHtml();
   else if (ui.tab === 'project') m.innerHTML = projectDetailsHtml(section === 'customer');
   else if (ui.tab === 'checklist') m.innerHTML = preFlightHtml();
+  else if (ui.tab === 'clusters') m.innerHTML = nutanixClustersHtml();
+  else if (ui.tab === 'migration') m.innerHTML = nutanixMigrationHtml();
+  else if (ui.tab === 'nutral') m.innerHTML = nutanixCentralHtml();
   else if (ui.tab === 'doc') m.innerHTML = docPaneHtml();
   else if (ui.tab === 'advanced') m.innerHTML = advancedHtml();
   else if (ui.tab === 'setup') m.innerHTML = setupHtml();
@@ -3294,7 +3731,12 @@ function todayStamp(){ return new Date().toISOString().slice(0, 10); }
 function fillNameSelects(vendor, service){
   const vs = $('#nameVendor'), ss = $('#nameSvc');
   if (vs){ vs.innerHTML = VENDORS.map(v => '<option value="' + esc(v) + '"' + (v === vendor ? ' selected' : '') + '>' + esc(v) + '</option>').join(''); vs.value = vendor; }
-  if (ss){ ss.innerHTML = SERVICES.map(s => '<option value="' + s + '"' + (s === service ? ' selected' : '') + '>' + serviceLabel(s) + '</option>').join(''); ss.value = service; }
+  if (ss){
+    const list = servicesForVendor(vendor);
+    if (list.indexOf(service) < 0) service = list[0];
+    ss.innerHTML = list.map(s => '<option value="' + s + '"' + (s === service ? ' selected' : '') + '>' + serviceLabel(s) + '</option>').join('');
+    ss.value = service;
+  }
 }
 function openNameModal(mode, targetId){
   nameMode = mode;
@@ -3754,6 +4196,40 @@ function wire(){
     }
     if (act === 'pushAll'){ await pushAllLocalBlobs(); return; }
     if (act === 'reloadStore'){ await reloadStoreFromGitHub(); return; }
+    if (act === 'nutAddCluster'){
+      const nd = cur(); if (!nd) return;
+      nd.nutanix = normalizeNutanix(nd.nutanix);
+      nd.nutanix.clusters.push(newNutanixCluster(nd.nutanix.clusters.length + 1));
+      await save(); render(); return;
+    }
+    if (act === 'nutDelCluster'){
+      const nd = cur(); if (!nd) return;
+      nd.nutanix = normalizeNutanix(nd.nutanix);
+      if (nd.nutanix.clusters.length <= 1) return toast('Keep at least one cluster', true);
+      nd.nutanix.clusters.splice(Number(el.dataset.ci), 1);
+      await save(); render(); return;
+    }
+    if (act === 'nutAddHost' || act === 'nutDelHost' || act === 'nutAddContainer' || act === 'nutDelContainer' ||
+        act === 'nutAddVlan' || act === 'nutDelVlan' || act === 'nutAddSwitch' || act === 'nutDelSwitch'){
+      const nd = cur(); if (!nd) return;
+      nd.nutanix = normalizeNutanix(nd.nutanix);
+      const c = nd.nutanix.clusters[Number(el.dataset.ci)];
+      if (!c) return;
+      const add = act.indexOf('Add') >= 0;
+      const ri = Number(el.dataset.ri);
+      const table = act.indexOf('Host') >= 0 ? 'hosts'
+                  : act.indexOf('Container') >= 0 ? 'containers'
+                  : act.indexOf('Vlan') >= 0 ? 'vlans' : 'switches';
+      const factory = table === 'hosts' ? newNutanixHost
+                    : table === 'containers' ? newNutanixContainer
+                    : table === 'vlans' ? newNutanixVlan : newNutanixSwitch;
+      if (add){ c[table].push(factory()); }
+      else {
+        if (c[table].length <= 1) return toast('Keep at least one row', true);
+        c[table].splice(ri, 1);
+      }
+      await save(); render(); return;
+    }
     if (act === 'clearGhToken'){
       ghAuthWarned = false;
       try{ localStorage.removeItem(LS.token); }catch(e){}

@@ -319,7 +319,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 <div id="pfModal" class="overlay" hidden>
   <div class="panel" style="max-width:860px">
     <h2>Import pre-flight workbook</h2>
-    <p class="hint">Upload the completed vendor workbook (.xlsx). Fields are matched from the Pre-Requisites and each datacenter sheet; nothing is created until you press Create.</p>
+    <p class="hint">Upload the completed vendor workbook (.xlsx). HPE SimpliVity is read from the Pre-Requisites and each datacenter sheet; Nutanix from the Cluster and Prism Central sheets. Nothing is created until you press Create.</p>
     <input id="pfFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
     <div class="err" id="pfErr" hidden></div>
     <div id="pfPreview" hidden></div>
@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.8';
+const KIT_VERSION = '1.8.0';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -841,7 +841,7 @@ function isHardware(d){ return productKind(d) === 'hardware'; }
 function pad2(n){ return (n < 10 ? '0' : '') + n; }
 
 /* ================= Nutanix model ================= */
-function newNutanixHost(){ return { serial:'', hostName:'', ipmiPass:'TBA', hostIp:'', cvmIp:'' }; }
+function newNutanixHost(){ return { serial:'', hostName:'', ipmiPass:'TBA', ipmiIp:'', hostIp:'', cvmIp:'' }; }
 function newNutanixContainer(name){ return { name:name || '', compression:'', delay:'15', dedup:'', rf:'RF2' }; }
 function newNutanixVlan(type){ return { type:type || 'Optional Customer VLAN', name:'', vlanId:'', range:'', gateway:'' }; }
 function newNutanixSwitch(){ return { node:'', nodePort:'', patchPanel:'', switchPort:'' }; }
@@ -3403,6 +3403,7 @@ function nutanixClusterCard(c, ci, total){
     '<td>' + nzCell(b + '.hosts.' + ri + '.serial', h.serial) + '</td>' +
     '<td>' + nzCell(b + '.hosts.' + ri + '.hostName', h.hostName) + '</td>' +
     '<td>' + nzCell(b + '.hosts.' + ri + '.ipmiPass', h.ipmiPass) + '</td>' +
+    '<td>' + nzCell(b + '.hosts.' + ri + '.ipmiIp', h.ipmiIp) + '</td>' +
     '<td>' + nzCell(b + '.hosts.' + ri + '.hostIp', h.hostIp) + '</td>' +
     '<td>' + nzCell(b + '.hosts.' + ri + '.cvmIp', h.cvmIp) + '</td>' +
     '<td class="tools"><button data-act="nutDelHost" data-ci="' + ci + '" data-ri="' + ri + '" title="Remove host">✕</button></td>' +
@@ -3451,7 +3452,7 @@ function nutanixClusterCard(c, ci, total){
     '</div>' +
 
     '<h3 class="sec" style="margin-top:18px">Hosts &amp; CVMs</h3>' +
-    nzTable(['Node Serial', 'Host Name', 'IPMI Password', 'Host IP', 'CVM IP', ''], hostRows) +
+    nzTable(['Node Serial', 'Host Name', 'IPMI Password', 'IPMI IP', 'Host IP', 'CVM IP', ''], hostRows) +
     '<div class="row" style="margin-top:8px"><button data-act="nutAddHost" data-ci="' + ci + '">+ Add host</button></div>' +
 
     '<h3 class="sec" style="margin-top:18px">Containers</h3>' +
@@ -4007,9 +4008,9 @@ function pfFallbackFill(m, secs, nodes, vcenter, arbiter){
   }
   return filled;
 }
-function pfParseDeployment(sheet, m){
+function pfParseKeyed(sheet, m){
   const hasSerial = m.rowNums().some(r => Object.values(m.row(r)).some(v => /^Serial Number$/i.test(String(v).trim())));
-  if (!hasSerial) return pfParseDeploymentOld(sheet, m);
+  if (!hasSerial) return null;
   const secs = pfSections(m);
   if (!secs[1]) return null;
   const cols = pfNodeCols(m, secs[1]);
@@ -4064,7 +4065,548 @@ function pfParseDeployment(sheet, m){
     networks, warnings, matched
   };
 }
+/* ---- Nutanix installation workbook (Cluster - 01 / Prism Central - 01 …) ---- */
+function pfNzRight(m, r, col){
+  const row = m.row(r);
+  const cols = Object.keys(row).filter(c => pfColIdx(c) > pfColIdx(col)).sort((a, b) => pfColIdx(a) - pfColIdx(b));
+  for (const c of cols){ const v = pfClean(row[c]); if (v) return v; }
+  return '';
+}
+function pfNzFind(m, re, after, before){
+  for (const r of m.rowNums()){
+    if (after && r <= after) continue;
+    if (before && r >= before) continue;
+    const row = m.row(r);
+    for (const c of Object.keys(row)){
+      const v = pfClean(row[c]);
+      if (v && re.test(v)) return { r, c };
+    }
+  }
+  return null;
+}
+function pfNzValue(m, re){
+  const hit = pfNzFind(m, re);
+  return hit ? pfNzRight(m, hit.r, hit.c) : '';
+}
+function pfNzTable(m, hdr){
+  const row = m.row(hdr.r);
+  // walk left from the detected header cell while the neighbouring cell is filled
+  let first = hdr.c;
+  for (;;){
+    const left = String.fromCharCode(first.charCodeAt(0) - 1);
+    if (first === 'A' || !pfClean(row[left])) break;
+    first = left;
+  }
+  const cols = Object.keys(row).filter(c => pfColIdx(c) >= pfColIdx(first)).sort((a, b) => pfColIdx(a) - pfColIdx(b));
+  const map = {};
+  cols.forEach(c => { const h = pfLabNorm(row[c]); if (h) map[h] = c; });
+  const keys = Object.keys(map);
+  const out = [];
+  const last = Math.max.apply(null, m.rowNums());
+  for (let r = hdr.r + 1; r <= last && r <= hdr.r + 60; r++){
+    const rr = m.row(r);
+    const filled = keys.filter(k => pfClean(rr[map[k]]));
+    if (!filled.length) break;                 // a blank row ends the table
+    const o = {};
+    keys.forEach(k => { o[k] = pfClean(rr[map[k]]); });
+    out.push(o);
+  }
+  return out;
+}
+function pfNzYes(v){ return /^(y|yes|true|1|x|checked)$/i.test(pfClean(v)); }
+function pfNzCredKey(label, user){
+  const l = pfLabNorm(label), u = pfLabNorm(user);
+  if (/^prism central.*gui/.test(l)) return 'pcGui';
+  if (/^prism central.*ssh/.test(l)) return 'pcSsh';
+  if (/^prism element.*gui/.test(l)) return 'peGui';
+  if (/^prism element.*ssh/.test(l)) return 'peSsh';
+  if (/^hypervisor management/.test(l)) return u === 'root' ? 'hypRoot' : (u === 'nutanix' ? 'hypNutanix' : 'hypAdmin');
+  if (/^nutanix move/.test(l)) return 'move';
+  if (/^ipmi/.test(l)) return 'ipmi';
+  return '';
+}
+function pfNzCluster(sheet, m){
+  const peHdr = pfNzFind(m, /^cluster fqdn$/i);
+  if (!peHdr) return null;
+  const peRows = pfNzTable(m, peHdr);
+  const pe0 = peRows[0] || {};
+  const c = newNutanixCluster(1);
+  c.name = sheet;
+  c.pe = {
+    fqdn: pe0['cluster fqdn'] || '',
+    clusterIp: pe0['nutanix cluster ip'] || '',
+    dataserviceIp: pe0['dataservice ip'] || '',
+    rf: (pe0['redundency factor'] || pe0['redundancy factor'] || 'RF2').toUpperCase()
+  };
+  const hosts = peRows.filter(r => r['host name'] || r['host ip'] || r['cvm ip'] || r['node serial']).map(r => ({
+    serial: r['node serial'] || '', hostName: r['host name'] || '', ipmiPass: 'TBA',
+    ipmiIp: r['ipmi ip'] || '', hostIp: r['host ip'] || '', cvmIp: r['cvm ip'] || ''
+  }));
+  if (hosts.length) c.hosts = hosts;
+
+  const cHdr = pfNzFind(m, /^compression delay/i);
+  if (cHdr){
+    const rows = pfNzTable(m, cHdr);
+    if (rows.length) c.containers = rows.map(r => ({
+      name: r['name'] || '', compression: r['compression'] || '', delay: r['compression delay minutes'] || r['compression delay (minutes)'] || '15',
+      dedup: r['capacity tier dedup'] || '', rf: (r['replication factor'] || 'RF2').toUpperCase()
+    }));
+  }
+  const vHdr = pfNzFind(m, /^vlan name$/i);
+  if (vHdr){
+    const rows = pfNzTable(m, vHdr);
+    if (rows.length) c.vlans = rows.map(r => ({
+      type: 'Optional Customer VLAN', name: r['vlan name'] || '', vlanId: r['vlan id'] || '',
+      range: r['ip range/subnet'] || r['ip range / subnet'] || '', gateway: r['gateway'] || ''
+    }));
+  }
+  const sHdr = pfNzFind(m, /^patch panel port$/i);
+  if (sHdr){
+    const rows = pfNzTable(m, sHdr);
+    if (rows.length) c.switches = rows.map(r => ({
+      node: r['nutanix node'] || '', nodePort: r['node network port'] || '',
+      patchPanel: r['patch panel port'] || '', switchPort: r['switch name & port'] || r['switch name and port'] || ''
+    }));
+  }
+
+  const credTitle = pfNzFind(m, /^credentials$/i);
+  const authTitle = pfNzFind(m, /^authentication configuration$/i);
+  if (credTitle){
+    for (const r of m.rowNums()){
+      if (r <= credTitle.r) continue;
+      if (authTitle && r >= authTitle.r) break;
+      const row = m.row(r);
+      // label, target, username, password - whatever column the template starts in
+      const cells = Object.keys(row).sort((a, b) => pfColIdx(a) - pfColIdx(b)).map(k => pfClean(row[k])).filter(Boolean);
+      if (cells.length < 2) continue;
+      const label = cells[0];
+      const user = cells.length >= 4 ? cells[2] : cells[1];
+      const pass = cells.length >= 4 ? cells[3] : (cells[2] || '');
+      const key = pfNzCredKey(label, user);
+      if (key) c.creds[key] = { user: user || (c.creds[key] || {}).user || '', pass: pass || 'TBA' };
+    }
+  }
+
+  const a = c.auth;
+  a.displayName = pfNzValue(m, /^display name$/i);
+  a.domainName = pfNzValue(m, /^domain name$/i);
+  a.directoryUrl = pfNzValue(m, /^directory url$/i);
+  const dt = pfNzValue(m, /^directory type$/i);
+  if (dt) a.directoryType = /ad/i.test(dt) ? 'AD' : (dt.indexOf('/') >= 0 ? dt.split('/')[0].trim() : dt);
+  a.peAdminGroup = pfNzValue(m, /^prism element admin group$/i);
+  a.peViewerGroup = pfNzValue(m, /^prism element viewer group$/i);
+  a.switchAIp = pfNzValue(m, /^switch a mgmt ip$/i);
+  a.switchBIp = pfNzValue(m, /^switch b mgmt ip$/i);
+
+  const smtp = c.pc.smtp;
+  c.pc.smtp = {
+    type: 'local',
+    server: pfNzValue(m, /^smtp server$/i),
+    port: pfNzValue(m, /^port$/i),
+    user: pfNzValue(m, /^username$/i),
+    pass: pfNzValue(m, /^password$/i) || 'TBA',
+    from: pfNzValue(m, /^alert from address$/i),
+    to: pfNzValue(m, /^alerts to address/i)
+  };
+  if (!c.pc.smtp.server) c.pc.smtp = smtp;
+
+  c.__contact = {
+    address: pfNzValue(m, /^installation address$/i),
+    installDate: pfNzValue(m, /^installation date/i),
+    contactName: pfNzValue(m, /^onsite contact name$/i),
+    contactEmail: pfNzValue(m, /^onsite contact email$/i),
+    contactPhone: pfNzValue(m, /^onsite contact phone$/i)
+  };
+  return c;
+}
+function pfNzPC(m){
+  const pc = {
+    name: pfNzValue(m, /^name$/i),
+    fqdn: pfNzValue(m, /^fqdn$/i),
+    ip: pfNzValue(m, /^ip address$/i),
+    subnet: pfNzValue(m, /^subnet$/i),
+    gateway: pfNzValue(m, /^gateway$/i),
+    sslSupplied: false,
+    directoryType: '', displayName: '', domainName: '', directoryUrl: '',
+    admins: '', viewers: '',
+    dns: '', ntp: '', domain: '', suffix: '',
+    smtp: {}
+  };
+  const ssl = pfNzValue(m, /^ssl certificate supplied$/i);
+  pc.sslSupplied = pfNzYes(ssl);
+  pc.displayName = pfNzValue(m, /^display name$/i);
+  pc.domainName = pfNzValue(m, /^domain name$/i);
+  pc.directoryUrl = pfNzValue(m, /^directory url$/i);
+  const dt = pfNzValue(m, /^directory type$/i);
+  if (dt) pc.directoryType = dt;
+  pc.admins = pfNzValue(m, /^prism central admins$/i);
+  pc.viewers = pfNzValue(m, /^prism central viewer/i);
+  pc.dns = pfNzValue(m, /^dns servers?$/i);
+  pc.ntp = pfNzValue(m, /^ntp servers?$/i);
+  pc.domain = pfNzValue(m, /^dns domain name$/i);
+  pc.suffix = pfNzValue(m, /^dns suffix search list$/i);
+  pc.smtp = {
+    type: 'local',
+    server: pfNzValue(m, /^smtp server$/i),
+    port: pfNzValue(m, /^port$/i),
+    user: pfNzValue(m, /^username$/i),
+    pass: pfNzValue(m, /^password$/i) || 'TBA',
+    from: pfNzValue(m, /^alert from address$/i),
+    to: pfNzValue(m, /^alerts to address/i)
+  };
+  return pc;
+}
+function pfNzMigration(m){
+  const sec = pfNzFind(m, /^vcenter\s*\/\s*hyper-?v$/i);
+  const after = sec ? sec.r : 0;
+  const t = pfNzFind(m, /^type$/i, after);
+  const ipHit = t ? pfNzFind(m, /^ip address$/i, t.r) : null;
+  const userHit = t ? pfNzFind(m, /^username$/i, t.r) : null;
+  const passHit = t ? pfNzFind(m, /^password$/i, t.r) : null;
+  return {
+    vmName: pfNzValue(m, /^vm name$/i),
+    fqdn: pfNzValue(m, /^fqdn$/i),
+    ip: pfNzValue(m, /^ip address$/i),
+    subnet: pfNzValue(m, /^subnet$/i),
+    gateway: pfNzValue(m, /^gateway$/i),
+    srcType: t ? pfNzRight(m, t.r, t.c) : 'vSphere',
+    srcIp: ipHit ? pfNzRight(m, ipHit.r, ipHit.c) : '',
+    srcUser: userHit ? pfNzRight(m, userHit.r, userHit.c) : '',
+    srcPass: (passHit ? pfNzRight(m, passHit.r, passHit.c) : '') || 'TBA'
+  };
+}
+function pfNzCentral(m){
+  return {
+    fqdn: pfNzValue(m, /^fqdn$/i),
+    subdomains: pfNzValue(m, /^sub ?domains?$/i),
+    vlan: pfNzValue(m, /^vlan$/i),
+    ipRange: pfNzValue(m, /^ip range/i),
+    subnet: pfNzValue(m, /^subnet ?mask$/i),
+    gateway: pfNzValue(m, /^gateway$/i),
+    internalIps: pfNzValue(m, /^internal ip/i),
+    externalIps: pfNzValue(m, /^external ip/i),
+    sslCert: pfNzValue(m, /^ssl certificate$/i),
+    sslKey: pfNzValue(m, /^ssl key$/i)
+  };
+}
+function pfNzLooksNutanix(models){
+  const names = Object.keys(models || {}).map(n => String(n).trim());
+  let score = 0;
+  for (const n of names){
+    if (/^cluster\s*[-\u2013]?\s*\d+$/i.test(n)) score += 3;
+    if (/^(prism central|pc)\s*[-\u2013]?\s*\d+$/i.test(n)) score += 2;
+    if (/^nutanix central$/i.test(n)) score += 2;
+    if (/^migration$/i.test(n)) score += 1;
+  }
+  if (score >= 3) return true;
+  // the 2025 site-per-sheet workbook, and the 2019-2022 questionnaire family
+  if (names.some(n => /^version control$/i.test(n)) && names.some(n => /^lists?$/i.test(n))) return true;
+  if (names.some(n => /^(general information|general details|hypervisor & cvm details|networking deatils|networking details)$/i.test(n))
+      && names.some(n => /^(introduction|ahv|vsphere|hyper-v|xenserver|checklists?)$/i.test(n))) return true;
+  return false;
+}
+function pfParseNutanixWorkbook(models){
+  const clusters = [];
+  const pcs = {};
+  let migration = null, central = null;
+  for (const name of Object.keys(models)){
+    const n = String(name).trim();
+    let mm = /^cluster\s*[-\u2013]?\s*(\d+)$/i.exec(n);
+    if (mm){ clusters.push({ n: Number(mm[1]), sheet: n, data: pfNzCluster(n, models[name]) }); continue; }
+    mm = /^(?:prism central|pc)\s*[-\u2013]?\s*(\d+)$/i.exec(n);
+    if (mm){ pcs[Number(mm[1])] = pfNzPC(models[name]); continue; }
+    if (/^nutanix central$/i.test(n)){ central = pfNzCentral(models[name]); continue; }
+    if (/^migration$/i.test(n)){ migration = pfNzMigration(models[name]); }
+  }
+  clusters.sort((a, b) => a.n - b.n);
+  const built = [];
+  const warnings = [];
+  for (const entry of clusters){
+    if (!entry.data){ warnings.push(entry.sheet + ' has no Prism Element table — skipped.'); continue; }
+    const c = entry.data;
+    const contact = c.__contact || {};
+    delete c.__contact;
+    const pc = pcs[entry.n];
+    if (pc){
+      const def = newNutanixCluster(1).pc;
+      c.pc = Object.assign({}, def, {
+        name: pc.name || def.name, fqdn: pc.fqdn, ip: pc.ip, subnet: pc.subnet, gateway: pc.gateway,
+        sslSupplied: pc.sslSupplied,
+        displayName: pc.displayName, domainName: pc.domainName, directoryUrl: pc.directoryUrl,
+        directoryType: pc.directoryType || def.directoryType,
+        admins: pc.admins, viewers: pc.viewers,
+        dns: pc.dns || def.dns, ntp: pc.ntp || def.ntp,
+        domain: pc.domain, suffix: pc.suffix,
+        smtp: Object.assign({}, def.smtp, pc.smtp)
+      });
+      c.time = { dns: c.pc.dns, ntp: c.pc.ntp, domain: c.pc.domain, suffix: c.pc.suffix };
+      c.ssl = { fqdn: pc.fqdn || '', password: 'TBA', type: pc.sslSupplied ? 'Customer supplied' : '' };
+    } else {
+      warnings.push(entry.sheet + ' has no matching Prism Central sheet — using defaults.');
+    }
+    built.push({ cluster: c, contact });
+  }
+  if (!built.length) return null;
+  const first = built[0].contact || {};
+  const suffix = built[0].cluster.pe.fqdn || built[0].cluster.name;
+  const hosts = built.reduce((n, x) => n + (x.cluster.hosts || []).length, 0);
+  const matched = built.reduce((n, x) => n + (x.cluster.hosts || []).filter(h => h.hostIp || h.cvmIp).length, 0);
+  return {
+    vendor: 'nutanix',
+    pre: {
+      company: '', address: first.address || '', installDate: first.installDate || '',
+      contactName: first.contactName || '', contactEmail: first.contactEmail || '', contactPhone: first.contactPhone || ''
+    },
+    deployments: [{
+      sheet: built[0].cluster.name,
+      name: 'Nutanix Deployment - ' + suffix,
+      clusters: built.map(x => x.cluster),
+      migration: migration || newNutanix().migration,
+      central: central || newNutanix().central,
+      hostCount: hosts,
+      matched, warnings
+    }]
+  };
+}
+function pfBuildNutanixDep(p, pre, includeCreds){
+  const dep = newDeployment(p.name, 'Nutanix', 'deployment', 'Nutanix Cloud Infrastructure');
+  Object.assign(dep.project, {
+    company: pre.company || '', address: pre.address || '', installDate: pfDate(pre.installDate || ''),
+    contactName: pre.contactName || '', contactEmail: pre.contactEmail || '', contactPhone: pre.contactPhone || ''
+  });
+  dep.nutanix = normalizeNutanix({
+    clusters: p.clusters.map(c => {
+      const cc = JSON.parse(JSON.stringify(c));
+      Object.keys(cc.creds || {}).forEach(k => {
+        const p = cc.creds[k].pass || '';
+        // "As per OEM" is an instruction, not a password - keep it either way
+        const keep = includeCreds || /^as per oem$/i.test(p) || /^tba/i.test(p);
+        cc.creds[k].pass = keep && p ? p : 'TBA';
+      });
+      (cc.hosts || []).forEach(h => { h.ipmiPass = 'TBA'; });
+      if (cc.pc && cc.pc.smtp) cc.pc.smtp.pass = includeCreds && cc.pc.smtp.pass ? cc.pc.smtp.pass : 'TBA';
+      return cc;
+    }),
+    migration: Object.assign({}, newNutanix().migration, p.migration, {
+      srcPass: includeCreds ? (p.migration || {}).srcPass || 'TBA' : 'TBA'
+    }),
+    central: Object.assign({}, newNutanix().central, p.central)
+  });
+  return dep;
+}
+
+/* ---- label-driven reader: every SimpliVity template generation ---- */
+function pfLabNorm(v){
+  return String(v == null ? '' : v).replace(/\u00a0/g, ' ').toLowerCase()
+    .replace(/[\u2018\u2019\u201c\u201d"']/g, '')
+    .replace(/\s+/g, ' ').replace(/[().:\-\s]+$/, '').trim();
+}
+function pfLabKind(title){
+  const t = pfLabNorm(title || '').replace(/^section\s*\d+\s*[-\u2013]?\s*/, '').trim();
+  if (!t) return '';
+  if (/^ilo\b/.test(t)) return 'ilo';
+  if (/storage\s+vmkernel/.test(t)) return 'vmk';
+  if (/controller\s+storage|storage\s+network/.test(t)) return 'ovcStorage';
+  if (/^esxi\s+information/.test(t)) return 'esxi';
+  if (/virtual\s+controller/.test(t)) return 'ovc';
+  if (/^federation/.test(t)) return 'fed';
+  if (/^vcenter\s+information/.test(t)) return 'vcenter';
+  if (/^arbiter/.test(t)) return 'arbiter';
+  if (/vmotion/.test(t)) return 'vmotion';
+  return '';
+}
+const PF_SECTION_KIND = { 1:'ilo', 2:'esxi', 3:'ovc', 4:'vmk', 5:'ovcStorage', 6:'fed', 7:'vcenter', 8:'arbiter', 9:'vmotion' };
+function pfIsNodeHdr(v){ return /^node\s*\d+$/i.test(String(v == null ? '' : v).trim()); }
+function pfBlocksOf(m){
+  const out = [];
+  for (const r of m.rowNums()){
+    const row = m.row(r);
+    let kind = '', title = '';
+    for (const c of ['A', 'B', 'C', 'D', 'E', 'F']){
+      const v = String(row[c] == null ? '' : row[c]).trim();
+      if (!v) continue;
+      const sm = /^Section\s+(\d+)/i.exec(v);
+      if (sm){ title = v; kind = pfLabKind(v) || PF_SECTION_KIND[Number(sm[1])] || ''; break; }
+    }
+    if (!kind){
+      for (const c of ['A', 'B']){
+        const v = String(row[c] == null ? '' : row[c]).trim();
+        const k = pfLabKind(v);
+        if (k){ kind = k; title = v; break; }
+      }
+    }
+    if (kind) out.push({ kind, title, start: r });
+  }
+  out.forEach((b, i) => { b.end = i + 1 < out.length ? out[i + 1].start - 1 : b.start + 250; });
+  return out;
+}
+function pfBlockMap(m, b){
+  const ipRe = /^\d{1,3}(\.\d{1,3}){3}$/;
+  const rows = [];
+  const seen = {};
+  const headCols = [];
+  let leftIp = null;
+  for (let r = b.start; r <= b.end; r++){
+    const raw = m.row(r);
+    const clean = {};
+    for (const c of Object.keys(raw)){
+      const v = String(raw[c] == null ? '' : raw[c]).trim();
+      if (!v) continue;
+      if (pfIsNodeHdr(v)){ if (headCols.indexOf(c) < 0) headCols.push(c); continue; }
+      clean[c] = v;
+      if (ipRe.test(v) && !/^255(\.\d{1,3}){3}$/.test(v)){
+        const n = pfColIdx(c);
+        if (leftIp === null || n < leftIp) leftIp = n;
+      }
+    }
+    const cols = Object.keys(clean);
+    if (!cols.length) continue;
+    rows.push({ r, row: clean, cols });
+    cols.forEach(c => { seen[c] = true; });
+  }
+  if (leftIp === null || !rows.length) return null;
+  const labelCol = String.fromCharCode(64 + leftIp - 1);
+  // Prefer the columns the template labels "Node 1..N"; otherwise take the
+  // contiguous run of value columns that starts at the first address column.
+  let valueCols = headCols.sort((a, b2) => pfColIdx(a) - pfColIdx(b2))
+    .filter(c => pfColIdx(c) >= leftIp);
+  if (!valueCols.length){
+    valueCols = [];
+    for (let n = leftIp; ; n++){
+      const c = String.fromCharCode(64 + n);
+      if (!seen[c]) break;
+      valueCols.push(c);
+    }
+  }
+  if (!valueCols.length) return null;
+  return Object.assign({}, b, { labelCol, valueCols, rows });
+}
+function pfBlockGet(bm, re){
+  if (!bm) return null;
+  for (const { row } of bm.rows){
+    const lab = pfLabNorm(row[bm.labelCol]);
+    if (!lab || !re.test(lab)) continue;
+    const vals = bm.valueCols.map(c => pfClean(row[c]));
+    if (vals.some(v => v)) return vals;      // a label with no value is only a header
+  }
+  return null;
+}
+function pfParseDeploymentLabels(sheet, m){
+  const blocks = pfBlocksOf(m).map(b => pfBlockMap(m, b)).filter(Boolean);
+  const kind = {};
+  for (const b of blocks) if (!kind[b.kind]) kind[b.kind] = b;
+  if (!kind.ilo || !kind.esxi) return null;
+  // How many nodes? Count the addresses on the iLO IP row - a column that
+  // holds a stray hostname or note is not a node.
+  const ipRow = pfBlockGet(kind.ilo, /^ip ?address$/);
+  const ipCount = ipRow ? ipRow.filter(v => /^\d{1,3}(\.\d{1,3}){3}$/.test(String(v || ''))).length : 0;
+  const n = ipCount || Math.max(kind.ilo.valueCols.length, kind.esxi.valueCols.length, kind.ovc ? kind.ovc.valueCols.length : 1);
+  if (!n) return null;
+  const pick = (bm, re, i) => {
+    const a = pfBlockGet(bm, re);
+    if (!a) return '';
+    return (i == null ? (a[0] || '') : (a[i] || ''));
+  };
+  const firstOf = (bm, re) => pick(bm, re, null);
+  const nodes = [];
+  for (let i = 0; i < n; i++){
+    nodes.push({
+      col: kind.ilo.valueCols[i] || kind.ilo.valueCols[0],
+      serial: pick(kind.ilo, /^serial/, i),
+      ilo: {
+        host: pick(kind.ilo, /^(ilo (fqdn )?hostname|hostname|host name)$/, i),
+        ip: pick(kind.ilo, /^ip ?address$/, i),
+        subnet: pick(kind.ilo, /^subnet/, i),
+        gateway: pick(kind.ilo, /^gateway/, i),
+        dns1: pick(kind.ilo, /^dns ?1$/, i),
+        dns2: pick(kind.ilo, /^dns ?2$/, i),
+        vlan: pick(kind.ilo, /^vlan/, i),
+        portType: pick(kind.ilo, /port type/, i),
+        user: 'administrator',
+        pass: pick(kind.ilo, /passw/, i)
+      },
+      esxi: {
+        host: pick(kind.esxi, /^(esxi (fqdn )?hostname|host name)$/, i),
+        version: pick(kind.esxi, /^esxi version/, i),
+        mtu: String(pick(kind.esxi, /^mtu/, i) || '').split('/')[0].trim(),
+        ip: pick(kind.esxi, /^ip ?address$/, i),
+        subnet: pick(kind.esxi, /^subnet/, i),
+        gateway: pick(kind.esxi, /^gateway/, i),
+        dns1: pick(kind.esxi, /^dns ?1$/, i),
+        dns2: pick(kind.esxi, /^dns ?2$/, i),
+        vlan: pick(kind.esxi, /^vlan/, i),
+        portType: pick(kind.esxi, /port type/, i),
+        pass: pick(kind.esxi, /passw/, i)
+      },
+      ovc: {
+        mgmt: pick(kind.ovc, /^ip ?address$/, i),
+        storage: pick(kind.ovcStorage, /^ip ?address$/, i),
+        fed: pick(kind.fed, /^ip ?address$/, i),
+        storagePg: pick(kind.ovcStorage, /^(port group|vswitch\d*)$/, i),
+        fedPg: pick(kind.fed, /^(port group|vswitch\d*)$/, i),
+        fedSubnet: pick(kind.fed, /^subnet/, i),
+        fedMtu: pick(kind.fed, /^mtu/, i),
+        fedVlan: pick(kind.fed, /^vlan/, i),
+        pass: pick(kind.ovc, /passw/, i)
+      },
+      vmk: {
+        ip: pick(kind.vmk, /^ip ?address$/, i),
+        subnet: pick(kind.vmk, /^subnet/, i),
+        gateway: pick(kind.vmk, /^gateway/, i),
+        vlan: pick(kind.vmk, /^vlan/, i),
+        mtu: pick(kind.vmk, /^mtu/, i),
+        portGroup: pick(kind.vmk, /^(port group|vswitch\d*)$/, i)
+      }
+    });
+  }
+  const c0 = nodes[0];
+  const vcenter = {
+    hostname: firstOf(kind.vcenter, /^(vcenter (fqdn )?hostname|vcsa hostname|hostname|host name)$/),
+    ip: firstOf(kind.vcenter, /^ip ?address$/),
+    datacenter: firstOf(kind.vcenter, /^datacenter/),
+    env: firstOf(kind.vcenter, /^cluster( name)?$/),
+    version: firstOf(kind.vcenter, /^(vcenter version|vc version|version)$/),
+    ssoUser: firstOf(kind.vcenter, /(admin.*usr|administrator username)/) || 'administrator@vsphere.local'
+  };
+  const arbiter = {
+    hostname: firstOf(kind.arbiter, /^(fqdn hostname|hostname|host name)$/),
+    ip: firstOf(kind.arbiter, /^ip ?address$/),
+    domain: firstOf(kind.arbiter, /^(domain or local access|domain)$/),
+    email: ''
+  };
+  const ntp = [
+    firstOf(kind.vcenter, /^ntp ?1$/), firstOf(kind.vcenter, /^ntp ?2$/), firstOf(kind.vcenter, /^ntp ?3$/)
+  ].filter(Boolean);
+  const networks = {
+    ilo: { netmask: c0.ilo.subnet, gateway: c0.ilo.gateway, dns1: c0.ilo.dns1, dns2: c0.ilo.dns2, vlan: c0.ilo.vlan },
+    management: { netmask: c0.esxi.subnet, gateway: c0.esxi.gateway, vlan: c0.esxi.vlan, mtu: c0.esxi.mtu || '1500', vSwitch: 'vSwitch0', portGroup: 'VM Network', hostPortGroup: 'Management Network' },
+    storage: { netmask: c0.vmk.subnet, vmkNetmask: c0.vmk.subnet, vcGateway: c0.vmk.gateway, vmkGateway: c0.vmk.gateway, vlan: c0.vmk.vlan, mtu: c0.vmk.mtu || '9000', vSwitch: 'vSwitch1', portGroup: c0.vmk.portGroup || 'SVT_StorPG', vmkPortGroup: c0.vmk.portGroup || 'SVT_StorPG' },
+    federation: { netmask: c0.ovc.fedSubnet, gateway: firstOf(kind.fed, /^gateway/), vlan: c0.ovc.fedVlan, mtu: c0.ovc.fedMtu || '1500', vSwitch: 'vSwitch1', portGroup: c0.ovc.fedPg || 'SVT_FedPortGroup' }
+  };
+  let suffix = String(sheet).replace(/^.*?SimpliVity[\s_-]*/i, '').trim() || vcenter.env || String(sheet);
+  if (/^datacenter\s*\d+$/i.test(suffix)) suffix = vcenter.datacenter || vcenter.env || suffix;
+  const warnings = [];
+  if (!nodes.some(x => x.serial)) warnings.push('No serial numbers in this workbook — add them on the Nodes tab if you need them.');
+  if (kind.vmotion) warnings.push('This workbook has a vMotion section; the kit records vMotion under the network plan rather than per node.');
+  if (!vcenter.hostname) warnings.push('No vCenter hostname found');
+  if (!vcenter.ip) warnings.push('No vCenter IP found');
+  const matched = pfCountMatched(nodes);
+  if (matched < 8) warnings.push('Only ' + matched + ' address field(s) matched — check the preview.');
+  return {
+    sheet, name: 'HPE SimpliVity Deployment - ' + suffix, suffix,
+    nodes, vcenter, arbiter, ntp,
+    dns: { primary: c0.ilo.dns1, secondary: c0.ilo.dns2 },
+    networks, warnings, matched
+  };
+}
+function pfParseDeployment(sheet, m){
+  return pfParseKeyed(sheet, m) || pfParseDeploymentLabels(sheet, m) || pfParseDeploymentOld(sheet, m);
+}
 function pfParseWorkbook(models){
+  if (pfNzLooksNutanix(models)){
+    const nz = pfParseNutanixWorkbook(models);
+    return nz || { vendor:'nutanix', pre:{}, deployments:[], legacy:true, nutanixOld:true };
+  }
   const { pre, checklist } = pfParsePrereqs(models);
   const deployments = [];
   let legacy = false;
@@ -4143,7 +4685,9 @@ function pfDiagnostics(){
   const parsed = pfParseWorkbook(pfModels);
   const out = {
     sheets: Object.keys(pfModels),
-    deployments: (parsed.deployments || []).map(d => ({ sheet: d.sheet, nodeCols: d.nodes.map(n => n.col), matched: d.matched, nodes: d.nodes.length })),
+    vendor: parsed.vendor || 'simplivity',
+    deployments: (parsed.deployments || []).map(d => ({ sheet: d.sheet, nodeCols: (d.nodes || []).map(n => n.col),
+      matched: d.matched, nodes: (d.nodes || []).length, clusters: (d.clusters || []).length })),
     layouts: {}
   };
   for (const name of Object.keys(pfModels)){
@@ -4189,6 +4733,10 @@ function pfShowPreview(res){
   const pre = res.pre || {};
   const deps = res.deployments || [];
   if (!deps.length){
+    if (res.vendor === 'nutanix'){
+      pfErr('That Nutanix workbook uses an older or different layout. This importer reads the TD SYNNEX Nutanix Installation Workbook: "Cluster - 01", "Prism Central - 01", "Migration" and "Nutanix Central" sheets.');
+      return;
+    }
     pfErr(res.legacy
       ? 'That workbook could not be read: no datacenter sheet with recognisable field rows was found.'
       : 'No datacenter sheets were recognised in that workbook. Expected a sheet with "Section 1 - iLO Information" and a Serial Number row.');
@@ -4199,15 +4747,29 @@ function pfShowPreview(res){
   const partnerOpts = '<option value="">— Select partner —</option>' +
     reg.partners.map(p => '<option value="' + esc(p.id) + '"' + (p.id === preselect ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
     '<option value="__new__">+ New partner…</option>';
-  const depRows = deps.map((x, i) =>
-    '<label class="check" style="display:block;margin:4px 0"><input type="checkbox" class="pfDep" data-i="' + i + '" checked> <b>' + esc(x.name) + '</b>' +
-    (function(){
+  const isNz = res.vendor === 'nutanix';
+  const depRows = deps.map((x, i) => {
+    let detail;
+    if (isNz){
+      const c0 = (x.clusters && x.clusters[0]) || { pe:{}, pc:{} };
+      const pcIp = (c0.pc && c0.pc.ip) || '';
+      const parts = [
+        (x.clusters || []).length + ' cluster' + ((x.clusters || []).length === 1 ? '' : 's'),
+        (x.hostCount || 0) + ' host' + (x.hostCount === 1 ? '' : 's'),
+        c0.pe && c0.pe.fqdn ? 'PE ' + c0.pe.fqdn : '',
+        pcIp ? 'PC ' + pcIp : '',
+        x.central && x.central.fqdn ? 'Central ' + x.central.fqdn : ''
+      ].filter(Boolean);
+      detail = parts.join(' · ');
+    } else {
       const n0 = x.nodes[0] || {};
       const sample = [n0.ilo && n0.ilo.ip ? 'iLO ' + n0.ilo.ip : '', n0.esxi && n0.esxi.ip ? 'ESXi ' + n0.esxi.ip : ''].filter(Boolean).join(' · ');
-      return ' <span class="hint">' + x.nodes.length + ' node(s) · ' + (x.matched || 0) + ' field(s) matched' +
-        (sample ? ' · ' + esc(sample) : '') + ' · ' + esc(x.vcenter.hostname || 'no vCenter') + ' · ' + esc(x.vcenter.env || '') + '</span>';
-    })() + '</label>'
-  ).join('');
+      detail = x.nodes.length + ' node(s) · ' + (x.matched || 0) + ' field(s) matched' +
+        (sample ? ' · ' + sample : '') + ' · ' + (x.vcenter.hostname || 'no vCenter') + ' · ' + (x.vcenter.env || '');
+    }
+    return '<label class="check" style="display:block;margin:4px 0"><input type="checkbox" class="pfDep" data-i="' + i + '" checked> <b>' + esc(x.name) + '</b>' +
+      ' <span class="hint">' + esc(detail) + '</span></label>';
+  }).join('');
   const warn = deps.reduce((a, x) => a.concat(x.warnings || []), []);
   $('#pfPreview').innerHTML =
     '<section class="card"><h2>Customer</h2><div class="grid">' +
@@ -4218,7 +4780,9 @@ function pfShowPreview(res){
       '<label>Password<input id="pfCustomerPw" type="password" autocomplete="new-password"></label>' +
     '</div><p class="hint">The customer signs in with this ID and password.</p></section>' +
     '<section class="card"><h2>Deployments found</h2>' + depRows +
-      '<p class="hint">Each datacenter sheet becomes one deployment, because each has its own vCenter, arbiter and network plan. Untick any you do not want.</p></section>' +
+      '<p class="hint">' + (isNz
+        ? 'One deployment is created per Nutanix workbook; every Cluster - NN sheet becomes a cluster inside it, with its matching Prism Central. Untick if you do not want it.'
+        : 'Each datacenter sheet becomes one deployment, because each has its own vCenter, arbiter and network plan. Untick any you do not want.') + '</p></section>' +
     '<section class="card"><h2>Credentials</h2>' +
       '<label class="check inline"><input type="checkbox" id="pfCreds"> Import passwords found in the document</label>' +
       '<p class="hint">Off by default — every password is set to <b>TBA Onsite</b> and can be filled in later.</p></section>' +
@@ -4260,8 +4824,11 @@ async function pfCommit(){
   session.cid = cid; session.cname = name; session.keyC = keyC; session.acctSalt = salt; session.account = acct;
   session.raw = new Map();
   store = { v: 1, currentId: null, deployments: [], settings: acct.settings };
+  const nzBook = pfState.vendor === 'nutanix';
   for (const i of chosen){
-    const dep = pfBuildDep(pfState.deployments[i], pfState.pre, includeCreds);
+    const dep = nzBook
+      ? pfBuildNutanixDep(pfState.deployments[i], pfState.pre, includeCreds)
+      : pfBuildDep(pfState.deployments[i], pfState.pre, includeCreds);
     store.deployments.push(dep); store.currentId = dep.id;
     const file = await sealDep(pubHalf(dep), engHalf(dep), keyC, session.engKey);
     await blobWrite(depPath(cid, dep.id), JSON.stringify(file));

@@ -1,5 +1,5 @@
 {
-  "version": "1.7.8",
+  "version": "1.8.0",
   "updated": "2026-11-16",
-  "notes": "WinSCP direct portable ZIP link; kit folder defaults to ~/Downloads."
+  "notes": "Label-driven SimpliVity import (all template generations) and the new Nutanix installation workbook importer."
 }

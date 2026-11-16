@@ -1,5 +1,5 @@
 {
-  "version": "1.4.1",
+  "version": "1.4.2",
   "updated": "2026-11-16",
-  "notes": "Partner is chosen explicitly (no default); partner rename/delete and customer move; Unassigned bucket."
+  "notes": "Removed customer move-between-partners; new work is a new deployment."
 }

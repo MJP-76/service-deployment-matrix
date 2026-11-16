@@ -743,7 +743,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.1';
+const KIT_VERSION = '1.4.2';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1331,7 +1331,7 @@ const SCOPE_FREE_ACTS = new Set([
   'renameCust', 'delCust', 'renameDepTarget', 'delDepTarget', 'saveGhToken', 'clearGhToken',
   'pushAll', 'reloadStore',
   'openPartner', 'openPartnerCustomer', 'openYear', 'custCrumb',
-  'renamePartner', 'delPartner', 'moveCustPartner'
+  'renamePartner', 'delPartner'
 ]);
 /* Engineer-side settings when no customer scope is open (Setup edits). */
 function engSettings(){
@@ -3303,7 +3303,7 @@ function partnerPageHtml(reg, p){
   return '<div class="pane">' +
     crumb([{ level: 'root', label: 'Partners' }, { level: 'partner', id: p.id, label: p.name }]) +
     '<div class="rolehead"><h2>' + esc(p.name) + '</h2>' +
-      '<p class="hint">' + (p.id ? 'Customers delivered by this partner.' : 'Customers with no partner yet — use Move on a customer to assign one.') + '</p>' +
+      '<p class="hint">' + (p.id ? 'Customers delivered by this partner.' : 'Customers with no partner yet.') + '</p>' +
       '<div class="row" style="flex-wrap:wrap"><button data-act="addCust" class="primary">+ Add customer</button>' +
       (p.id ? '<button data-act="renamePartner" data-id="' + esc(p.id) + '">Rename partner…</button>' +
               '<button data-act="delPartner" data-id="' + esc(p.id) + '" class="danger">Delete partner…</button>' : '') +
@@ -3329,12 +3329,6 @@ function customerPageHtml(reg, p, c){
         '<button data-act="renameCust" data-id="' + esc(c.id) + '">Rename…</button>' +
         '<button data-act="resetPw" data-id="' + esc(c.id) + '">Set password…</button>' +
         '<button data-act="delCust" data-id="' + esc(c.id) + '" class="danger">Delete…</button>' +
-      '</div>' +
-      '<div class="row" style="flex-wrap:wrap;margin-top:8px">' +
-        '<label style="min-width:260px">Move to partner<select id="movePartner">' +
-          reg.partners.map(x => '<option value="' + esc(x.id) + '"' + (x.id === c.partnerId ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('') +
-        '</select></label>' +
-        '<button data-act="moveCustPartner" data-id="' + esc(c.id) + '">Move</button>' +
       '</div></div>' +
     rows + '</div>';
 }
@@ -4352,15 +4346,6 @@ function wire(){
       if (custNav.partnerId === pr.id) custNav = { partnerId: null, customerId: null, year: null };
       await writeRegistry();
       render(); return toast('Partner deleted');
-    }
-    if (act === 'moveCustPartner'){
-      const c = regCustomer(el.dataset.id);
-      const pid = ($('#movePartner') && $('#movePartner').value) || '';
-      if (!c || !pid) return toast('Choose a partner', true);
-      c.partnerId = pid;
-      await writeRegistry();
-      if (custNav.customerId === c.id) custNav = { partnerId: pid, customerId: c.id, year: null };
-      render(); return toast('Customer moved');
     }
     if (act === 'openPartner'){
       custNav = { partnerId: el.dataset.id, customerId: null, year: null };

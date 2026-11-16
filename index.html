@@ -322,6 +322,19 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
     </div>
   </div>
 </div>
+<div id="pfModal" class="overlay" hidden>
+  <div class="panel" style="max-width:860px">
+    <h2>Import pre-flight workbook</h2>
+    <p class="hint">Upload the completed vendor workbook (.xlsx). Fields are matched from the Pre-Requisites and each datacenter sheet; nothing is created until you press Create.</p>
+    <input id="pfFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+    <div class="err" id="pfErr" hidden></div>
+    <div id="pfPreview" hidden></div>
+    <div class="row end" style="margin-top:12px">
+      <button id="pfCancel">Cancel</button>
+      <button id="pfCreate" class="primary" hidden>Create</button>
+    </div>
+  </div>
+</div>
 <div id="custModal" class="overlay" hidden>
   <div class="panel" style="max-width:430px">
     <h2 id="custTitle">Add customer</h2>
@@ -742,7 +755,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.4.7';
+const KIT_VERSION = '1.5.0';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -940,6 +953,7 @@ function newDeployment(name, vendor, service, product){
     createdAt: Date.now(),
     version: '',
     project: { company:'', address:'', installDate:'', contactName:'', contactTitle:'', contactEmail:'', contactPhone:'', stakeholder:'',
+      parking:'', officeHours:'', dressCode:'',
       partnerCompany:'', partnerName:'', partnerTitle:'', partnerEmail:'', partnerPhone:'' },
     orders: { vendorOrder:'', excalibur:'' },
     checklist: {},
@@ -1330,7 +1344,7 @@ const SCOPE_FREE_ACTS = new Set([
   'renameCust', 'delCust', 'renameDepTarget', 'delDepTarget', 'saveGhToken', 'clearGhToken',
   'pushAll', 'reloadStore',
   'openPartner', 'openPartnerCustomer', 'openYear', 'custCrumb',
-  'renamePartner', 'delPartner'
+  'renamePartner', 'delPartner', 'importPreflight'
 ]);
 /* Engineer-side settings when no customer scope is open (Setup edits). */
 function engSettings(){
@@ -3279,7 +3293,8 @@ function partnerListHtml(reg){
   return '<div class="pane">' +
     '<div class="rolehead"><h2>Partners</h2>' +
       '<p class="hint">Every customer sits under a partner. Open a partner to see its customers, then choose a customer and a year to reach the deployments.</p>' +
-      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button></div></div>' +
+      '<div class="row"><button data-act="addCust" class="primary">+ Add customer</button>' +
+      '<button data-act="importPreflight">+ Import pre-flight…</button></div></div>' +
     transportHtml() +
     (cards || '<section class="card"><p class="hint">No partners yet — add a customer with a new partner name.</p></section>') +
   '</div>';
@@ -3298,6 +3313,7 @@ function partnerPageHtml(reg, p){
     '<div class="rolehead"><h2>' + esc(p.name) + '</h2>' +
       '<p class="hint">' + (p.id ? 'Customers delivered by this partner.' : 'Customers with no partner yet.') + '</p>' +
       '<div class="row" style="flex-wrap:wrap"><button data-act="addCust" class="primary">+ Add customer</button>' +
+      '<button data-act="importPreflight" data-id="' + esc(p.id) + '">+ Import pre-flight…</button>' +
       (p.id ? '<button data-act="renamePartner" data-id="' + esc(p.id) + '">Rename partner…</button>' +
               '<button data-act="delPartner" data-id="' + esc(p.id) + '" class="danger">Delete partner…</button>' : '') +
       '</div></div>' +
@@ -3428,6 +3444,9 @@ function projectDetailsHtml(custMode){
       '<label>Contact email<input data-bind="project.contactEmail" value="' + esc(p.contactEmail) + '"></label>' +
       '<label>Contact phone<input data-bind="project.contactPhone" value="' + esc(p.contactPhone) + '"></label>' +
       '<label>Project stakeholder<input data-bind="project.stakeholder" value="' + esc(p.stakeholder || '') + '"></label>' +
+      '<label>Parking arrangements<input data-bind="project.parking" value="' + esc(p.parking || '') + '"></label>' +
+      '<label>Office hours<input data-bind="project.officeHours" value="' + esc(p.officeHours || '') + '"></label>' +
+      '<label>Dress code<input data-bind="project.dressCode" value="' + esc(p.dressCode || '') + '"></label>' +
       '<h3 class="sec" style="grid-column:1/-1">Partner contact</h3>' +
       '<label>Partner company<input data-bind="project.partnerCompany" value="' + esc(p.partnerCompany || '') + '"></label>' +
       '<label>Contact name<input data-bind="project.partnerName" value="' + esc(p.partnerName || '') + '"></label>' +
@@ -3674,6 +3693,405 @@ function nutanixCentralHtml(){
       nzT('nutanix.central.sslKey', 'SSL Key', c.sslKey, 4) +
     '</div></section>' +
   '</div>';
+}
+
+/* ================= pre-flight workbook import ================= */
+function pfColIdx(letters){ let n = 0; for (const ch of String(letters)) n = n * 26 + (ch.charCodeAt(0) - 64); return n; }
+function pfSplitRef(ref){ const m = /^([A-Z]+)(\d+)$/.exec(String(ref).toUpperCase()); return m ? { c: m[1], r: Number(m[2]) } : null; }
+function pfSheetModel(cells){
+  const rows = {};
+  for (const ref of Object.keys(cells)){
+    const p = pfSplitRef(ref);
+    if (!p) continue;
+    (rows[p.r] = rows[p.r] || {})[p.c] = cells[ref];
+  }
+  const nums = Object.keys(rows).map(Number).sort((a, b) => a - b);
+  return {
+    rows,
+    rowNums: () => nums,
+    row: r => rows[r] || {},
+    at: ref => cells[ref]
+  };
+}
+async function pfInflate(bytes){
+  if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot read .xlsx files — use Chrome, Edge or Firefox 113+.');
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function pfUnzip(u8){
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 66000); i--){
+    if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('That file is not a .xlsx workbook.');
+  const count = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const out = {};
+  const td = new TextDecoder();
+  for (let n = 0; n < count; n++){
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const csize = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extraLen = dv.getUint16(off + 30, true);
+    const commentLen = dv.getUint16(off + 32, true);
+    const lho = dv.getUint32(off + 42, true);
+    const name = td.decode(u8.subarray(off + 46, off + 46 + nameLen));
+    const lnameLen = dv.getUint16(lho + 26, true);
+    const lextraLen = dv.getUint16(lho + 28, true);
+    const dataStart = lho + 30 + lnameLen + lextraLen;
+    const comp = u8.subarray(dataStart, dataStart + csize);
+    try{
+      if (method === 0) out[name] = comp;
+      else if (method === 8) out[name] = await pfInflate(comp);
+    }catch(e){ /* skip unreadable entry */ }
+    off += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
+}
+function pfXml(bytes){ return new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'application/xml'); }
+function pfCellValue(c, shared){
+  const t = c.getAttribute('t');
+  if (t === 's'){
+    const v = c.getElementsByTagName('v')[0];
+    return v ? (shared[Number(v.textContent)] || '') : '';
+  }
+  if (t === 'inlineStr'){
+    let s = ''; const ts = c.getElementsByTagName('t');
+    for (const x of ts) s += x.textContent;
+    return s;
+  }
+  const v = c.getElementsByTagName('v')[0];
+  if (v) return v.textContent;
+  let s = ''; const ts = c.getElementsByTagName('t');
+  for (const x of ts) s += x.textContent;
+  return s;
+}
+async function pfReadWorkbook(file){
+  const entries = await pfUnzip(new Uint8Array(await file.arrayBuffer()));
+  const wb = entries['xl/workbook.xml'] ? pfXml(entries['xl/workbook.xml']) : null;
+  if (!wb) throw new Error('Could not read xl/workbook.xml from that file.');
+  const shared = [];
+  if (entries['xl/sharedStrings.xml']){
+    const ss = pfXml(entries['xl/sharedStrings.xml']);
+    for (const si of ss.getElementsByTagName('si')){
+      let s = ''; const ts = si.getElementsByTagName('t');
+      for (const x of ts) s += x.textContent;
+      shared.push(s);
+    }
+  }
+  const relMap = {};
+  if (entries['xl/_rels/workbook.xml.rels']){
+    const rels = pfXml(entries['xl/_rels/workbook.xml.rels']);
+    for (const r of rels.getElementsByTagName('Relationship')) relMap[r.getAttribute('Id')] = r.getAttribute('Target');
+  }
+  const sheets = {};
+  const RS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  for (const sh of wb.getElementsByTagName('sheet')){
+    const name = sh.getAttribute('name');
+    const rid = sh.getAttribute('r:id') || sh.getAttributeNS(RS, 'id');
+    let target = relMap[rid] || '';
+    target = target.replace(/^\/?xl\//, '').replace(/^\.\//, '');
+    if (target.indexOf('/') < 0) target = 'worksheets/' + target;
+    const xmlBytes = entries['xl/' + target];
+    if (!xmlBytes) continue;
+    const ws = pfXml(xmlBytes);
+    const cells = {};
+    for (const c of ws.getElementsByTagName('c')){
+      const ref = c.getAttribute('r');
+      if (!ref) continue;
+      cells[ref.toUpperCase()] = pfCellValue(c, shared);
+    }
+    sheets[name] = pfSheetModel(cells);
+  }
+  return sheets;
+}
+function pfSections(m){
+  const starts = [];
+  for (const r of m.rowNums()){
+    const a = String(m.row(r).A || '').trim();
+    const mm = /^Section\s+(\d+)/i.exec(a);
+    if (mm) starts.push({ n: Number(mm[1]), r });
+  }
+  starts.sort((a, b) => a.r - b.r);
+  const map = {};
+  starts.forEach((s, i) => { map[s.n] = { start: s.r, end: i + 1 < starts.length ? starts[i + 1].r - 1 : s.r + 200 }; });
+  return map;
+}
+function pfHeader(m, sec, col){ return String(m.row(sec.start + 1)[col] || '').trim(); }
+function pfVal(m, sec, key, col){
+  if (!sec) return '';
+  for (let r = sec.start; r <= sec.end; r++){
+    const row = m.row(r);
+    if (String(row.A || '').trim() === String(key)) return String(row[col] || '').trim();
+  }
+  return '';
+}
+function pfNodeCols(m, sec){
+  const row = m.row(sec.start + 1);
+  const cols = Object.keys(row).sort((a, b) => pfColIdx(a) - pfColIdx(b));
+  const i = cols.findIndex(c => /serial/i.test(String(row[c] || '')));
+  if (i < 0) return [];
+  return cols.slice(i + 1).filter(c => String(row[c] || '').trim() !== '');
+}
+const PF_LABELS = [
+  ['company', /^Company Name$/i], ['address', /^Installation Address$/i], ['installDate', /^Installation Date$/i],
+  ['contactName', /^Contact Name$/i], ['contactTitle', /^Contact Title$/i], ['contactEmail', /^Contact Email$/i],
+  ['contactPhone', /^Contact Phone$/i], ['parking', /^Parking arrangements$/i], ['officeHours', /^Office Hours$/i],
+  ['dressCode', /^Dress Code$/i]
+];
+const PF_CHECK = [
+  ['delivered', /hardware has been delivered to site/i], ['racked', /rack mounted/i], ['access', /on site access/i],
+  ['room', /meeting room/i], ['l2', /layer 2 networking/i], ['ports', /network ports/i],
+  ['infosight', /infosight/i], ['vcenter', /vcenter\(s\) installed/i]
+];
+function pfParsePrereqs(models){
+  const pre = {}; const checklist = {};
+  for (const name of Object.keys(models)){
+    const m = models[name];
+    const found = m.rowNums().some(r => Object.values(m.row(r)).some(v => /^Company Name$/i.test(String(v).trim())));
+    if (!found) continue;
+    for (const r of m.rowNums()){
+      const row = m.row(r);
+      const cols = Object.keys(row).sort((a, b) => pfColIdx(a) - pfColIdx(b));
+      for (let i = 0; i < cols.length; i++){
+        const text = String(row[cols[i]] || '').trim();
+        let hit = PF_LABELS.find(x => x[1].test(text));
+        if (hit){
+          for (let j = i + 1; j < cols.length; j++){
+            const v = String(row[cols[j]] || '').trim();
+            if (v){ pre[hit[0]] = v; break; }
+          }
+          continue;
+        }
+        hit = PF_CHECK.find(x => x[1].test(text));
+        if (hit){
+          let v = '';
+          for (let j = i + 1; j < cols.length; j++){
+            const x = String(row[cols[j]] || '').trim();
+            if (x){ v = x; break; }
+          }
+          checklist[hit[0]] = /^(yes|true|y|✓|x|1)$/i.test(v);
+        }
+      }
+    }
+    break;
+  }
+  return { pre, checklist };
+}
+function pfParseDeployment(sheet, m){
+  const secs = pfSections(m);
+  if (!secs[1]) return null;
+  const cols = pfNodeCols(m, secs[1]);
+  if (!cols.length) return null;
+  const g = (n, k, c) => pfVal(m, secs[n], k, c);
+  const h = (n, c) => pfHeader(m, secs[n], c);
+  const nodes = cols.map(col => ({
+    col,
+    serial: h(1, col),
+    ilo: { host: g(1, 55, col), user: g(1, 58, col), pass: g(1, 60, col), ip: g(1, 64, col), subnet: g(1, 65, col), gateway: g(1, 67, col), dns1: g(1, 69, col), dns2: g(1, 71, col), vlan: g(1, 73, col) },
+    esxi: { host: h(2, col), version: g(2, 77, col), ip: g(2, 80, col), subnet: g(2, 81, col), gateway: g(2, 67, col), dns1: g(2, 69, col), dns2: g(2, 71, col), vlan: g(2, 73, col), mtu: String(g(2, 63, col)).split('/')[0].trim() },
+    ovc: { mgmt: g(3, 80, col), storage: g(5, 80, col), fed: g(6, 80, col), storagePg: h(5, col), fedPg: h(6, col), fedSubnet: g(6, 81, col), fedMtu: g(6, 63, col), fedVlan: g(6, 73, col) },
+    vmk: { ip: g(4, 80, col), subnet: g(4, 81, col), gateway: g(4, 67, col), vlan: g(4, 73, col), mtu: g(4, 63, col), portGroup: h(4, col) }
+  }));
+  const c0 = nodes[0].col;
+  const vcenter = { hostname: h(7, c0), ip: g(7, 80, c0), datacenter: g(7, 94, c0), env: g(7, 95, c0), version: g(7, 96, c0), ssoUser: g(7, 97, c0) };
+  const arbiter = { hostname: h(8, c0), ip: g(8, 80, c0), domain: g(8, 108, c0), email: g(8, 110, c0) };
+  const ntp = [g(7, 99, c0), g(7, 101, c0), g(7, 103, c0)].filter(Boolean);
+  const n0 = nodes[0];
+  const networks = {
+    ilo: { netmask: n0.ilo.subnet, gateway: n0.ilo.gateway, dns1: n0.ilo.dns1, dns2: n0.ilo.dns2, vlan: n0.ilo.vlan },
+    management: { netmask: n0.esxi.subnet, gateway: n0.esxi.gateway, vlan: n0.esxi.vlan, mtu: n0.esxi.mtu || '1500', vSwitch: 'vSwitch0', portGroup: 'VM Network', hostPortGroup: 'Management Network' },
+    storage: { netmask: n0.vmk.subnet, vmkNetmask: n0.vmk.subnet, vcGateway: n0.vmk.gateway, vmkGateway: n0.vmk.gateway, vlan: n0.vmk.vlan, mtu: n0.vmk.mtu || '9000', vSwitch: 'vSwitch1', portGroup: n0.vmk.portGroup || 'SVT_StorPG', vmkPortGroup: n0.vmk.portGroup || 'SVT_StorPG' },
+    federation: { netmask: n0.ovc.fedSubnet, gateway: g(6, 67, c0), vlan: n0.ovc.fedVlan, mtu: n0.ovc.fedMtu || '1500', vSwitch: 'vSwitch1', portGroup: n0.ovc.fedPg || 'SVT_FedPortGroup' }
+  };
+  const suffix = sheet.replace(/^.*?SimpliVity[\s_-]*/i, '').trim() || vcenter.env || sheet;
+  const warnings = [];
+  if (!vcenter.hostname) warnings.push('No vCenter hostname found');
+  if (!vcenter.ip) warnings.push('No vCenter IP found');
+  nodes.forEach((n, i) => { if (!n.esxi.host) warnings.push('Node ' + (i + 1) + ': no ESXi host name'); });
+  return {
+    sheet, name: 'HPE SimpliVity Deployment - ' + suffix, suffix,
+    nodes, vcenter, arbiter, ntp,
+    dns: { primary: n0.ilo.dns1, secondary: n0.ilo.dns2 },
+    networks, warnings,
+    matched: nodes.length * 10 + (vcenter.hostname ? 1 : 0) + (arbiter.hostname ? 1 : 0)
+  };
+}
+function pfParseWorkbook(models){
+  const { pre, checklist } = pfParsePrereqs(models);
+  const deployments = [];
+  let legacy = false;
+  for (const name of Object.keys(models)){
+    const dep = pfParseDeployment(name, models[name]);
+    if (dep){ dep.checklist = checklist; deployments.push(dep); }
+    else if (pfSections(models[name])[1]) legacy = true;   // datacenter sheet without the Serial Number row
+  }
+  return { pre, deployments, legacy };
+}
+function pfDate(v){
+  if (!v) return '';
+  if (/^\d+(\.\d+)?$/.test(v)){
+    const d = new Date(Date.UTC(1899, 11, 30) + Number(v) * 86400000);
+    return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+  }
+  const d = new Date(v);
+  return isNaN(d) ? '' : d.toISOString().slice(0, 10);
+}
+function pfBuildDep(p, pre, includeCreds){
+  const dep = newDeployment(p.name, 'HPE', 'deployment', 'SimpliVity');
+  dep.version = p.vcenter.env || '';
+  Object.assign(dep.project, {
+    company: pre.company || '', address: pre.address || '', installDate: pfDate(pre.installDate),
+    contactName: pre.contactName || '', contactTitle: pre.contactTitle || '', contactEmail: pre.contactEmail || '', contactPhone: pre.contactPhone || '',
+    parking: pre.parking || '', officeHours: pre.officeHours || '', dressCode: pre.dressCode || ''
+  });
+  dep.checklist = Object.assign({}, p.checklist || {});
+  dep.ntp = (p.ntp || []).join('\n');
+  dep.dns = Object.assign({}, dep.dns, { primary: p.dns.primary || '', secondary: p.dns.secondary || '', domain: '', search: '' });
+  dep.networks = {
+    ilo: Object.assign({}, dep.networks.ilo, p.networks.ilo),
+    management: Object.assign({}, dep.networks.management, p.networks.management),
+    storage: Object.assign({}, dep.networks.storage, p.networks.storage),
+    federation: Object.assign({}, dep.networks.federation, p.networks.federation)
+  };
+  dep.vcenter = Object.assign({}, dep.vcenter, {
+    hostname: p.vcenter.hostname || '', ip: p.vcenter.ip || '', cluster: p.vcenter.datacenter || '',
+    env: p.vcenter.env || '', version: p.vcenter.version || '', ssoUser: p.vcenter.ssoUser || 'administrator@vsphere.local',
+    ssoPass: 'TBA Onsite', rootUser: 'root', rootPass: 'TBA Onsite'
+  });
+  dep.arbiter = Object.assign({}, dep.arbiter, {
+    hostname: p.arbiter.hostname || '', ip: p.arbiter.ip || '', domain: p.arbiter.domain || '', email: p.arbiter.email || '', pass: 'TBA Onsite'
+  });
+  dep.nodes = p.nodes.map(raw => {
+    const n = newNode();
+    n.serial = raw.serial || '';
+    n.name = raw.esxi.host || raw.ilo.host || '';
+    n.ilo = Object.assign({}, n.ilo, raw.ilo, { pass: includeCreds && raw.ilo.pass ? raw.ilo.pass : 'TBA Onsite' });
+    n.esxi = Object.assign({}, n.esxi, raw.esxi, { pass: 'TBA Onsite' });
+    n.ovc = Object.assign({}, n.ovc, {
+      mgmt: raw.ovc.mgmt, storage: raw.ovc.storage, fed: raw.ovc.fed,
+      storagePg: raw.ovc.storagePg, fedPg: raw.ovc.fedPg, fedSubnet: raw.ovc.fedSubnet,
+      fedMtu: raw.ovc.fedMtu, fedVlan: raw.ovc.fedVlan, pass: 'TBA Onsite'
+    });
+    n.vmk = Object.assign({}, n.vmk, {
+      ip: raw.vmk.ip, subnet: raw.vmk.subnet, gateway: raw.vmk.gateway,
+      vlan: raw.vmk.vlan, mtu: raw.vmk.mtu, portGroup: raw.vmk.portGroup
+    });
+    return normalizeNode(n);
+  });
+  return dep;
+}
+let pfState = null;
+function pfErr(msg){
+  const el = $('#pfErr');
+  el.hidden = false; el.textContent = msg;
+}
+function pfToggleNewPartner(){
+  const sel = $('#pfPartner'), row = $('#pfPartnerNewRow'), inp = $('#pfPartnerNew');
+  if (!sel || !row) return;
+  row.hidden = sel.value !== '__new__';
+  if (row.hidden && inp) inp.value = '';
+}
+function openPreflight(partnerId){
+  pfState = null;
+  $('#pfFile').value = '';
+  $('#pfErr').hidden = true;
+  $('#pfPreview').hidden = true;
+  $('#pfPreview').innerHTML = '';
+  $('#pfCreate').hidden = true;
+  $('#pfModal').hidden = false;
+  $('#pfModal').dataset.partner = partnerId || '';
+}
+function pfShowPreview(res){
+  pfState = res;
+  const pre = res.pre || {};
+  const deps = res.deployments || [];
+  if (!deps.length){
+    pfErr(res.legacy
+      ? 'This looks like the older "Test Dev" workbook layout (no Serial Number row and unlabelled sections). Use the current TDAS pre-flight template, or ask me to add support for the legacy layout.'
+      : 'No datacenter sheets were recognised in that workbook. Expected a sheet with "Section 1 - iLO Information" and a Serial Number row.');
+    return;
+  }
+  const reg = normalizeRegistry(session.registry);
+  const preselect = $('#pfModal').dataset.partner || '';
+  const partnerOpts = '<option value="">— Select partner —</option>' +
+    reg.partners.map(p => '<option value="' + esc(p.id) + '"' + (p.id === preselect ? ' selected' : '') + '>' + esc(p.name) + '</option>').join('') +
+    '<option value="__new__">+ New partner…</option>';
+  const depRows = deps.map((x, i) =>
+    '<label class="check" style="display:block;margin:4px 0"><input type="checkbox" class="pfDep" data-i="' + i + '" checked> <b>' + esc(x.name) + '</b>' +
+    ' <span class="hint">' + x.nodes.length + ' node(s) · ' + esc(x.vcenter.hostname || 'no vCenter') + ' · ' + esc(x.vcenter.env || '') + '</span></label>'
+  ).join('');
+  const warn = deps.reduce((a, x) => a.concat(x.warnings || []), []);
+  $('#pfPreview').innerHTML =
+    '<section class="card"><h2>Customer</h2><div class="grid">' +
+      '<label>Partner<select id="pfPartner">' + partnerOpts + '</select></label>' +
+      '<label id="pfPartnerNewRow" hidden>New partner name<input id="pfPartnerNew"></label>' +
+      '<label>Customer name<input id="pfCustomerName" value="' + esc(pre.company || '') + '"></label>' +
+      '<label>Customer ID<input id="pfCustomerId" class="mono" value="' + esc(slugId(pre.company || '')) + '"></label>' +
+      '<label>Password<input id="pfCustomerPw" type="password" autocomplete="new-password"></label>' +
+    '</div><p class="hint">The customer signs in with this ID and password.</p></section>' +
+    '<section class="card"><h2>Deployments found</h2>' + depRows +
+      '<p class="hint">Each datacenter sheet becomes one deployment, because each has its own vCenter, arbiter and network plan. Untick any you do not want.</p></section>' +
+    '<section class="card"><h2>Credentials</h2>' +
+      '<label class="check inline"><input type="checkbox" id="pfCreds"> Import passwords found in the document</label>' +
+      '<p class="hint">Off by default — every password is set to <b>TBA Onsite</b> and can be filled in later.</p></section>' +
+    (warn.length ? '<section class="card"><h2>Notes</h2><ul>' + warn.map(w => '<li>' + esc(w) + '</li>').join('') + '</ul></section>' : '');
+  $('#pfPreview').hidden = false;
+  $('#pfCreate').hidden = false;
+  pfToggleNewPartner();
+  $('#pfErr').hidden = true;
+}
+async function pfCommit(){
+  if (!pfState) throw new Error('Upload a workbook first');
+  if (!session.engKey || !session.engSalt || session.role !== 'engineer') throw new Error('Sign in as the deployment engineer first');
+  const reg = normalizeRegistry(session.registry);
+  let pid = $('#pfPartner').value;
+  const newPartner = (($('#pfPartnerNew') && $('#pfPartnerNew').value) || '').trim();
+  if (pid === '__new__'){
+    if (!newPartner) throw new Error('Enter the new partner name');
+    const np = { id: uid(), name: newPartner, createdAt: Date.now() };
+    reg.partners.push(np); pid = np.id;
+  }
+  if (!pid) throw new Error('Choose a partner, or select “+ New partner…”');
+  const name = ($('#pfCustomerName').value || '').trim();
+  const cid = slugId($('#pfCustomerId').value || name);
+  const pw = $('#pfCustomerPw').value || '';
+  if (!name) throw new Error('Customer name is required');
+  if (!cid) throw new Error('Customer ID is required');
+  if (pw.length < 6) throw new Error('Customer password must be at least 6 characters');
+  if (regCustomer(cid)) throw new Error('A customer with ID "' + cid + '" already exists');
+  const chosen = [...document.querySelectorAll('.pfDep:checked')].map(x => Number(x.dataset.i));
+  if (!chosen.length) throw new Error('Choose at least one deployment');
+  const includeCreds = !!($('#pfCreds') && $('#pfCreds').checked);
+  const salt = rndBytes(16);
+  const keyC = await deriveKey(pw, salt, true);
+  const rawKey = await crypto.subtle.exportKey('raw', keyC);
+  const acct = { v: 1, id: cid, name, settings: Object.assign({}, DEFAULT_SETTINGS), deployments: [] };
+  await blobWrite(acctPath(cid), JSON.stringify(await sealBlob(keyC, salt, acct)));
+  reg.customers = reg.customers || [];
+  reg.customers.push({ id: cid, name, partnerId: pid, keyC: b64(rawKey), salt: b64(salt), deployments: [] });
+  session.cid = cid; session.cname = name; session.keyC = keyC; session.acctSalt = salt; session.account = acct;
+  session.raw = new Map();
+  store = { v: 1, currentId: null, deployments: [], settings: acct.settings };
+  for (const i of chosen){
+    const dep = pfBuildDep(pfState.deployments[i], pfState.pre, includeCreds);
+    store.deployments.push(dep); store.currentId = dep.id;
+    const file = await sealDep(pubHalf(dep), engHalf(dep), keyC, session.engKey);
+    await blobWrite(depPath(cid, dep.id), JSON.stringify(file));
+    session.raw.set(dep.id, file);
+  }
+  const c = regCustomer(cid); if (c) c.deployments = stubsFor(cid);
+  dirty.registry = true; dirty.account = true;
+  try{ await writeAccount(); }catch(e){ dirty.account = true; }
+  try{ await writeRegistry(); }catch(e){ dirty.registry = true; }
+  try{ await flushSync(); }catch(e){}
+  $('#pfModal').hidden = true;
+  custNav = { partnerId: pid, customerId: cid, year: String(new Date().getFullYear()) };
+  ui.section = 'engineer'; ui.tab = 'customers';
+  render();
+  toast('Imported ' + chosen.length + ' deployment' + (chosen.length === 1 ? '' : 's') + ' for ' + name);
 }
 
 /* ================= render ================= */
@@ -4342,6 +4760,10 @@ function wire(){
       await writeRegistry();
       render(); return toast('Partner deleted');
     }
+    if (act === 'importPreflight'){
+      openPreflight(el.dataset.id || '');
+      return;
+    }
     if (act === 'openPartner'){
       custNav = { partnerId: el.dataset.id, customerId: null, year: null };
       render(); return;
@@ -4519,6 +4941,18 @@ function wire(){
   $('#nameInput').addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); saveName(); } if (e.key === 'Escape') $('#nameModal').hidden = true; });
 
   $('#unlockBtn').addEventListener('click', tryPassword);
+  $('#pfFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    $('#pfErr').hidden = true;
+    try{
+      const models = await pfReadWorkbook(f);
+      pfShowPreview(pfParseWorkbook(models));
+    }catch(err){ pfErr(err && err.message ? err.message : 'Could not read that workbook'); }
+  });
+  $('#pfCancel').addEventListener('click', () => { $('#pfModal').hidden = true; });
+  $('#pfCreate').addEventListener('click', () => pfCommit().catch(err => pfErr(err && err.message ? err.message : String(err))));
+  $('#pfPreview').addEventListener('change', e => { if (e.target.id === 'pfPartner') pfToggleNewPartner(); });
   $('#unlockPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryPassword(); });
   $('#unlockReset').addEventListener('click', () => {
     if (!confirm('Erase ALL saved data in this workbook (both sections) and start over? This cannot be undone.')) return;

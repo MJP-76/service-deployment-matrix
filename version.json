@@ -1,5 +1,5 @@
 {
-  "version": "1.4.7",
+  "version": "1.5.0",
   "updated": "2026-11-16",
-  "notes": "Default deployment name drops the duplicated vendor when the product already begins with it."
+  "notes": "Import a completed SimpliVity pre-flight workbook: preview, then create partner/customer/devployments."
 }

@@ -756,7 +756,7 @@ const LS = {
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
 const LS_KEY = LS.legacy;
-const KIT_VERSION = '1.5.4';
+const KIT_VERSION = '1.5.5';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1383,8 +1383,24 @@ function ghToken(){
   try{ const t = localStorage.getItem(LS.token); if (t) return t; }catch(e){}
   return typeof KIT_GH_TOKEN === 'string' ? KIT_GH_TOKEN : '';
 }
-function acctPath(cid){ return 'customers/' + cid + '/account.enc'; }
-function depPath(cid, did){ return 'customers/' + cid + '/deps/' + did + '.enc'; }
+/* Opaque folder per customer so public repo paths never contain the customer
+   name/ID. Deterministic so a customer who knows only their ID can still find
+   their files; not reversible in any practical sense for a non-guessable ID. */
+function hashId(s){
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < s.length; i++){
+    const ch = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+function custDir(cid){ return 'c-' + hashId('svtkit|' + String(cid || '').toLowerCase()); }
+function acctPath(cid){ return 'customers/' + custDir(cid) + '/account.enc'; }
+function depPath(cid, did){ return 'customers/' + custDir(cid) + '/deps/' + did + '.enc'; }
+function cacheDrop(path){ try{ localStorage.removeItem(BLOB_PREFIX + path); }catch(e){} }
 function slugId(s){ return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); }
 function regCustomer(cid){ return session.registry && (session.registry.customers || []).find(c => c.id === cid) || null; }
 /* Partners are registry metadata: Partner › Customer › Year › Deployment. */
@@ -1840,6 +1856,35 @@ function maybeTouchSession(){
   lastSessionTouch = now;
   touchSession();
 }
+async function migrateCustomerDirs(){
+  if (session.role !== 'engineer' || !session.registry) return 0;
+  let moved = 0;
+  for (const c of (session.registry.customers || [])){
+    const target = custDir(c.id);
+    if (target === c.id) continue;
+    const oldAcct = 'customers/' + c.id + '/account.enc';
+    const newAcct = 'customers/' + target + '/account.enc';
+    try{
+      const oldRaw = await blobRead(oldAcct, true);
+      if (!oldRaw) continue;
+      if (!(await blobRead(newAcct, true))) await blobWrite(newAcct, JSON.stringify(oldRaw));
+      await blobDelete(oldAcct);
+      cacheDrop(oldAcct);
+      for (const s of (c.deployments || [])){
+        const od = 'customers/' + c.id + '/deps/' + s.id + '.enc';
+        const nd = 'customers/' + target + '/deps/' + s.id + '.enc';
+        const r = await blobRead(od, true);
+        if (!r) continue;
+        if (!(await blobRead(nd, true))) await blobWrite(nd, JSON.stringify(r));
+        await blobDelete(od);
+        cacheDrop(od);
+      }
+      moved++;
+    }catch(e){ /* leave for the next attempt */ }
+  }
+  if (moved) toast('Masked ' + moved + ' customer folder(s) in the shared store');
+  return moved;
+}
 async function restoreSession(){
   const t = sessionTicket();
   if (!t) return false;
@@ -1858,6 +1903,7 @@ async function restoreSession(){
       custNav = { partnerId: null, customerId: null, year: null };
       store = null;
       ui.section = 'engineer'; ui.tab = 'customers'; ui.custTab = 'picker';
+      try{ await migrateCustomerDirs(); }catch(e){}
       touchSession();
       render();
       return true;
@@ -1962,6 +2008,7 @@ async function engineerSignIn(pw){
   ui.section = 'engineer'; ui.tab = 'customers'; ui.custTab = 'picker';
   $('#unlockModal').hidden = true;
   if (!raw) await writeRegistry();
+  try{ await migrateCustomerDirs(); }catch(e){}
   rememberSession();
   render();
   toast('Signed in — create and manage customers on the Customers tab');

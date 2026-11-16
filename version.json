@@ -1,5 +1,5 @@
 {
-  "version": "1.5.4",
+  "version": "1.5.5",
   "updated": "2026-11-16",
-  "notes": "60-minute idle session so a refresh does not require the password; auto-locks and clears on sign-out."
+  "notes": "Customer folder names in the public repo are now opaque hashes; legacy folders migrate on engineer sign-in."
 }

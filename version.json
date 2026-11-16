@@ -1,5 +1,5 @@
 {
-  "version": "1.6.4",
+  "version": "1.7.1",
   "updated": "2026-11-16",
-  "notes": "Auto-lock/sign-out closes any open dialog."
+  "notes": "Pre-flight import: handles 55.0-style numeric keys and the newer vCenter/NTP/arbiter key layout."
 }

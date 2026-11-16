@@ -371,7 +371,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
 
 <div id="toast"></div>
 
-<script type="text/plain" id="vbsSource">' svt-launcher.vbs - SimpliVity Deploy Kit protocol launcher
+<script type="text/plain" id="vbsSource">' svt-launcher.vbs - Deployment Kit protocol launcher
 ' Registered URL schemes:
 '   svtputty://user@host:port               -> PuTTY
 '   svtwinscp://user:pass@host:port/sftp|scp -> WinSCP
@@ -498,7 +498,7 @@ If Len(exe) = 0 Then
          "Searched this kit folder, its parent folder, %USERPROFILE%\Downloads," & vbCrLf & _
          "C:\Program Files\HPE and C:\Program Files (x86)\HPE." & vbCrLf & vbCrLf & _
          "Drop the portable exe into the kit folder, or set its path in svt-launcher.ini.", _
-         vbExclamation, "SimpliVity Deploy Kit"
+         vbExclamation, "Deployment Kit"
   WScript.Quit 1
 End If
 
@@ -737,16 +737,29 @@ function setPath(o, p, v){
 /* Storage namespace = product ID. Every localStorage key starts with this string, so two
    different framework kits on one machine can never collide. Give each new vendor kit its
    own ID — and never change it for a shipped kit, or its users' saved data is orphaned. */
-const KIT_NS = 'svt';
+const KIT_NS = 'deploy-kit';   // NEVER change: namespaces every saved key
 const LS = {
-  engSv:     KIT_NS + 'Kit.engSettings',  // Setup settings while no scope is open
-  session:   KIT_NS + 'Kit.session',      // 60-minute idle sign-in ticket
-  token:     KIT_NS + 'Kit.ghToken',      // GitHub PAT pasted in Setup (overrides the baked one)
-  dismissed: KIT_NS + 'Kit.dismissedVer', // dismissed update-banner version
-  blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
-  gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
+  engSv:     KIT_NS + '.engSettings',  // Setup settings while no scope is open
+  session:   KIT_NS + '.session',      // 60-minute idle sign-in ticket
+  token:     KIT_NS + '.ghToken',      // GitHub PAT pasted in Setup
+  dismissed: KIT_NS + '.dismissedVer', // dismissed update-banner version
+  blob:      KIT_NS + '.blob.',        // offline cache, one key per path
+  gone:      KIT_NS + '.gone.'         // tombstones, one key per path
 };
-const KIT_VERSION = '1.6.4';
+/* One-time key migration from the old 'svt' namespace. Blobs are not copied:
+   the customer folder salt changed, so old hashed paths are stale; the token
+   lets them re-fetch. */
+function migrateKitKeys(){
+  const pairs = [
+    ['svtKit.ghToken', LS.token],
+    ['svtKit.engSettings', LS.engSv],
+    ['svtKit.session', LS.session]
+  ];
+  for (const [oldK, newK] of pairs){
+    try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
+  }
+}
+const KIT_VERSION = '1.7.1';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -1089,6 +1102,7 @@ function showStorageWarn(){ const w = $('#storageWarn'); if (w) w.hidden = false
 function showSyncWarn(){ const w = $('#syncWarn'); if (w) w.hidden = false; }
 function hideSyncWarn(){ const w = $('#syncWarn'); if (w) w.hidden = true; }
 async function init(){
+  migrateKitKeys();
   store = normalizeStore({});   // empty working set; sign-in flows replace it with a scope
   ui.section = null; ui.tab = 'intro'; ui.custTab = 'picker';
   const restored = await restoreSession();
@@ -1200,7 +1214,8 @@ function hashId(s){
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
 }
-function custDir(cid){ return 'c-' + hashId('svtkit|' + String(cid || '').toLowerCase()); }
+/* NEVER change the 'deploy-kit|' salt: it names every customer folder in the repo. */
+function custDir(cid){ return 'c-' + hashId('deploy-kit|' + String(cid || '').toLowerCase()); }
 function acctPath(cid){ return 'customers/' + custDir(cid) + '/account.enc'; }
 function depPath(cid, did){ return 'customers/' + custDir(cid) + '/deps/' + did + '.enc'; }
 function cacheDrop(path){ try{ localStorage.removeItem(BLOB_PREFIX + path); }catch(e){} }
@@ -1255,7 +1270,7 @@ async function ghPut(path, text, sha){
   const bytes = new TextEncoder().encode(text);
   let bin = '';
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  const body = { message: 'svtkit: update ' + path, content: btoa(bin) };
+  const body = { message: 'deploy-kit: update ' + path, content: btoa(bin) };
   if (sha) body.sha = sha;
   const r = await fetch(GH_CONTENTS + path, { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
   if (!r.ok) ghAuthFail(r);
@@ -1263,7 +1278,7 @@ async function ghPut(path, text, sha){
   return j.content ? j.content.sha : null;
 }
 async function ghDelete(path, sha){
-  const r = await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: delete ' + path) + (sha ? '&sha=' + sha : ''),
+  const r = await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('deploy-kit: delete ' + path) + (sha ? '&sha=' + sha : ''),
     { method: 'DELETE', headers: ghHeaders() });
   if (!r.ok && r.status !== 404) ghAuthFail(r);
 }
@@ -1315,20 +1330,20 @@ async function probeToken(v){
     }
     // permissions.push can reflect the *account*, not the token, so prove a
     // real write with a tiny throwaway file and delete it again.
-    const path = '.svtkit/write-check.txt';
+    const path = '.deploy-kit/write-check.txt';
     const body = new TextEncoder().encode('ok ' + new Date().toISOString());
     let bin = ''; for (let i = 0; i < body.length; i++) bin += String.fromCharCode(body[i]);
     let sha = null;
     try{ const g = await ghGet(path); sha = g ? g.sha : null; }catch(e){}
     const put = await fetch(GH_CONTENTS + path, { method:'PUT',
       headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json', 'Content-Type':'application/json' },
-      body: JSON.stringify(Object.assign({ message:'svtkit: token check', content: btoa(bin) }, sha ? { sha } : {})) });
+      body: JSON.stringify(Object.assign({ message:'deploy-kit: token check', content: btoa(bin) }, sha ? { sha } : {})) });
     if (put.status === 401) return { ok:false, msg:'GitHub rejected the token (401) — it is invalid or expired.' };
     if (put.status === 403) return { ok:false, msg:'Token cannot write to this repo (403) — set Contents: Read and write, then update the token.' };
     if (put.status === 404) return { ok:false, msg:'Token cannot write to this repo (404) — check Repository access and Contents: Read and write.' };
     if (!put.ok) return { ok:false, msg:'GitHub returned ' + put.status + ' while testing a write.' };
     try{
-      await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('svtkit: remove token check'), { method:'DELETE',
+      await fetch(GH_CONTENTS + path + '?message=' + encodeURIComponent('deploy-kit: remove token check'), { method:'DELETE',
         headers:{ Authorization:'Bearer ' + v, Accept:'application/vnd.github+json' } });
     }catch(e){}
     return { ok:true, msg:'Token OK — write to the repo confirmed.' };
@@ -3705,7 +3720,8 @@ function pfSections(m){
   starts.forEach((s, i) => { map[s.n] = { start: s.r, end: i + 1 < starts.length ? starts[i + 1].r - 1 : s.r + 200 }; });
   return map;
 }
-function pfHeader(m, sec, col){ return String(m.row(sec.start + 1)[col] || '').trim(); }
+function pfClean(v){ return String(v == null ? '' : v).trim().replace(/^(\d+)\.0+$/, '$1'); }
+function pfHeader(m, sec, col){ return pfClean(m.row(sec.start + 1)[col]); }
 function pfKeyCols(cols){
   const first = (cols && cols.length) ? pfColIdx(cols[0]) : 10;
   return ['A', 'B', 'C', 'D', 'E', 'F'].filter(c => pfColIdx(c) < first);
@@ -3716,7 +3732,7 @@ function pfVal(m, sec, key, col, keyCols){
   for (let r = sec.start; r <= sec.end; r++){
     const row = m.row(r);
     for (const c of kc){
-      if (String(row[c] || '').trim() === String(key)) return String(row[col] || '').trim();
+      if (pfClean(row[c]) === pfClean(key)) return pfClean(row[col]);
     }
   }
   return '';
@@ -3764,7 +3780,7 @@ function pfParsePrereqs(models){
         let hit = PF_LABELS.find(x => x[1].test(text));
         if (hit){
           for (let j = i + 1; j < cols.length; j++){
-            const v = String(row[cols[j]] || '').trim();
+            const v = pfClean(row[cols[j]]);
             if (v){ pre[hit[0]] = v; break; }
           }
           continue;
@@ -3794,8 +3810,8 @@ function pfOldVals(m, rows, key, cols){
   for (const r of rows){
     const row = m.row(r);
     for (const kc of ['A', 'B', 'C']){
-      if (String(row[kc] || '').trim() === String(key)){
-        return cols.map(c => String(row[c] || '').trim());
+      if (pfClean(row[kc]) === pfClean(key)){
+        return cols.map(c => pfClean(row[c]));
       }
     }
   }
@@ -3887,9 +3903,16 @@ function pfParseDeployment(sheet, m){
     vmk: { ip: g(4, 80, col), subnet: g(4, 81, col), gateway: g(4, 67, col), vlan: g(4, 73, col), mtu: g(4, 63, col), portGroup: h(4, col) }
   }));
   const c0 = nodes[0].col;
-  const vcenter = { hostname: h(7, c0), ip: g(7, 80, c0), datacenter: g(7, 94, c0), env: g(7, 95, c0), version: g(7, 96, c0), ssoUser: g(7, 97, c0) };
-  const arbiter = { hostname: h(8, c0), ip: g(8, 80, c0), domain: g(8, 108, c0), email: g(8, 110, c0) };
-  const ntp = [g(7, 99, c0), g(7, 101, c0), g(7, 103, c0)].filter(Boolean);
+  // Two template revisions: datacenter 93/94, env 94/95, version 95/96, SSO 96/97;
+  // NTP 98/100/102 or 99/101/103; arbiter domain 106 or 108.
+  const vcNew = !!g(7, 93, c0);
+  const vcenter = vcNew
+    ? { hostname: h(7, c0), ip: g(7, 80, c0), datacenter: g(7, 93, c0), env: g(7, 94, c0), version: g(7, 95, c0), ssoUser: g(7, 96, c0) || 'administrator@vsphere.local' }
+    : { hostname: h(7, c0), ip: g(7, 80, c0), datacenter: g(7, 94, c0), env: g(7, 95, c0), version: g(7, 96, c0), ssoUser: g(7, 97, c0) || 'administrator@vsphere.local' };
+  const arbiter = { hostname: h(8, c0), ip: g(8, 80, c0), domain: g(8, 106, c0) || g(8, 108, c0), email: g(8, 110, c0) || g(8, 109, c0) };
+  const ntp = (vcNew
+    ? [g(7, 98, c0), g(7, 100, c0), g(7, 102, c0)]
+    : [g(7, 99, c0), g(7, 101, c0), g(7, 103, c0)]).filter(Boolean);
   const n0 = nodes[0];
   const networks = {
     ilo: { netmask: n0.ilo.subnet, gateway: n0.ilo.gateway, dns1: n0.ilo.dns1, dns2: n0.ilo.dns2, vlan: n0.ilo.vlan },
@@ -4600,7 +4623,7 @@ async function importXmlFile(file){
 function vbsText(){ return $('#vbsSource').textContent; }
 function buildIni(){
   const g = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
-  let out = '; SimpliVity Deploy Kit - svt-launcher.ini\r\n; Paths must point at the installed programs.\r\n';
+  let out = '; Deployment Kit - svt-launcher.ini\r\n; Paths must point at the installed programs.\r\n';
   out += 'putty=' + g('s_putty') + '\r\n';
   out += 'winscp=' + g('s_winscp') + '\r\n';
   out += 'deploy=' + g('s_deploy') + '\r\n';

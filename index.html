@@ -759,7 +759,7 @@ function migrateKitKeys(){
     try{ if (!localStorage.getItem(newK) && localStorage.getItem(oldK)) localStorage.setItem(newK, localStorage.getItem(oldK)); }catch(e){}
   }
 }
-const KIT_VERSION = '1.7.4';
+const KIT_VERSION = '1.7.5';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -4312,7 +4312,7 @@ function render(){
   const picker = section === 'customer' && session.role === 'customer' && ui.custTab === 'picker';
   // Tabs belong to the deployment workbook only - not the landing page, the
   // Customers registry, or the customer's "My deployments" picker.
-  tabs.hidden = !(section && scoped && !picker && ui.tab !== 'customers');
+  tabs.hidden = !(section && ((scoped && !picker && ui.tab !== 'customers') || ui.tab === 'setup'));
   const kind = productKind(cur());
   const nut = kind === 'nutanix';
   const NUT_TABS = ['clusters', 'migration'];
@@ -4321,6 +4321,7 @@ function render(){
     b.classList.toggle('on', b.dataset.tab === ui.tab);
     b.hidden = (b.dataset.tab === 'customers' && section !== 'engineer')
             || (b.dataset.tab === 'advanced' && section === 'customer')
+            || (ui.tab === 'setup' && b.dataset.tab !== 'customers')
             || (!nut && NUT_TABS.indexOf(b.dataset.tab) >= 0)
             || ((nut || kind === 'hardware') && SIMP_TABS.indexOf(b.dataset.tab) >= 0 && !(section === 'customer' && b.dataset.tab === 'details'));
     b.disabled = !!(newMode && !scoped && b.dataset.tab !== 'customers');

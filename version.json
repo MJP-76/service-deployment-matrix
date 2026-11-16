@@ -1,5 +1,5 @@
 {
-  "version": "1.7.4",
+  "version": "1.7.5",
   "updated": "2026-11-16",
-  "notes": "Removed Deployment/Upgrade Manager launch links (paths vary by version)."
+  "notes": "Setup tab bar shows only Home."
 }

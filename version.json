@@ -1,5 +1,5 @@
 {
-  "version": "1.6.0",
+  "version": "1.6.2",
   "updated": "2026-11-16",
-  "notes": "Legacy single-user mode removed (including Save into file handover); multi-customer only."
+  "notes": "Pre-flight import: keys in any left column; Copy diagnostics button."
 }

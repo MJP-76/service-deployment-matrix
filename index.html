@@ -324,6 +324,7 @@ footer{padding:12px 16px;border-top:1px solid var(--line);color:var(--dim);font-
     <div class="err" id="pfErr" hidden></div>
     <div id="pfPreview" hidden></div>
     <div class="row end" style="margin-top:12px">
+      <button id="pfDiag" hidden>Copy diagnostics</button>
       <button id="pfCancel">Cancel</button>
       <button id="pfCreate" class="primary" hidden>Create</button>
     </div>
@@ -745,7 +746,7 @@ const LS = {
   blob:      KIT_NS + 'Kit.blob.',        // offline cache, one key per path
   gone:      KIT_NS + 'Kit.gone.'         // tombstones, one key per path
 };
-const KIT_VERSION = '1.6.0';
+const KIT_VERSION = '1.6.2';
 const KIT_REPO_URL = 'https://github.com/MJP-76/service-deployment-matrix';
 const KIT_VERSION_URL = 'https://raw.githubusercontent.com/MJP-76/service-deployment-matrix/main/version.json';
 const PWD = { customer:'f0b7eeb896cc00fd4f343804fd51cffcf5a867f6005bcd013d11d610f6e0c85e', engineer:'9cd5f1d9b22db2fc6d47f09c9a69492fa0913f12aec23068cf8f40d619aa71ac' };
@@ -3692,7 +3693,7 @@ function pfSections(m){
   for (const r of m.rowNums()){
     const row = m.row(r);
     let mm = null;
-    for (const c of ['A', 'B', 'C']){
+    for (const c of ['A', 'B', 'C', 'D', 'E', 'F']){
       mm = /^Section\s+(\d+)/i.exec(String(row[c] || '').trim());
       if (mm) break;
     }
@@ -3704,12 +3705,17 @@ function pfSections(m){
   return map;
 }
 function pfHeader(m, sec, col){ return String(m.row(sec.start + 1)[col] || '').trim(); }
-function pfVal(m, sec, key, col){
+function pfKeyCols(cols){
+  const first = (cols && cols.length) ? pfColIdx(cols[0]) : 10;
+  return ['A', 'B', 'C', 'D', 'E', 'F'].filter(c => pfColIdx(c) < first);
+}
+function pfVal(m, sec, key, col, keyCols){
   if (!sec) return '';
+  const kc = keyCols && keyCols.length ? keyCols : ['A', 'B', 'C'];
   for (let r = sec.start; r <= sec.end; r++){
     const row = m.row(r);
-    if (String(row.A || '').trim() === String(key) || String(row.B || '').trim() === String(key)){
-      return String(row[col] || '').trim();
+    for (const c of kc){
+      if (String(row[c] || '').trim() === String(key)) return String(row[col] || '').trim();
     }
   }
   return '';
@@ -3786,8 +3792,10 @@ function pfRange(a, b){ const out = []; if (a == null) return out; for (let r = 
 function pfOldVals(m, rows, key, cols){
   for (const r of rows){
     const row = m.row(r);
-    if (String(row.A || '').trim() === String(key) || String(row.B || '').trim() === String(key)){
-      return cols.map(c => String(row[c] || '').trim());
+    for (const kc of ['A', 'B', 'C']){
+      if (String(row[kc] || '').trim() === String(key)){
+        return cols.map(c => String(row[c] || '').trim());
+      }
     }
   }
   return cols.map(() => '');
@@ -3795,7 +3803,7 @@ function pfOldVals(m, rows, key, cols){
 function pfOldNodeCols(m){
   for (const r of m.rowNums()){
     const row = m.row(r);
-    if (String(row.A || '').trim() === '42' || String(row.B || '').trim() === '42'){
+    if (String(row.A || '').trim() === '42' || String(row.B || '').trim() === '42' || String(row.C || '').trim() === '42'){
       const cols = Object.keys(row).filter(c => ['A', 'B', 'C'].indexOf(c) < 0 && String(row[c] || '').trim() !== '').sort((a, b) => pfColIdx(a) - pfColIdx(b));
       if (cols.length) return cols;
     }
@@ -3866,7 +3874,8 @@ function pfParseDeployment(sheet, m){
   if (!secs[1]) return null;
   const cols = pfNodeCols(m, secs[1]);
   if (!cols.length) return null;
-  const g = (n, k, c) => pfVal(m, secs[n], k, c);
+  const keyCols = pfKeyCols(cols);
+  const g = (n, k, c) => pfVal(m, secs[n], k, c, keyCols);
   const h = (n, c) => pfHeader(m, secs[n], c);
   const nodes = cols.map(col => ({
     col,
@@ -3973,6 +3982,27 @@ function pfBuildDep(p, pre, includeCreds){
   return dep;
 }
 let pfState = null;
+let pfModels = null;
+function pfDiagnostics(){
+  if (!pfModels) return '{}';
+  const out = { sheets: Object.keys(pfModels), layouts: {} };
+  for (const name of Object.keys(pfModels)){
+    const m = pfModels[name];
+    const rows = [];
+    for (const r of m.rowNums().slice(0, 40)){
+      const row = m.row(r);
+      const o = { r: r };
+      let any = false;
+      for (const c of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']){
+        const v = row[c];
+        if (v != null && String(v).trim() !== ''){ o[c] = String(v).slice(0, 60); any = true; }
+      }
+      if (any) rows.push(o);
+    }
+    out.layouts[name] = { sections: pfSections(m), rows: rows };
+  }
+  return JSON.stringify(out, null, 1);
+}
 function pfErr(msg){
   const el = $('#pfErr');
   el.hidden = false; el.textContent = msg;
@@ -3984,12 +4014,13 @@ function pfToggleNewPartner(){
   if (row.hidden && inp) inp.value = '';
 }
 function openPreflight(partnerId){
-  pfState = null;
+  pfState = null; pfModels = null;
   $('#pfFile').value = '';
   $('#pfErr').hidden = true;
   $('#pfPreview').hidden = true;
   $('#pfPreview').innerHTML = '';
   $('#pfCreate').hidden = true;
+  $('#pfDiag').hidden = true;
   $('#pfModal').hidden = false;
   $('#pfModal').dataset.partner = partnerId || '';
 }
@@ -4918,13 +4949,27 @@ function wire(){
     if (!f) return;
     $('#pfErr').hidden = true;
     try{
-      const models = await pfReadWorkbook(f);
-      pfShowPreview(pfParseWorkbook(models));
-    }catch(err){ pfErr(err && err.message ? err.message : 'Could not read that workbook'); }
+      pfModels = await pfReadWorkbook(f);
+      $('#pfDiag').hidden = false;
+      pfShowPreview(pfParseWorkbook(pfModels));
+    }catch(err){
+      pfErr(err && err.message ? err.message : 'Could not read that workbook');
+      $('#pfDiag').hidden = false;
+    }
   });
   $('#pfCancel').addEventListener('click', () => { $('#pfModal').hidden = true; });
   $('#pfCreate').addEventListener('click', () => pfCommit().catch(err => pfErr(err && err.message ? err.message : String(err))));
   $('#pfPreview').addEventListener('change', e => { if (e.target.id === 'pfPartner') pfToggleNewPartner(); });
+  $('#pfDiag').addEventListener('click', async () => {
+    const txt = pfDiagnostics();
+    try{ await navigator.clipboard.writeText(txt); toast('Diagnostics copied to the clipboard'); }
+    catch(e){
+      const box = document.getElementById('pfPreview');
+      box.hidden = false;
+      box.innerHTML += '<pre class="mono" style="white-space:pre-wrap;font-size:11px;max-height:320px;overflow:auto">' + esc(txt) + '</pre>';
+      toast('Select and copy the diagnostics below');
+    }
+  });
   $('#unlockPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryPassword(); });
   $('#xmlFile').addEventListener('change', async e => {
     const f = e.target.files && e.target.files[0];
